@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo -n "Configure ..."
+type pandoc > /dev/null && echo DONE
