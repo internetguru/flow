@@ -28,7 +28,9 @@ BINPATH     := $(DESTDIR)$(EXEC_PREFIX)/bin
 SHAREPATH   := $(DESTPATH)/share
 DATAPATH    := $(SHAREPATH)/$(GF)
 MANPATH     := $(SHAREPATH)/man/man1
-DISTNAME    := $(GF)-$$(cat $(VERFILE))-$(SYSTEM)
+GCB         := $$(git rev-parse --abbrev-ref HEAD)
+NOTMASTER   := $$([[ $(GCB) != master ]] && echo -$(GCB))
+DISTNAME    := $(GF)-$$(cat $(VERFILE))$(NOTMASTER)-$(SYSTEM)
 INSTFILE    := install
 UNINSTFILE  := uninstall
 
