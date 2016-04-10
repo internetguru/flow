@@ -17,7 +17,7 @@ function main {
 
   # defaults and constants
   local line script_name
-  script_name="git_flow"
+  script_name="gf"
 
   function git_status_empty {
     [[ -z "$(git status --porcelain)" ]] && return 0
