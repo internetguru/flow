@@ -20,8 +20,9 @@ MAN_FILE    := $(GF).1
 HELP_FILE   := $(GF).help
 DESTPATH    := $(DESTDIR)$(PREFIX)
 BINPATH     := $(DESTPATH)/bin
-DATAPATH    := $(DESTPATH)/share/$(GF)
-MANPATH     := $(DATAPATH)/man/man1
+SHAREPATH   := $(DESTPATH)/share
+DATAPATH    := $(SHAREPATH)/$(GF)
+MANPATH     := $(SHAREPATH)/man/man1
 
 #-------------------------------------------------------------------------------
 # Recipes
