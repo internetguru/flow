@@ -5,19 +5,20 @@
 
 function main {
 
+  # defaults and constants
+  local line script_name data_path
+  script_name="gf"
+  data_path="/usr/local/share/$script_name"
+
   # process options
   if ! line=$(
     getopt -n "$0" \
-           -o i,h\? \
-           -l init,help\
+           -o ivh\? \
+           -l init,version,help\
            -- "$@"
   )
   then return 1; fi
   eval set -- "$line"
-
-  # defaults and constants
-  local line script_name
-  script_name="gf"
 
   function git_status_empty {
     [[ -z "$(git status --porcelain)" ]] && return 0
@@ -70,7 +71,7 @@ function main {
   #   - update version history
   #   - merge dev branch with feature
   #   - prompt to delete branch
-  function git_flow {
+  function gf {
 
     git_repo_exists || return 1
 
@@ -112,9 +113,9 @@ function main {
         # write header to $CHANGELOG
         header="${major}.${minor} | $(date "+%Y-%m-%d")"
         printf '\n%s\n\n%s\n' "$header" "$(<$CHANGELOG)" > $CHANGELOG
-        # commit $CHANGELOG and run git_flow on new branch
+        # commit $CHANGELOG and run gf on new branch
         git commit -am $branch \
-          && git_flow \
+          && gf \
           && git checkout $branch
         ;;
 
@@ -170,10 +171,10 @@ function main {
     esac
   }
 
-  # Prepare enviroment for git_flow:
+  # Prepare enviroment for gf:
   # - create $VERSION and $CHANGELOG file
   # - create dev branch (from master)
-  function git_flow_init {
+  function gf_init {
     local commit checkout_master
     checkout_master=true
     # init git repo
@@ -203,27 +204,34 @@ function main {
     git checkout dev
   }
 
-  function git_flow_help {
+  function gf_help {
     local help_file bwhite nc
     nc=$'\e[m'
     bwhite=$'\e[1;37m'
-    help_file="/usr/local/share/$script_name/${script_name}.help"
+    help_file="$data_path/${script_name}.help"
     [ -f $help_file ] || err "Help file not found" || return 1
     cat $help_file | fmt -w $(tput cols) \
     | sed "s/\(^\| \)\(--\?[a-zA-Z]\+\|$script_name\|^[A-Z].\+\)/\1\\$bwhite\2\\$nc/g"
   }
 
+  function gf_version {
+    [ -f "$data_path/VERSION" ] || err "Version file not found" || return 1
+    echo -n "GNU gf "
+    cat "$data_path/VERSION"
+  }
+
   # load user options
   while [ $# -gt 0 ]; do
     case $1 in
-     -i|--init) git_flow_init; return $? ;;
-     -h|-\?|--help) git_flow_help; return $? ;;
+     -i|--init) gf_init; return $? ;;
+     -v|--version) gf_version; return $? ;;
+     -h|-\?|--help) gf_help; return $? ;;
       --) shift; break ;;
       *-) echo "$0: Unrecognized option '$1'" >&2; return 1 ;;
        *) break ;;
     esac
   done
-  git_flow
+  gf
 
 }
 

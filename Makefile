@@ -3,11 +3,13 @@
 #-------------------------------------------------------------------------------
 
 # Specify default values.
-prefix    := /usr/local
-destdir   :=
+prefix      := /usr/local
+exec_prefix := $(prefix)
+destdir     :=
 # Fallback to defaults but allow to get the values from environment.
-PREFIX    ?= $(prefix)
-DESTDIR   ?= $(destdir)
+PREFIX      ?= $(prefix)
+EXEC_PREFIX ?= $(exec_prefix)
+DESTDIR     ?= $(destdir)
 
 #-------------------------------------------------------------------------------
 # Installation paths
@@ -18,8 +20,9 @@ GF          := gf
 MD_FILE     := $(GF).md
 MAN_FILE    := $(GF).1
 HELP_FILE   := $(GF).help
+VER_FILE    := VERSION
 DESTPATH    := $(DESTDIR)$(PREFIX)
-BINPATH     := $(DESTPATH)/bin
+BINPATH     := $(DESTDIR)$(EXEC_PREFIX)/bin
 SHAREPATH   := $(DESTPATH)/share
 DATAPATH    := $(SHAREPATH)/$(GF)
 MANPATH     := $(SHAREPATH)/man/man1
@@ -28,13 +31,18 @@ MANPATH     := $(SHAREPATH)/man/man1
 # Recipes
 #-------------------------------------------------------------------------------
 
-default:
+all:
 	@ echo -n "Creating man file ..."
-	@ $(PANDOC) -s -t man $(MD_FILE) -o $(MAN_FILE)
+	@ { \
+	echo -n "% GF(1) User Manual | Version "; cat VERSION; \
+	echo -n "% "; cat AUTHORS; echo; \
+	echo -n "% "; stat -c %z gf.md | cut -d" " -f1; \
+	echo; cat $(MD_FILE); \
+	} | $(PANDOC) -s -t man -o $(MAN_FILE)
 	@ echo DONE
 	@ echo -n "Creating help file ..."
-	@ sed -n '/# SYNOPSIS/,/# INTRODUCTION/p;/# REFE/,//p' $(MD_FILE) | grep -v "# INTRODUCTION" \
-	| sed "s/\*\*//g;s/^:   /       /;s/^[^#]/       \0/;s/^# //;s/\[\(.\+\)(\([0-9]\+\))\](\(.\+\))/(\2) \1\n              \3/;s/,$$/,\n/" > $(HELP_FILE)
+	@ sed -n '/# SYNOPSIS/,/# INTRODUCTION/p;/# REFERENCES/,//p' $(MD_FILE) | grep -v "# INTRODUCTION" \
+	| sed "s/\*\*//g;s/^:   /       /;s/^[^#]/       \0/;s/^# //;s/\[\(.\+\)(\([0-9]\+\))\](\(.\+\))/(\2) \1\n              \3/" > $(HELP_FILE)
 	@ echo -e "\nOTHER\n\n       See man $(GF) for more information." >> $(HELP_FILE)
 	@ echo DONE
 
@@ -51,6 +59,7 @@ install:
 	@ echo -n "Create shared folder ..."
 	@ [ -d $(DATAPATH) ] || mkdir -p $(DATAPATH)
 	@ cp $(HELP_FILE) $(DATAPATH)
+	@ cp $(VER_FILE) $(DATAPATH)
 	@ echo DONE
 
 uninstall:

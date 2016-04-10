@@ -1,23 +1,21 @@
-% GF(1) gf user manual
-% Pavel Petržela <pavel@petrzela.eu>
-  Jiří Pavelka <j.pavelka@seznam.cz>
-% April 2016
-
 # NAME
 
 gf
 
 # SYNOPSIS
 
-gf [-ih]
+gf [-ivh]
 
 # DESCRIPTION
 
 **gf** implements **git flow model**(1) similarly to **git-flow command**(2) with following improvements:
 
 * even simpler usage (with no parameters),
+
 * automatic version number incrementation (file VERSION),
+
 * automatic version history update (file CHANGELOG),
+
 * independent production branches support.
 
 # OPTIONS
@@ -25,8 +23,11 @@ gf [-ih]
 -i, --init
 :   Initialize current folder to be compatible with git flow model.
 
+-v, --version
+:   Print version number.
+
 -h, --help
-:   Show (this) usage.
+:   Print help.
 
 # INTRODUCTION
 
@@ -96,3 +97,13 @@ release-#.#
 [**git flow model**(1)](http://nvie.com/posts/a-successful-git-branching-model/)
 
 [**git-flow cheatsheet**(2)](http://danielkummer.github.io/git-flow-cheatsheet/)
+
+# COPYRIGHT
+
+* Copyright (C) 2016 Czech Technical University in Prague
+
+* License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+
+* This is free software: you are free to change and redistribute it.
+
+* There is NO WARRANTY, to the extent permitted by law.
