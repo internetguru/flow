@@ -94,9 +94,16 @@ release-#.#
 
 # INSTALL
 
-* For install run ``./install``
+From dist package
+: 1. ``tar xzf package_name.tar.gz``
+2. ``cd package_name``
+3. run ``./install`` eventually ``./uninstall``
 
-* For unistall run ``./uninstall``
+From source
+: 1. ``git clone git@bitbucket.org:igwr/gf.git``
+2. ``cd gf``
+3. ``./configure && make && make installers``
+4. run ``./install`` eventually ``./uninstall``
 
 # HISTORY
 
