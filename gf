@@ -2,13 +2,14 @@
 
 : ${CHANGELOG:=CHANGELOG}
 : ${VERSION:=VERSION}
+: ${SHAREPATH:=/usr/local/share}
 
 function main {
 
   # defaults and constants
   local line script_name data_path
   script_name="gf"
-  data_path="/usr/local/share/$script_name"
+  data_path="$SHAREPATH/$script_name"
 
   # process options
   if ! line=$(
@@ -222,7 +223,7 @@ function main {
 
   # load user options
   while [ $# -gt 0 ]; do
-    case $1 in
+      case $1 in
      -i|--init) gf_init; return $? ;;
      -v|--version) gf_version; return $? ;;
      -h|-\?|--help) gf_help; return $? ;;
