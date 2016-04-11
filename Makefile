@@ -80,12 +80,6 @@ installers:
 	} > $(local_prefix)$(UNINSTFILE)
 	@ chmod +x $(local_prefix)$(UNINSTFILE)
 
-clean:
-	@ echo -n "Remove compiled files ..."
-	@ rm "$(MANFILE)" 2>/dev/null || true
-	@ rm "$(HELPFILE)" 2>/dev/null || true
-	@ echo DONE
-
 distfolder:
 	@ [ -d $(DISTNAME) ] && echo "Distribution folder $(DISTNAME) already exists" && exit 1 || true
 	@ mkdir -p $(DISTNAME)
