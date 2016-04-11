@@ -1,4 +1,8 @@
 #!/bin/bash
 
-echo -n "Configure ..."
-type pandoc > /dev/null && echo DONE
+for cmd in pandoc make; do
+  type $cmd > /dev/null 2>&1 && continue
+  echo "Command $cmd not found." >&2
+  exit 1
+done
+echo "Configuration successful."
