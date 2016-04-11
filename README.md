@@ -97,13 +97,13 @@ release-#.#
 From dist package
 : 1. ``tar xzf package_name.tar.gz``
 2. ``cd package_name``
-3. run ``./install`` eventually ``./uninstall``
+3. ``./install``, resp. ``./uninstall``
 
 From source
 : 1. ``git clone git@bitbucket.org:igwr/gf.git``
 2. ``cd gf``
-3. ``./configure && make && make installers``
-4. run ``./install`` eventually ``./uninstall``
+3. ``./configure && make``
+4. ``compile/install``, resp. ``compile/uninstall``
 
 # HISTORY
 
