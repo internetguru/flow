@@ -52,7 +52,7 @@ compile:
 	@ echo DONE
 	@ echo -n "Creating help file ..."
 	@ sed -n '/# SYNOPSIS/,/# DESCRIPTION/p;/# OPTIONS/,/# INTRODUCTION/p;/# REPORTING BUGS/,//p' README.md  | grep -v "# DESCRIPTION\|# INTRODUCTION" \
-	| sed "s/\*\*//g;s/^: \+/       /;s/^[^#]/       \0/;s/^# //;s/\[\(.\+\)(\([0-9]\+\))\](\(.\+\))/(\2) \1\n              \3/;s/\[\(.\+\)\](\(.\+\))/\1\n              \2/" > $(HELPFILE)
+	| sed "s/\*\*//g;s/^: \+/       /;s/^[^#]/       \0/;s/^# //;s/\[\(.\+\)(\([0-9]\+\))\](\(.\+\))/(\2) \1\n              \3/;s/\[\(.\+\)\](\(.\+\))/\1\n              \2/" > $(local_prefix)$(HELPFILE)
 	@ echo -e "\nOTHER\n\n       See man $(GF) for more information." >> $(local_prefix)$(HELPFILE)
 	@ echo DONE
 
