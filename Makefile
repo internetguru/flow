@@ -59,7 +59,7 @@ compile:
 installers:
 	@ { \
 	echo "#!/bin/bash"; \
-	echo "env SHAREPATH=$(SHAREPATH) $(DATAPATH)/$(GF) \"\$$@\" "; \
+	echo "$(DATAPATH)/$(GF) \"\$$@\" "; \
 	} > $(local_prefix)$(GFWRAPPER)
 	@ chmod +x $(local_prefix)$(GFWRAPPER)
 	@ { \

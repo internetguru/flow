@@ -2,14 +2,12 @@
 
 : ${CHANGELOG:=CHANGELOG}
 : ${VERSION:=VERSION}
-: ${SHAREPATH:=/usr/local/share}
 
 function main {
 
   # defaults and constants
-  local line script_name data_path
+  local line script_name
   script_name="gf"
-  data_path="$SHAREPATH/$script_name"
 
   # process options
   if ! line=$(
@@ -209,16 +207,16 @@ function main {
     local help_file bwhite nc
     nc=$'\e[m'
     bwhite=$'\e[1;37m'
-    help_file="$data_path/${script_name}.help"
+    help_file="${script_name}.help"
     [ -f $help_file ] || err "Help file not found" || return 1
     cat $help_file | fmt -w $(tput cols) \
     | sed "s/\(^\| \)\(--\?[a-zA-Z]\+\|$script_name\|^[A-Z].\+\)/\1\\$bwhite\2\\$nc/g"
   }
 
   function gf_version {
-    [ -f "$data_path/VERSION" ] || err "Version file not found" || return 1
+    [ -f "VERSION" ] || err "Version file not found" || return 1
     echo -n "GNU gf "
-    cat "$data_path/VERSION"
+    cat "VERSION"
   }
 
   # load user options
