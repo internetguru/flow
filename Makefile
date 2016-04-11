@@ -3,15 +3,15 @@
 #-------------------------------------------------------------------------------
 
 # Specify default values.
-prefix      := /usr/local
-exec_prefix := $(prefix)
-destdir     :=
-system      := cygwin
+prefix       := /usr/local
+exec_prefix  := $(prefix)
+destdir      :=
+system       := cygwin
 # Fallback to defaults but allow to get the values from environment.
-PREFIX      ?= $(prefix)
-EXEC_PREFIX ?= $(exec_prefix)
-DESTDIR     ?= $(destdir)
-SYSTEM      ?= $(system)
+PREFIX       ?= $(prefix)
+EXEC_PREFIX  ?= $(exec_prefix)
+DESTDIR      ?= $(destdir)
+SYSTEM       ?= $(system)
 
 #-------------------------------------------------------------------------------
 # Installation paths
@@ -19,8 +19,7 @@ SYSTEM      ?= $(system)
 
 PANDOC      := pandoc
 GF          := gf
-GFWRAPPER   := _gf
-MDFILE      := README.md
+README      := README
 MANFILE     := $(GF).1
 HELPFILE    := $(GF).help
 VERFILE     := VERSION
@@ -31,8 +30,8 @@ SHAREPATH   := $(DESTPATH)/share
 DATAPATH    := $(SHAREPATH)/$(GF)
 MANPATH     := $(SHAREPATH)/man/man1
 GCB         := $$(git rev-parse --abbrev-ref HEAD)
-NOTMASTER   := $$([[ $(GCB) != master ]] && echo -$(GCB))
-DISTNAME    := $(GF)-$$(cat $(VERFILE))$(NOTMASTER)-$(SYSTEM)
+NOMASTER    := $$([[ $(GCB) != master ]] && echo -$(GCB))
+DISTNAME    := compile
 INSTFILE    := install
 UNINSTFILE  := uninstall
 
@@ -40,52 +39,68 @@ UNINSTFILE  := uninstall
 # Recipes
 #-------------------------------------------------------------------------------
 
-compile:
-	@ echo -n "Creating man file ..."
+all:
+
+	@ rm -rf $(DISTNAME) 2>/dev/null || true
+	@ mkdir -p $(DISTNAME)
+	@ cp $(VERFILE) $(CHLOGFILE) $(DISTNAME)
+
+	@ echo -n "Compiling command file ..."
+	@ { \
+	head -n1 $(GF); \
+	echo "DATAPATH=\"$(DATAPATH)\""; \
+	tail -n+2 $(GF); \
+	} > $(DISTNAME)/$(GF)
+	@ echo DONE
+
+	@ echo -n "Compiling man file ..."
 	@ { \
 	echo -n "% GF(1) User Manual | Version "; cat VERSION; \
 	echo -n "% "; cat AUTHORS; echo; \
-	echo -n "% "; stat -c %z $(MDFILE) | cut -d" " -f1; \
+	echo -n "% "; stat -c %z $(README).md | cut -d" " -f1; \
 	echo; \
-	sed -n '/# NAME/,/# INSTALL/p;/# REFERENCES/,//p' $(MDFILE) | grep -v "# INSTALL"; \
-	} | $(PANDOC) -s -t man -o $(local_prefix)$(MANFILE)
-	@ echo DONE
-	@ echo -n "Creating help file ..."
-	@ sed -n '/# SYNOPSIS/,/# DESCRIPTION/p;/# OPTIONS/,/# INTRODUCTION/p;/# REPORTING BUGS/,//p' README.md  | grep -v "# DESCRIPTION\|# INTRODUCTION" \
-	| sed "s/\*\*//g;s/^: \+/       /;s/^[^#]/       \0/;s/^# //;s/\[\(.\+\)(\([0-9]\+\))\](\(.\+\))/(\2) \1\n              \3/;s/\[\(.\+\)\](\(.\+\))/\1\n              \2/" > $(local_prefix)$(HELPFILE)
-	@ echo -e "\nOTHER\n\n       See man $(GF) for more information." >> $(local_prefix)$(HELPFILE)
+	sed -n '/# NAME/,/# INSTALL/p;/# EXIT STATUS/,//p' $(README).md | grep -v "# INSTALL"; \
+	} | $(PANDOC) -s -t man -o $(DISTNAME)/$(MANFILE)
 	@ echo DONE
 
-installers:
+	@ echo -n "Compiling readme file ..."
+	@ $(PANDOC) -s -t rst $(README).md -o $(DISTNAME)/$(README).rst
+	@ echo DONE
+
+	@ echo -n "Compiling help file ..."
+	@ sed -n '/# SYNOPSIS/,/# DESCRIPTION/p;/# OPTIONS/,/# INTRODUCTION/p;/# REPORTING BUGS/,//p' $(README).md  | grep -v "# DESCRIPTION\|# INTRODUCTION" \
+	| sed "s/\*\*//g;s/^: \+/       /;s/^[^#]/       \0/;s/^# //;s/\[\(.\+\)(\([0-9]\+\))\](\(.\+\))/(\2) \1\n              \3/;s/\[\(.\+\)\](\(.\+\))/\1\n              \2/" > $(DISTNAME)/$(HELPFILE)
+	@ echo -e "\nOTHER\n\n       See man $(GF) for more information." >> $(DISTNAME)/$(HELPFILE)
+	@ echo DONE
+
+	@ echo -n "Compiling install file ..."
 	@ { \
 	echo "#!/bin/bash"; \
-	echo "$(DATAPATH)/$(GF) \"\$$@\" "; \
-	} > $(local_prefix)$(GFWRAPPER)
-	@ chmod +x $(local_prefix)$(GFWRAPPER)
-	@ { \
-	echo "#!/bin/bash"; \
-	echo "cp $(MANFILE) $(MANPATH) \\"; \
-	echo "&& cp $(GFWRAPPER) $(BINPATH)/$(GF) \\"; \
+	echo "dir=\"\$$(dirname \"\$$0\")\""; \
+	echo "mkdir -p $(MANPATH) \\"; \
+	echo "&& cp \"\$$dir/$(MANFILE)\" $(MANPATH) \\"; \
+	echo "&& mkdir -p $(BINPATH) \\"; \
+	echo "&& cp \"\$$dir/$(GF)\" $(BINPATH) \\"; \
 	echo "&& mkdir -p $(DATAPATH) \\"; \
-	echo "&& cp $(HELPFILE) $(VERFILE) $(GF) $(DATAPATH) \\"; \
+	echo "&& cp \"\$$dir/$(HELPFILE)\" \"\$$dir/$(VERFILE)\" $(DATAPATH) \\"; \
 	echo "&& echo 'Installation completed.'"; \
-	} > $(local_prefix)$(INSTFILE)
-	@ chmod +x $(local_prefix)$(INSTFILE)
+	} > $(DISTNAME)/$(INSTFILE)
+	@ chmod +x $(DISTNAME)/$(INSTFILE)
+	@ echo DONE
+
+	@ echo -n "Compiling uninstall file ..."
 	@ { \
 	echo "#!/bin/bash"; \
-	echo "rm $(MANPATH)/$(MANFILE) \\"; \
-	echo "&& rm $(BINPATH)/$(GF) \\"; \
-	echo "&& rm -rf $(DATAPATH) \\"; \
+	echo "rm \"$(MANPATH)/$(MANFILE)\" \\"; \
+	echo "&& rm \"$(BINPATH)/$(GF)\" \\"; \
+	echo "&& rm -rf \"$(DATAPATH)\" \\"; \
 	echo "&& echo 'Uninstallation completed.'"; \
-	} > $(local_prefix)$(UNINSTFILE)
-	@ chmod +x $(local_prefix)$(UNINSTFILE)
+	} > $(DISTNAME)/$(UNINSTFILE)
+	@ chmod +x $(DISTNAME)/$(UNINSTFILE)
+	@ echo DONE
 
-distfolder:
-	@ [ -d $(DISTNAME) ] && echo "Distribution folder $(DISTNAME) already exists" && exit 1 || true
-	@ mkdir -p $(DISTNAME)
-
-dist: local_prefix=$(DISTNAME)/
-dist: distfolder compile installers
-	@ cp $(GF) $(VERFILE) $(CHLOGFILE) $(MDFILE) $(DISTNAME)
+dist: DISTNAME=$(GF)-$$(cat $(VERFILE))$(NOMASTER)-$(SYSTEM)
+dist: all
 	@ tar czf $(DISTNAME).tar.gz $(DISTNAME)
 	@ rm -rf $(DISTNAME)
+	@ echo "Distribution build, see 'tar tvzf $(DISTNAME).tar.gz"

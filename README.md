@@ -113,6 +113,17 @@ Actual version
 Actual change log
 : file CHANGELOG
 
+# EXIT STATUS
+
+0
+: No problems occurred.
+
+1
+: Generic error code.
+
+2
+: Init check failed; initialize gf may help.
+
 # SEE ALSO
 
 [**git flow model**(1)](http://nvie.com/posts/a-successful-git-branching-model/)

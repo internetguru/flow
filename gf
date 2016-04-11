@@ -1,5 +1,6 @@
 #!/bin/bash
 
+: ${DATAPATH:=.}
 : ${CHANGELOG:=CHANGELOG}
 : ${VERSION:=VERSION}
 
@@ -44,7 +45,7 @@ function main {
   }
 
   function err {
-    echo "${0}[error]: $@" >&2
+    echo "$(basename "${0}")[error]: $@" >&2
     return 1
   }
 
@@ -72,21 +73,25 @@ function main {
   #   - prompt to delete branch
   function gf {
 
-    git_repo_exists || return 1
+    # init check
+    git_repo_exists || return 2
+    git_branch_exists dev || return 2
+    git_branch_exists master || return 2
+    git_status_empty || return 2
+    [ -f "$VERSION" && -f "$CHANGELOG" ] \
+      || err "Missing working files" \
+      || return 2
 
+    # set variables
     local curbranch major minor patch tag master oIFS
-
-    curbranch=$(git rev-parse --abbrev-ref HEAD) || return 1
-    git_status_empty || return 1
-
-    # read version
     oIFS=$IFS
     IFS=.
     read major minor patch < "$VERSION"
     IFS=$oIFS
-
+    curbranch=$(git rev-parse --abbrev-ref HEAD)
     master=${major}.$minor
 
+    # proceed
     case ${curbranch%-*} in
 
       dev|master|$master)
@@ -104,14 +109,14 @@ function main {
         # checkout failed
         [[ $code != 0 ]] && return 1
         # update version
-        echo ${major}.${minor}.$patch > $VERSION
+        echo ${major}.${minor}.$patch > "$VERSION"
         # commit changed $VERSION
         [[ $curbranch != dev ]] \
           && git commit -am $branch \
           && return 1
         # write header to $CHANGELOG
         header="${major}.${minor} | $(date "+%Y-%m-%d")"
-        printf '\n%s\n\n%s\n' "$header" "$(<$CHANGELOG)" > $CHANGELOG
+        printf '\n%s\n\n%s\n' "$header" "$(<$CHANGELOG)" > "$CHANGELOG"
         # commit $CHANGELOG and run gf on new branch
         git commit -am $branch \
           && gf \
@@ -172,51 +177,40 @@ function main {
 
   # Prepare enviroment for gf:
   # - create $VERSION and $CHANGELOG file
-  # - create dev branch (from master)
+  # - create dev branch
   function gf_init {
-    local commit checkout_master
-    checkout_master=true
     # init git repo
-    git_repo_exists 2>/dev/null || { git init; checkout_master=false; }
-    git_status_empty 2>/dev/null || return 1
-    commit=false
-    # checkout to master if it isn't new pository
-    $checkout_master \
-      && { git checkout master 2>/dev/null \
-      || { echo "Branch master not found"; return 1; }; }
+    git_repo_exists 2>/dev/null || { git init || return 1; }
+    git_status_empty || return 1
+    git_branch_exists master || return 1
     # create $VERSION file
-    [[ ! -f $VERSION ]] \
-      && echo 0.0.0 > $VERSION \
+    [[ ! -f "$VERSION" ]] \
+      && echo 0.0.0 > "$VERSION" \
       && echo "version file $VERSION created" \
-      && commit=true
     # create $CHANGELOG file
-    [[ ! -f $CHANGELOG ]] \
-      && touch $CHANGELOG \
+    [[ ! -f "$CHANGELOG" ]] \
+      && touch "$CHANGELOG" \
       && echo "changelog file $CHANGELOG created" \
-      && commit=true
-    # commit changes
-    $commit \
-      && git add -A \
-      && git commit -am "init git flow"
-    # create dev branch
+    # create and checkout dev branch
     git_branch_exists dev 2>/dev/null || git branch dev
-    git checkout dev
   }
 
   function gf_help {
     local help_file bwhite nc
     nc=$'\e[m'
     bwhite=$'\e[1;37m'
-    help_file="${script_name}.help"
-    [ -f $help_file ] || err "Help file not found" || return 1
-    cat $help_file | fmt -w $(tput cols) \
+    help_file="$DATAPATH/${script_name}.help"
+    [ -f "$help_file" ] || err "Help file not found" || return 1
+    cat "$help_file" | fmt -w $(tput cols) \
     | sed "s/\(^\| \)\(--\?[a-zA-Z]\+\|$script_name\|^[A-Z].\+\)/\1\\$bwhite\2\\$nc/g"
   }
 
   function gf_version {
-    [ -f "VERSION" ] || err "Version file not found" || return 1
+    local version
+    version="$DATAPATH/VERSION"
+    [ -f "$version" ] || err "Version file not found" || return 1
     echo -n "GNU gf "
-    cat "VERSION"
+    cat "$version"
   }
 
   # load user options
@@ -230,6 +224,8 @@ function main {
        *) break ;;
     esac
   done
+
+  # run gf
   gf
 
 }
