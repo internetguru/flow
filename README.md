@@ -59,38 +59,38 @@ release-#.#
 
 ## Init new repository
 
-#. ``cd project_folder``
-#. ``gf --init``
+1. ``cd project_folder``
+2. ``gf --init``
 
 ## New feature
 
-#. ``git checkout dev``
-#. ``git checkout -b feature_name``
-#. … some commits …
-#. ``gf``
+1. ``git checkout dev``
+2. ``git checkout -b feature_name``
+3. … some commits …
+4. ``gf``
 
 ## Hotfix
 
-#. ``git checkout master``
-#. ``gf``
-#. … fixes followed by commits …
-#. ``gf``
+1. ``git checkout master``
+2. ``gf``
+3. … fixes followed by commits …
+4. ``gf``
 
 ## New release
 
-#. ``git checkout dev``
-#. ``gf``
+1. ``git checkout dev``
+2. ``gf``
 
 ## Bugfix on release
 
-#. ``git checkout release-#.#``
-#. … fixes followed by commits …
-#. ``gf `` (merge only to dev)
+1. ``git checkout release-#.#``
+2. … fixes followed by commits …
+3. ``gf `` (merge only to dev)
 
 ## Release to production
 
-#. ``git checkout release-#.#``
-#. ``gf``
+1. ``git checkout release-#.#``
+2. ``gf``
 
 # INSTALL
 
@@ -100,7 +100,7 @@ release-#.#
 
 # HISTORY
 
-Actual project version
+Actual version
 : file VERSION
 
 Actual change log
