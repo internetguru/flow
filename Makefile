@@ -19,10 +19,12 @@ SYSTEM      ?= $(system)
 
 PANDOC      := pandoc
 GF          := gf
-MDFILE      := $(GF).md
+GFWRAPPER   := _gf
+MDFILE      := README.md
 MANFILE     := $(GF).1
 HELPFILE    := $(GF).help
 VERFILE     := VERSION
+CHLOGFILE   := CHANGELOG
 DESTPATH    := $(DESTDIR)$(PREFIX)
 BINPATH     := $(DESTDIR)$(EXEC_PREFIX)/bin
 SHAREPATH   := $(DESTPATH)/share
@@ -43,34 +45,40 @@ compile:
 	@ { \
 	echo -n "% GF(1) User Manual | Version "; cat VERSION; \
 	echo -n "% "; cat AUTHORS; echo; \
-	echo -n "% "; stat -c %z gf.md | cut -d" " -f1; \
-	echo; cat $(MDFILE); \
-	} | $(PANDOC) -s -t man -o $(MANFILE)
+	echo -n "% "; stat -c %z $(MDFILE) | cut -d" " -f1; \
+	echo; \
+	sed -n '/# NAME/,/# INSTALL/p;/# REFERENCES/,//p' $(MDFILE) | grep -v "# INSTALL"; \
+	} | $(PANDOC) -s -t man -o $(local_prefix)$(MANFILE)
 	@ echo DONE
 	@ echo -n "Creating help file ..."
-	@ sed -n '/# SYNOPSIS/,/# INTRODUCTION/p;/# REFERENCES/,//p' $(MDFILE) | grep -v "# INTRODUCTION" \
-	| sed "s/\*\*//g;s/^:   /       /;s/^[^#]/       \0/;s/^# //;s/\[\(.\+\)(\([0-9]\+\))\](\(.\+\))/(\2) \1\n              \3/" > $(HELPFILE)
-	@ echo -e "\nOTHER\n\n       See man $(GF) for more information." >> $(HELPFILE)
+	@ sed -n '/# SYNOPSIS/,/# DESCRIPTION/p;/# OPTIONS/,/# INTRODUCTION/p;/# REPORTING BUGS/,//p' README.md  | grep -v "# DESCRIPTION\|# INTRODUCTION" \
+	| sed "s/\*\*//g;s/^: \+/       /;s/^[^#]/       \0/;s/^# //;s/\[\(.\+\)(\([0-9]\+\))\](\(.\+\))/(\2) \1\n              \3/;s/\[\(.\+\)\](\(.\+\))/\1\n              \2/" > $(HELPFILE)
+	@ echo -e "\nOTHER\n\n       See man $(GF) for more information." >> $(local_prefix)$(HELPFILE)
 	@ echo DONE
 
 installers:
 	@ { \
 	echo "#!/bin/bash"; \
+	echo "env SHAREPATH=$(SHAREPATH) $(DATAPATH)/$(GF) \"\$$@\" "; \
+	} > $(local_prefix)$(GFWRAPPER)
+	@ chmod +x $(local_prefix)$(GFWRAPPER)
+	@ { \
+	echo "#!/bin/bash"; \
 	echo "cp $(MANFILE) $(MANPATH) \\"; \
-	echo "&& cp $(GF) $(BINPATH) \\"; \
+	echo "&& cp $(GFWRAPPER) $(BINPATH)/$(GF) \\"; \
 	echo "&& mkdir -p $(DATAPATH) \\"; \
-	echo "&& cp $(HELPFILE) $(VERFILE) $(DATAPATH) \\"; \
+	echo "&& cp $(HELPFILE) $(VERFILE) $(MDFILE) $(CHLOGFILE) $(GF) $(DATAPATH) \\"; \
 	echo "&& echo 'Installation completed.'"; \
-	} > $(INSTFILE)
-	@ chmod +x $(INSTFILE)
+	} > $(local_prefix)$(INSTFILE)
+	@ chmod +x $(local_prefix)$(INSTFILE)
 	@ { \
 	echo "#!/bin/bash"; \
 	echo "rm $(MANPATH)/$(MANFILE) \\"; \
 	echo "&& rm $(BINPATH)/$(GF) \\"; \
 	echo "&& rm -rf $(DATAPATH) \\"; \
 	echo "&& echo 'Uninstallation completed.'"; \
-	} > $(UNINSTFILE)
-	@ chmod +x $(UNINSTFILE)
+	} > $(local_prefix)$(UNINSTFILE)
+	@ chmod +x $(local_prefix)$(UNINSTFILE)
 
 clean:
 	@ echo -n "Remove compiled files ..."
@@ -78,9 +86,12 @@ clean:
 	@ rm "$(HELPFILE)" 2>/dev/null || true
 	@ echo DONE
 
-dist: compile installers
+distfolder:
 	@ [ -d $(DISTNAME) ] && echo "Distribution folder $(DISTNAME) already exists" && exit 1 || true
 	@ mkdir -p $(DISTNAME)
-	@ cp $(MANFILE) $(HELPFILE) $(GF) $(VERFILE) $(INSTFILE) $(UNINSTFILE) $(DISTNAME)
+
+dist: local_prefix=$(DISTNAME)/
+dist: distfolder compile installers
+	@ cp $(GF) $(VERFILE) $(CHLOGFILE) $(MDFILE) $(DISTNAME)
 	@ tar czf $(DISTNAME).tar.gz $(DISTNAME)
 	@ rm -rf $(DISTNAME)
