@@ -67,7 +67,7 @@ installers:
 	echo "cp $(MANFILE) $(MANPATH) \\"; \
 	echo "&& cp $(GFWRAPPER) $(BINPATH)/$(GF) \\"; \
 	echo "&& mkdir -p $(DATAPATH) \\"; \
-	echo "&& cp $(HELPFILE) $(VERFILE) $(CHLOGFILE) $(GF) $(DATAPATH) \\"; \
+	echo "&& cp $(HELPFILE) $(VERFILE) $(GF) $(DATAPATH) \\"; \
 	echo "&& echo 'Installation completed.'"; \
 	} > $(local_prefix)$(INSTFILE)
 	@ chmod +x $(local_prefix)$(INSTFILE)
