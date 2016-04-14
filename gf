@@ -78,7 +78,7 @@ function main {
     git_branch_exists dev || return 2
     git_branch_exists master || return 2
     git_status_empty || return 2
-    [ -f "$VERSION" && -f "$CHANGELOG" ] \
+    [[ -f "$VERSION" && -f "$CHANGELOG" ]] \
       || err "Missing working files" \
       || return 2
 
@@ -101,6 +101,7 @@ function main {
         [[ $curbranch == dev ]] \
           && branch="release-${major}.$((++minor))" \
           && patch=0
+        confirm "Create $branch from $curbranch?" || return 1
         # try create a new branch
         git checkout -b $branch
         code=$?
@@ -132,6 +133,7 @@ function main {
         ;&
 
       *)
+        confirm "Merge $curbranch into dev?" || return 1
         # feature
         if [[ -z "$tag" ]]; then
           local tmpfile
@@ -180,19 +182,25 @@ function main {
   # - create dev branch
   function gf_init {
     # init git repo
-    git_repo_exists 2>/dev/null || { git init || return 1; }
+    git_repo_exists 2>/dev/null
+    if [ $? == 1 ]; then
+      git init || return 1
+    else
+      git checkout master || return 1
+    fi
     git_status_empty || return 1
-    git_branch_exists master || return 1
     # create $VERSION file
     [[ ! -f "$VERSION" ]] \
       && echo 0.0.0 > "$VERSION" \
-      && echo "version file $VERSION created" \
+      && echo "version file $VERSION created"
     # create $CHANGELOG file
     [[ ! -f "$CHANGELOG" ]] \
-      && touch "$CHANGELOG" \
-      && echo "changelog file $CHANGELOG created" \
+      && echo "Changelog file $CHANGELOG created" | tee "$CHANGELOG"
+    git add "$VERSION" "$CHANGELOG" \
+      && git commit -m "init version and changelog files"
     # create and checkout dev branch
-    git_branch_exists dev 2>/dev/null || git branch dev
+    git_branch_exists dev 2>/dev/null \
+      || git branch dev || return 1
   }
 
   function gf_help {
