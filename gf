@@ -38,6 +38,13 @@ function main {
     return 1
   }
 
+  function git_branch_empty {
+    [[ -n "$(git log --first-parent --no-merges $1 ^master)" ]] \
+      && return 0
+    err "Branch $1 is empty"
+    return 1
+  }
+
   function confirm {
     echo -n "${@:-"Are you sure?"} [$(locale yesstr)/$(locale nostr)] "
     read
@@ -84,11 +91,12 @@ function main {
 
     # set variables
     local curbranch major minor patch tag master oIFS
+    curbranch=$(git rev-parse --abbrev-ref HEAD)
+    git_branch_empty $curbranch || return 1
     oIFS=$IFS
     IFS=.
     read major minor patch < "$VERSION"
     IFS=$oIFS
-    curbranch=$(git rev-parse --abbrev-ref HEAD)
     master=${major}.$minor
 
     # proceed
@@ -118,10 +126,9 @@ function main {
         # write header to $CHANGELOG
         header="${major}.${minor} | $(date "+%Y-%m-%d")"
         printf '\n%s\n\n%s\n' "$header" "$(<$CHANGELOG)" > "$CHANGELOG"
-        # commit $CHANGELOG and run gf on new branch
+        # commit $CHANGELOG
         git commit -am $branch \
-          && gf \
-          && git checkout $branch
+        git checkout $branch
         ;;
 
       hotfix)
@@ -141,7 +148,9 @@ function main {
           tmpfile="$(mktemp)"
           # prepare message for $CHANGELOG
           {
-            echo -e "\n# commits:"
+            echo -e "\nChangelog messages"
+            echo -e "-----------------"
+            echo -e "# commits:"
             git log dev..$curbranch --pretty=format:"#   %s"
             echo -e "\n# Please enter the message for your changes. Lines starting"
             echo -e "# with # and empty lines will be ignored."
@@ -158,16 +167,17 @@ function main {
           && git merge --no-ff $curbranch \
           || return 1
         # not feature, confirm merge branch to master
-        [[ -n "$tag" ]] \
-          && confirm "Merge branch '$curbranch' into $master?" \
-          && git checkout master \
-          && ( git checkout $master || git checkout -b $master ) \
-          && git merge --no-ff $curbranch \
-          && git tag $tag \
-          && confirm "Merge branch '$master' into master?" \
-          && git checkout master \
-          && git merge $master \
-          && git checkout $master
+        if [[ -n "$tag" ]]; then
+          confirm "Merge branch '$curbranch' into $master?" \
+            && git checkout master \
+            && ( git checkout $master || git checkout -b $master ) \
+            && git merge --no-ff $curbranch \
+            && git tag $tag \
+          confirm "Merge branch '$master' into master?" \
+            && git checkout master \
+            && git merge $master \
+            && git checkout $master
+        fi
         # confirm delete branch, including remote
         if confirm "Delete branch '$curbranch'?"; then
           git branch -r | grep origin/$curbranch$ >/dev/null \

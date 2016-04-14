@@ -12,7 +12,7 @@ gf [-ivh]
 
 * even simpler usage (with no parameters),
 
-* automatic version number incrementation (file VERSION),
+* automatic version number(3) incrementation (file VERSION),
 
 * automatic version history update (file CHANGELOG),
 
@@ -69,13 +69,6 @@ release-#.#
 3. … some commits …
 4. ``gf``
 
-## Hotfix
-
-1. ``git checkout master``
-2. ``gf``
-3. … fixes followed by commits …
-4. ``gf``
-
 ## New release
 
 1. ``git checkout dev``
@@ -91,6 +84,13 @@ release-#.#
 
 1. ``git checkout release-#.#``
 2. ``gf``
+
+## Hotfix
+
+1. ``git checkout master``
+2. ``gf``
+3. … fixes followed by commits …
+4. ``gf``
 
 # INSTALL
 
@@ -129,6 +129,8 @@ Actual change log
 [**git flow model**(1)](http://nvie.com/posts/a-successful-git-branching-model/)
 
 [**git-flow cheatsheet**(2)](http://danielkummer.github.io/git-flow-cheatsheet/)
+
+[**Semantic Versioning**(3)](http://semver.org/)
 
 # REPORTING BUGS
 
