@@ -122,7 +122,7 @@ Actual change log
 : Generic error code.
 
 2
-: Init check failed; initialize gf may help.
+: Initial check failed; initializing gf may help.
 
 # SEE ALSO
 

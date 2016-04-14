@@ -77,7 +77,7 @@ function main {
     git_repo_exists || return 2
     git_branch_exists dev || return 2
     git_branch_exists master || return 2
-    git_status_empty || return 2
+    git_status_empty || return 1
     [[ -f "$VERSION" && -f "$CHANGELOG" ]] \
       || err "Missing working files" \
       || return 2
@@ -186,7 +186,9 @@ function main {
     if [ $? == 1 ]; then
       git init || return 1
     else
-      git checkout master || return 1
+      git checkout master 2>/dev/null \
+        || git checkout -b master \
+        || return 1
     fi
     git_status_empty || return 1
     # create $VERSION file
@@ -195,12 +197,13 @@ function main {
       && echo "version file $VERSION created"
     # create $CHANGELOG file
     [[ ! -f "$CHANGELOG" ]] \
-      && echo "Changelog file $CHANGELOG created" | tee "$CHANGELOG"
+      && echo "$CHANGELOG created" | tee "$CHANGELOG"
     git add "$VERSION" "$CHANGELOG" \
       && git commit -m "init version and changelog files"
     # create and checkout dev branch
-    git_branch_exists dev 2>/dev/null \
-      || git branch dev || return 1
+    git checkout dev 2>/dev/null \
+      || git checkout -b dev \
+      || return 1
   }
 
   function gf_help {
