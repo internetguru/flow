@@ -51,6 +51,7 @@ all:
 	echo "DATAPATH=\"$(DATAPATH)\""; \
 	tail -n+2 $(GF); \
 	} > $(DISTNAME)/$(GF)
+	@ chmod +x $(DISTNAME)/$(GF)
 	@ echo DONE
 
 	@ echo -n "Compiling man file ..."
