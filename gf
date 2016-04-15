@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -eu
+
 : ${DATAPATH:=.}
 : ${CHANGELOG:=CHANGELOG}
 : ${VERSION:=VERSION}
@@ -90,7 +92,7 @@ function main {
       || return 2
 
     # set variables
-    local curbranch major minor patch tag master oIFS iprod_msg prod_msg
+    local curbranch major minor patch tag master oIFS iprod_msg
     curbranch=$(git rev-parse --abbrev-ref HEAD)
     oIFS=$IFS
     IFS=.
@@ -163,7 +165,7 @@ function main {
           cat "$CHANGELOG" >> "$tmpfile" && mv "$tmpfile" "$CHANGELOG"
           git commit -am "Version history updated"
         else
-          confirm "Merge feature $curbranch into dev?" || return 1
+          confirm "Merge $curbranch into dev?" || return 1
         fi
         # merge to dev
         git checkout dev \
@@ -173,7 +175,6 @@ function main {
         local rcode1 rcode2
         rcode1=0
         rcode2=0
-        prod_msg="Merge $curbranch into master?"
         if [[ -n "$tag" ]]; then
           confirm "$iprod_msg"
           rcode1=$?
@@ -182,7 +183,7 @@ function main {
             && ( git checkout $master 2>/dev/null || git checkout -b $master ) \
             && git merge --no-ff $curbranch \
             && git tag $tag
-          confirm "$prod_msg"
+          confirm "Merge $curbranch into production (master)?"
           rcode2=$?
           [[ $rcode2 == 0 ]] \
             && git checkout master \
