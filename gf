@@ -90,9 +90,8 @@ function main {
       || return 2
 
     # set variables
-    local curbranch major minor patch tag master oIFS
+    local curbranch major minor patch tag master oIFS iprod_msg prod_msg
     curbranch=$(git rev-parse --abbrev-ref HEAD)
-    git_branch_empty $curbranch || return 1
     oIFS=$IFS
     IFS=.
     read major minor patch < "$VERSION"
@@ -126,30 +125,32 @@ function main {
         # write header to $CHANGELOG
         header="${major}.${minor} | $(date "+%Y-%m-%d")"
         printf '\n%s\n\n%s\n' "$header" "$(<$CHANGELOG)" > "$CHANGELOG"
-        # commit $CHANGELOG
-        git commit -am $branch \
-        git checkout $branch
+        # commit $CHANGELOG and $VERSION
+        git commit -am "$branch"
         ;;
 
       hotfix)
         tag=${master}.$patch
+        iprod_msg="Merge $curbranch into production branch $master?"
         ;&
 
       release)
         [[ -z "$tag" ]] && tag=${master}.0
+        [[ -z "$iprod_msg" ]] && iprod_msg="Merge $curbranch into separete production branch $master?"
         ;&
 
       *)
-        confirm "Merge $curbranch into dev?" || return 1
         # feature
         if [[ -z "$tag" ]]; then
+          git_branch_empty $curbranch || return 1
+          confirm "Merge feature $curbranch into dev?" || return 1
           local tmpfile
           git rebase dev || return 1
           tmpfile="$(mktemp)"
           # prepare message for $CHANGELOG
           {
-            echo -e "\nChangelog messages"
-            echo -e "-----------------"
+            echo -e "\n# Changelog messages"
+            echo -e "# ----------------"
             echo -e "# commits:"
             git log dev..$curbranch --pretty=format:"#   %s"
             echo -e "\n# Please enter the message for your changes. Lines starting"
@@ -161,23 +162,35 @@ function main {
           # write to $CHANGELOG
           cat "$CHANGELOG" >> "$tmpfile" && mv "$tmpfile" "$CHANGELOG"
           git commit -am "Version history updated"
+        else
+          confirm "Merge feature $curbranch into dev?" || return 1
         fi
         # merge to dev
         git checkout dev \
           && git merge --no-ff $curbranch \
           || return 1
         # not feature, confirm merge branch to master
+        local rcode1 rcode2
+        rcode1=0
+        rcode2=0
+        prod_msg="Merge $curbranch into master?"
         if [[ -n "$tag" ]]; then
-          confirm "Merge branch '$curbranch' into $master?" \
+          confirm "$iprod_msg"
+          rcode1=$?
+          [[ $rcode1 == 0 ]] \
             && git checkout master \
-            && ( git checkout $master || git checkout -b $master ) \
+            && ( git checkout $master 2>/dev/null || git checkout -b $master ) \
             && git merge --no-ff $curbranch \
-            && git tag $tag \
-          confirm "Merge branch '$master' into master?" \
+            && git tag $tag
+          confirm "$prod_msg"
+          rcode2=$?
+          [[ $rcode2 == 0 ]] \
             && git checkout master \
             && git merge $master \
             && git checkout $master
         fi
+        # exit if not merge release or hotfix
+        [[ $rcode1 == 1 && $rcode2 == 1 ]] && return 0
         # confirm delete branch, including remote
         if confirm "Delete branch '$curbranch'?"; then
           git branch -r | grep origin/$curbranch$ >/dev/null \
