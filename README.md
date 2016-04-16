@@ -113,6 +113,12 @@ Actual version
 Actual change log
 : file CHANGELOG
 
+# AUTHORS
+
+* Pavel Petržela <pavel@petrzela.eu>
+
+* Jiří Pavelka <j.pavelka@seznam.cz>
+
 # EXIT STATUS
 
 0

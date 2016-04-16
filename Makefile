@@ -57,7 +57,7 @@ all:
 	@ echo -n "Compiling man file ..."
 	@ { \
 	echo -n "% GF(1) User Manual | Version "; cat VERSION; \
-	echo -n "% "; cat AUTHORS; echo; \
+	echo -n "% "; sed -n '/# AUTHORS/,/# COPYRIGHT/p' $(README).md | grep "@" | tr -d '*'; \
 	echo -n "% "; stat -c %z $(README).md | cut -d" " -f1; \
 	echo; \
 	sed -n '/# NAME/,/# INSTALL/p;/# EXIT STATUS/,//p' $(README).md | grep -v "# INSTALL"; \
