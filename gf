@@ -52,8 +52,7 @@ function main {
   }
 
   function git_repo_exists {
-    [[ -d .git ]] && return 0
-    err "Git repository does not exist" || return 1
+    [[ -d .git ]]
   }
 
   function git_branch_match {
@@ -108,7 +107,8 @@ function main {
 
     # set variables
     local curbranch major minor patch tag master oIFS into_master create_stable
-    create_stable=true
+    create_stable=1
+    into_master=1
     curbranch=$(git rev-parse --abbrev-ref HEAD)
     tag=""
     oIFS=$IFS
@@ -162,15 +162,14 @@ function main {
       hotfix)
         confirm "* Merge hotfix?" || return 0
         tag=${master}.$patch
-        into_master=true
         git_branch_exists $master \
-          && { git_branch_match master $master || into_master=false; }
+          && { git_branch_match master $master || into_master=0; }
         ;&
 
       release)
         [[ -z "$tag" ]] \
           && { confirm "* Create stable branch from release?" \
-            || { create_stable=false; confirm "* Merge branch release into dev?" || return 0; } \
+            || { create_stable=0; confirm "* Merge branch release into dev?" || return 0; } \
           } \
           && tag=${master}.0 \
         ;&
@@ -215,10 +214,10 @@ function main {
         git_checkout dev \
           && git merge --no-ff $curbranch >/dev/null \
           || return 1
-        # release or hotfix (not a feature)
-        if [[ -n "$tag" ]]; then
-          $create_stable \
-          && echo -n "Creating stable branch '$master': " \
+        echo $DONE
+        # merge release|hotfix branch into stable
+        if [[ -n "$tag" && $create_stable == 1 ]]; then
+          echo -n "Merging into stable branch '$master': " \
           && git_checkout master \
           && git_branch $master >/dev/null \
           && git merge --no-ff $curbranch >/dev/null \
@@ -226,19 +225,21 @@ function main {
           && echo -n "Creating tag '$tag': " \
           && git tag $tag >/dev/null \
           && echo $DONE \
-          && $into_master \
-          && echo -n "Merging into master: " \
-          && git_checkout master \
-          && git merge $master >/dev/null \
-          && echo $DONE \
           || return 1
+          # merge stable branch into master
+          if [[ $into_master == 1 ]]; then
+            echo -n "Merging into master: " \
+            && git_checkout master \
+            && git merge $master >/dev/null \
+            && echo $DONE \
+            || return 1
+          fi
         fi
         # delete branch, including remote
-        $create_stable || return 0
+        [[ $create_stable == 0 ]] && { git_checkout $curbranch; return $?; }
         echo -n "Deleting branch '$curbranch': "
         git branch -r | grep origin/$curbranch$ >/dev/null \
-          && git push origin :refs/heads/$curbranch >/dev/null \
-          || return 1
+          && { git push origin :refs/heads/$curbranch >/dev/null || return 1; }
         git branch -d $curbranch >/dev/null || return 1
         echo $DONE
     esac
@@ -249,19 +250,22 @@ function main {
   # - create dev branch
   function gf_init {
     # init git repo
-    git_repo_exists 2>/dev/null \
+    echo -n "Initializing git repository: "
+    git_repo_exists \
       && { git_branch master || return 1; } \
       || { git init >/dev/null || return 1; }
     git_status_empty || return 1
-    # create $VERSION file
+    echo $DONE
+    # VERSION and CHANGELOG files
+    echo -n "Initializing '$VERSION' and '$CHANGELOG' files: "
     [[ ! -f "$VERSION" ]] \
-      && echo 0.0.0 > "$VERSION" \
-      && echo "version file $VERSION created"
-    # create $CHANGELOG file
+      && { echo 0.0.0 > "$VERSION" || return 1; }
     [[ ! -f "$CHANGELOG" ]] \
-      && echo "$CHANGELOG created" | tee "$CHANGELOG"
+      && { echo "$CHANGELOG created" > "$CHANGELOG" || return 1; }
     git add "$VERSION" "$CHANGELOG" >/dev/null \
-      && git commit -m "init version and changelog files" >/dev/null
+      && git commit -m "Init version and changelog files" >/dev/null \
+      || return 1
+    echo $DONE
     # create and checkout dev branch
     git_branch dev
   }
