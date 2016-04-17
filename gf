@@ -107,15 +107,12 @@ function main {
   function gf_run {
 
     # set variables
-    local curbranch major minor patch tag master oIFS into_master create_stable
+    local curbranch major minor patch tag master into_master create_stable
     create_stable=1
     into_master=1
     curbranch=$(git rev-parse --abbrev-ref HEAD)
     tag=""
-    oIFS=$IFS
-    IFS=.
-    read major minor patch < "$VERSION"
-    IFS=$oIFS
+    IFS=. read major minor patch < "$VERSION"
     master=${major}.$minor
 
     # proceed
