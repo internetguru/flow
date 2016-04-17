@@ -5,6 +5,7 @@ set -eu
 : ${DATAPATH:=.}
 : ${CHANGELOG:=CHANGELOG}
 : ${VERSION:=VERSION}
+: ${DEV:=dev}
 
 function main {
 
@@ -69,8 +70,8 @@ function main {
     git_repo_exists \
       || err "Git repository does not exist" \
       || return 2
-    { git_branch_exists dev && git_branch_exists master; } \
-      || err "Missing branches dev or master" \
+    { git_branch_exists "$DEV" && git_branch_exists master; } \
+      || err "Missing branches '$DEV' or master" \
       || return 2
     git_status_empty \
       || return 1
@@ -84,7 +85,7 @@ function main {
 
   # Current branch:
   #
-  #  dev
+  #  $DEV
   #   - increment minor version, set patch to 0
   #   - create release-major.minor branch
   #
@@ -93,7 +94,7 @@ function main {
   #   - create hotfix-major.minor.patch branch
   #
   #  hotfix-x or release-x; alias current
-  #   - merge current branch into dev
+  #   - merge current branch into $DEV
   #   - merge current branch into stable
   #   - merge current branch into master (if matches stable)
   #   - create tag
@@ -101,7 +102,7 @@ function main {
   #
   #  feature
   #   - update version history
-  #   - merge feature branch into dev
+  #   - merge feature branch into $DEV
   #   - delete feature branch
   function gf_run {
 
@@ -124,15 +125,15 @@ function main {
         err "No branch detected on current HEAD" || return 1
         ;;
 
-      dev|master|$master)
+      "$DEV"|master|$master)
         local branch code header
         # set branch name and increment version
         branch="hotfix-${master}.$((++patch))"
-        [[ $curbranch == dev ]] \
+        [[ $curbranch == "$DEV" ]] \
           && branch="release-${major}.$((++minor))" \
           && patch=0
         [[ $patch == 0 ]] \
-          && { confirm "* Create release branch from dev?" || return 0; } \
+          && { confirm "* Create release branch from branch '$DEV'?" || return 0; } \
           || { confirm "* Create hotfix?" || return 0; }
         [[ $curbranch == master ]] \
           && { git_branch $master || return 1; }
@@ -141,7 +142,7 @@ function main {
           && { err "Destination branch '$branch' already exists" || return 1; }
         git_branch $branch || return 1
         # updating CHANGELOG and VERSION files
-        if [[ $curbranch == dev ]]; then
+        if [[ $curbranch == "$DEV" ]]; then
           echo -n "Updating '$CHANGELOG' and '$VERSION' files: "
           header="${major}.${minor} | $(date "+%Y-%m-%d")" || return 1
           printf '\n%s\n\n%s\n' "$header" "$(<$CHANGELOG)" > "$CHANGELOG" || return 1
@@ -150,8 +151,8 @@ function main {
         fi
         echo ${major}.${minor}.$patch > "$VERSION" || return 1
         git commit -am "$branch" >/dev/null || return 1
-        if [[ $curbranch == dev ]]; then
-          git_checkout dev \
+        if [[ $curbranch == "$DEV" ]]; then
+          git_checkout "$DEV" \
           && git merge --no-ff $branch >/dev/null \
           && git_checkout $branch \
           || return 1
@@ -169,7 +170,7 @@ function main {
       release)
         [[ -z "$tag" ]] \
           && { confirm "* Create stable branch from release?" \
-            || { create_stable=0; confirm "* Merge branch release into dev?" || return 0; } \
+            || { create_stable=0; confirm "* Merge branch release into branch '$DEV'?" || return 0; } \
           } \
           && tag=${master}.0 \
         ;&
@@ -178,15 +179,15 @@ function main {
         # feature
         if [[ -z "$tag" ]]; then
           local commits
-          commits="$(git log dev..$curbranch --pretty=format:"#   %s")"
+          commits="$(git log "$DEV"..$curbranch --pretty=format:"#   %s")"
           [[ -n $commits ]] \
             || err "Nothing to merge - feature branch '$curbranch' is empty" \
             || return 1
           confirm "* Merge feature '$curbranch'?" || return 0
           local tmpfile
-          [[ -n "$(git log $curbranch..dev)" ]] \
-            && echo -n "Rebasing feature branch to dev: " \
-            && { git rebase dev >/dev/null || return 1; } \
+          [[ -n "$(git log $curbranch.."$DEV")" ]] \
+            && echo -n "Rebasing feature branch to '$DEV': " \
+            && { git rebase "$DEV" >/dev/null || return 1; } \
             && echo $DONE
           # message for $CHANGELOG
           echo -n "Updating changelog: "
@@ -209,9 +210,9 @@ function main {
             echo $SKIPPED
           fi
         fi
-        # merge into dev
-        echo -n "Merging into dev: "
-        git_checkout dev \
+        # merge into $DEV
+        echo -n "Merging into branch '$DEV': "
+        git_checkout "$DEV" \
           && git merge --no-ff $curbranch >/dev/null \
           || return 1
         echo $DONE
@@ -247,7 +248,7 @@ function main {
 
   # Prepare enviroment for gf:
   # - create $VERSION and $CHANGELOG file
-  # - create dev branch
+  # - create $DEV branch
   function gf_init {
     # init git repo
     echo -n "Initializing git repository: "
@@ -266,8 +267,8 @@ function main {
       && git commit -m "Init version and changelog files" >/dev/null \
       || return 1
     echo $DONE
-    # create and checkout dev branch
-    git_branch dev
+    # create and checkout $DEV branch
+    git_branch "$DEV"
   }
 
   function gf_help {
