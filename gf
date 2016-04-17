@@ -10,7 +10,7 @@ set -eu
 function main {
 
   # defaults and constants
-  local line script_name
+  local ec line script_name
   local -r DONE="[ done ]" SKIPPED="[ skipped ]" FAILED="[ failed ]"
   script_name="gf"
 
@@ -78,6 +78,9 @@ function main {
     [[ -f "$VERSION" && -f "$CHANGELOG" ]] \
       || err "Missing working files" \
       || return 2
+    [[ -n "$(cat "$VERSION")" ]] \
+      || err "Empty '$VERSION' file" \
+      || return 2
     [[ "$(cat "$VERSION")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
       || err "Invalid '$VERSION' file content format" \
       || return 1
@@ -123,7 +126,7 @@ function main {
         ;;
 
       "$DEV"|master|$master)
-        local branch code header
+        local branch
         # set branch name and increment version
         branch="hotfix-${master}.$((++patch))"
         [[ $curbranch == "$DEV" ]] \
@@ -140,6 +143,7 @@ function main {
         git_branch $branch || return 1
         # updating CHANGELOG and VERSION files
         if [[ $curbranch == "$DEV" ]]; then
+          local header
           echo -n "Updating '$CHANGELOG' and '$VERSION' files: "
           header="${major}.${minor} | $(date "+%Y-%m-%d")" || return 1
           printf '\n%s\n\n%s\n' "$header" "$(<$CHANGELOG)" > "$CHANGELOG" || return 1
@@ -256,12 +260,12 @@ function main {
     echo $DONE
     # VERSION and CHANGELOG files
     echo -n "Initializing '$VERSION' and '$CHANGELOG' files: "
-    [[ ! -f "$VERSION" ]] \
+    [[ ! -f "$VERSION" || -z "$(cat "$VERSION")" ]] \
       && { echo 0.0.0 > "$VERSION" || return 1; }
-    [[ ! -f "$CHANGELOG" ]] \
+    [[ ! -f "$CHANGELOG" || -z "$(cat "$CHANGELOG")" ]] \
       && { echo "$CHANGELOG created" > "$CHANGELOG" || return 1; }
     git add "$VERSION" "$CHANGELOG" >/dev/null \
-      && git commit -m "Init version and changelog files" >/dev/null \
+      && git commit -m "Init gf: create required files" >/dev/null \
       || return 1
     echo $DONE
     # create and checkout $DEV branch
@@ -299,7 +303,11 @@ function main {
   done
 
   # run gf
-  gf_check && gf_run
+  gf_check && gf_run || {
+    ec=$?
+    [[ $ec == 2 ]] && err "Initializing gf may help (see man gf)"
+    return $ec
+  }
 
 }
 
