@@ -168,9 +168,12 @@ function main {
   }
 
   function merge_into {
-    echo -n "Merging into branch '$1': " \
-      && git_checkout "$1" \
-      && git_merge --no-ff $origbranch \
+    local noff
+    if [[ -z "${3:-}" ]]; then noff=--no-ff
+    else noff=""; fi;
+    echo -n "Merging '$1' into branch '$2': " \
+      && git_checkout "$2" \
+      && git_merge $noff $1 \
       && echo $DONE
   }
 
@@ -225,25 +228,22 @@ function main {
 
       hotfix)
         confirm "* Merge hotfix?" || return 0
-        merge_into "$DEV" \
-          && merge_into $master \
+        merge_into $origbranch "$DEV" \
+          && merge_into $origbranch $master \
           && git tag ${master}.$patch >/dev/null \
           || return 1
-        [[ -n "$(git log $master..master)" ]] && return 0
-        echo -n "Merging into master: " \
-          && git_checkout master \
-          && git_merge $master \
-          && echo $DONE \
-          || return 1
+        [[ -z "$(git log $master..master)" ]] \
+          && merge_into $master master false
+        delete_branch
         ;;
 
       release)
         if confirm "* Create stable branch from release?"; then
-          merge_into "$DEV" \
+          merge_into $origbranch "$DEV" \
             && git_checkout master \
             && git_branch $master \
-            && { [[ -n "$(git log $master..master)" ]] || merge_into master; } \
-            && merge_into $master \
+            && { [[ -n "$(git log $master..master)" ]] || merge_into $origbranch master; } \
+            && merge_into master $master false \
             && git tag ${master}.0 >/dev/null \
             && delete_branch \
             || return 1
@@ -263,7 +263,7 @@ function main {
   }
 
   function init_files {
-    echo -n "Initializing files on branch '$(git_current_branch)': "
+    echo -n "Initializing files on branch '$1': "
     [[ ! -f "$VERSION" || -z "$(cat "$VERSION")" ]] \
       && { echo 0.0.0 > "$VERSION" || return 1; }
     [[ ! -f "$CHANGELOG" || -z "$(cat "$CHANGELOG")" ]] \
@@ -287,9 +287,9 @@ function main {
     echo $DONE
     # init files on master and $DEV
     git_status_empty \
-      && init_files \
+      && init_files master \
       && git_branch "$DEV" \
-      && init_files
+      && init_files "$DEV"
   }
 
   function gf_help {
@@ -325,8 +325,8 @@ function main {
   # run gf
   gf_check && gf_run || {
     ec=$?
-    [[ $ec == 2 ]] && err "Initializing gf may help (see man gf)"
-    return $ec
+    [[ $ec == 2 ]] \
+      && { err "Initializing gf may help (see man gf)" || return $ec; }
   }
 
 }
