@@ -63,14 +63,6 @@ function main {
     [[ -d .git ]]
   }
 
-  function git_branch_match {
-    [[ "$( git rev-parse $1 )" == "$( git rev-parse $2 )" ]]
-  }
-
-  function git_current_branch {
-    git rev-parse --abbrev-ref HEAD
-  }
-
   function confirm {
     echo -n "${@:-"Are you sure?"} [$(locale yesstr)/$(locale nostr)] "
     read
@@ -167,15 +159,19 @@ function main {
     fi
   }
 
-  function merge_into {
-    local noff
-    if [[ -z "${3:-}" ]]; then noff=--no-ff
-    else noff=""; fi;
-    echo -n "Merging '$1' into branch '$2': " \
-      && git_checkout "$2" \
-      && git_merge $noff $1 \
+  function origbranch_into {
+    echo -n "Merging '$origbranch' into branch '$1': " \
+      && git_checkout $1 \
+      && git_merge --no-ff $origbranch \
       && echo $DONE
   }
+
+  function merge_branches {
+    echo -n "Merging '$1' into branch '$2': " \
+      && git_checkout "$2" \
+      && git_merge $1 \
+      && echo $DONE
+    }
 
   function delete_branch {
     echo -n "Deleting branch '$origbranch': "
@@ -210,7 +206,7 @@ function main {
 
     # set variables
     local origbranch major minor patch tag master
-    origbranch="$(git_current_branch)"
+    origbranch="$(git rev-parse --abbrev-ref HEAD)"
     tag=""
     IFS=. read major minor patch < "$VERSION"
     master=${major}.$minor
@@ -228,28 +224,35 @@ function main {
 
       hotfix)
         confirm "* Merge hotfix?" || return 0
-        merge_into $origbranch "$DEV" \
-          && merge_into $origbranch $master \
-          && git tag ${master}.$patch >/dev/null \
-          || return 1
-        [[ -z "$(git log $master..master)" ]] \
-          && merge_into $master master false
+        if [[ -z "$(git log $master..master)" ]]; then
+          origbranch_into "$DEV" \
+            && origbranch_into $master \
+            && git tag ${master}.$patch >/dev/null \
+            && merge_branches $master master \
+            || return 1
+        else
+          confirm "* Merge hotfix into '$DEV'?" \
+            && { origbranch_into "$DEV" || return 1; }
+          origbranch_into $master \
+            && git tag ${master}.$patch >/dev/null \
+            || return 1
+        fi
         delete_branch
         ;;
 
       release)
         if confirm "* Create stable branch from release?"; then
-          merge_into $origbranch "$DEV" \
+          origbranch_into "$DEV" \
             && git_checkout master \
             && git_branch $master \
-            && { [[ -n "$(git log $master..master)" ]] || merge_into $origbranch master; } \
-            && merge_into master $master false \
+            && { [[ -n "$(git log $master..master)" ]] || origbranch_into master; } \
+            && merge_branches master $master \
             && git tag ${master}.0 >/dev/null \
             && delete_branch \
             || return 1
         else
           confirm "* Merge branch release into branch '$DEV'?" || return 0;
-          merge_into "$DEV" \
+          origbranch_into "$DEV" \
             && git_checkout $origbranch \
             || return 1
         fi
@@ -257,7 +260,7 @@ function main {
 
       *)
         merge_feature
-        merge_into "$DEV"
+        origbranch_into "$DEV"
         delete_branch
     esac
   }
