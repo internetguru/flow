@@ -63,6 +63,10 @@ function main {
     [[ -d .git ]]
   }
 
+  function git_commit_diff {
+    [[ "$( git rev-parse $1 )" != "$( git rev-parse $2 )" ]]
+  }
+
   function confirm {
     echo -n "${@:-"Are you sure?"} [$(locale yesstr)/$(locale nostr)] "
     read
@@ -122,7 +126,7 @@ function main {
       || return 1
     confirm "* Merge feature '$origbranch'?" || return 0
     local tmpfile
-    [[ -n "$(git log $origbranch.."$DEV")" ]] \
+    git_commit_diff $origbranch "$DEV" \
       && echo -n "Rebasing feature branch to '$DEV': " \
       && { git rebase "$DEV" >/dev/null || return 1; } \
       && echo $DONE
@@ -202,12 +206,10 @@ function main {
 
       master)
         if git_branch_exists $master 2>/dev/null; then
-          [[ -z "$(git log $master..master)" ]] \
-            || err "Cannot hotfix from unmerged master" \
-            || return 1
+          git_commit_diff $master master \
+            && { err "Cannot hotfix from unmerged master" || return 1; }
         else
-          git_branch $master \
-            || return 1
+          git_branch $master || return 1
         fi
         ;&
 
@@ -224,19 +226,18 @@ function main {
 
       hotfix)
         confirm "* Merge hotfix?" || return 0
-        if [[ -z "$(git log $master..master)" ]]; then
-          merge_branches $origbranch "$DEV" \
-            && merge_branches $origbranch $master \
-            && git tag ${master}.$patch >/dev/null \
-            && merge_branches $master master --ff \
-            || return 1
-        else
-          confirm "* Merge hotfix into '$DEV'?" \
-            && { merge_branches $origbranch "$DEV" || return 1; }
+        if git_commit_diff $master master; then
           merge_branches $origbranch $master \
             && git tag ${master}.$patch >/dev/null \
             || return 1
+        else
+          merge_branches $origbranch $master \
+            && git tag ${master}.$patch >/dev/null \
+            && merge_branches $master master --ff \
+            || return 1
         fi
+        confirm "* Merge hotfix into '$DEV'?" \
+          && { merge_branches $origbranch "$DEV" || return 1; }
         delete_branch
         ;;
 
@@ -245,7 +246,7 @@ function main {
           merge_branches $origbranch "$DEV" \
             && git_checkout master \
             && git_branch $master \
-            && { [[ -n "$(git log $master..master)" ]] || merge_branches $origbranch master; } \
+            && { git_commit_diff $master master || merge_branches $origbranch master; } \
             && merge_branches master $master --ff \
             && git tag ${master}.0 >/dev/null \
             && delete_branch \
