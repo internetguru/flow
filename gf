@@ -89,22 +89,11 @@ function main {
       || return 1
   }
 
-  function create_temp_branch {
-    local branch
-    # set branch name and increment version
-    branch="hotfix-${master}.$((++patch))"
-    [[ $origbranch == "$DEV" ]] \
-      && branch="release-${major}.$((++minor))" \
-      && patch=0
-    [[ $patch == 0 ]] \
-      && { confirm "* Create release branch from branch '$DEV'?" || return 0; } \
-      || { confirm "* Create hotfix?" || return 0; }
-    [[ $origbranch == master ]] \
-      && { git_branch $master || return 1; }
+  function create_branch {
     # create a new branch
-    git_branch_exists $branch \
-      && { err "Destination branch '$branch' already exists" || return 1; }
-    git_branch $branch || return 1
+    git_branch_exists $1 \
+      && { err "Destination branch '$1' already exists" || return 1; }
+    git_branch $1 || return 1
     # updating CHANGELOG and VERSION files
     if [[ $origbranch == "$DEV" ]]; then
       local header
@@ -115,11 +104,11 @@ function main {
       echo -n "Updating '$VERSION' file: "
     fi
     echo ${major}.${minor}.$patch > "$VERSION" || return 1
-    git commit -am "$branch" >/dev/null || return 1
+    git commit -am "$1" >/dev/null || return 1
     if [[ $origbranch == "$DEV" ]]; then
       git_checkout "$DEV" \
-      && git_merge --no-ff $branch \
-      && git_checkout $branch \
+      && git_merge --no-ff $1 \
+      && git_checkout $1 \
       || return 1
     fi
     echo $DONE
@@ -159,17 +148,10 @@ function main {
     fi
   }
 
-  function origbranch_into {
-    echo -n "Merging '$origbranch' into branch '$1': " \
-      && git_checkout $1 \
-      && git_merge --no-ff $origbranch \
-      && echo $DONE
-  }
-
   function merge_branches {
     echo -n "Merging '$1' into branch '$2': " \
       && git_checkout "$2" \
-      && git_merge $1 \
+      && git_merge $1 "${3:---no-ff}" \
       && echo $DONE
     }
 
@@ -218,22 +200,40 @@ function main {
         err "No branch detected on current HEAD" || return 1
         ;;
 
-      "$DEV"|master|$master)
-        create_temp_branch
+      master)
+        if git_branch_exists $master 2>/dev/null; then
+          [[ -z "$(git log $master..master)" ]] \
+            || err "Cannot hotfix from unmerged master" \
+            || return 1
+        else
+          git_branch $master \
+            || return 1
+        fi
+        ;&
+
+      $master)
+        confirm "* Create hotfix?" || return 0
+        create_branch "hotfix-${master}.$((++patch))"
+        ;;
+
+      "$DEV")
+        confirm "* Create release branch from branch '$DEV'?" || return 0
+        patch=0
+        create_branch "release-${major}.$((++minor))"
         ;;
 
       hotfix)
         confirm "* Merge hotfix?" || return 0
         if [[ -z "$(git log $master..master)" ]]; then
-          origbranch_into "$DEV" \
-            && origbranch_into $master \
+          merge_branches $origbranch "$DEV" \
+            && merge_branches $origbranch $master \
             && git tag ${master}.$patch >/dev/null \
-            && merge_branches $master master \
+            && merge_branches $master master --ff \
             || return 1
         else
           confirm "* Merge hotfix into '$DEV'?" \
-            && { origbranch_into "$DEV" || return 1; }
-          origbranch_into $master \
+            && { merge_branches $origbranch "$DEV" || return 1; }
+          merge_branches $origbranch $master \
             && git tag ${master}.$patch >/dev/null \
             || return 1
         fi
@@ -242,17 +242,17 @@ function main {
 
       release)
         if confirm "* Create stable branch from release?"; then
-          origbranch_into "$DEV" \
+          merge_branches $origbranch "$DEV" \
             && git_checkout master \
             && git_branch $master \
-            && { [[ -n "$(git log $master..master)" ]] || origbranch_into master; } \
-            && merge_branches master $master \
+            && { [[ -n "$(git log $master..master)" ]] || merge_branches $origbranch master; } \
+            && merge_branches master $master --ff \
             && git tag ${master}.0 >/dev/null \
             && delete_branch \
             || return 1
         else
           confirm "* Merge branch release into branch '$DEV'?" || return 0;
-          origbranch_into "$DEV" \
+          merge_branches $origbranch "$DEV" \
             && git_checkout $origbranch \
             || return 1
         fi
@@ -260,7 +260,7 @@ function main {
 
       *)
         merge_feature
-        origbranch_into "$DEV"
+        merge_branches $origbranch "$DEV"
         delete_branch
     esac
   }
