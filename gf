@@ -10,12 +10,13 @@ set -eu
 function main {
 
   # defaults and constants
-  local ec line script_name
+  local ec line script_name major minor patch master
   local -r \
     DONE="[ done ]" \
     SKIPPED="[ skipped ]" \
     FAILED="[ failed ]" \
-    UPTODATE="[ up-to-date ]"
+    PASSED="[ passed ]"
+
   script_name="gf"
 
   # process options
@@ -72,12 +73,16 @@ function main {
     [[ "$( git rev-parse $1 )" != "$( git rev-parse $2 )" ]]
   }
 
+  function git_current_branch {
+    git rev-parse --abbrev-ref HEAD
+  }
+
   function confirm {
     echo -n "${@:-"Are you sure?"} [Yes/No] "
     read
-    [[ "$REPLY" =~ ^[yY].* ]] && return 0
-    [[ "$REPLY" =~ ^[nN].* ]] && return 1
-    confirm "$@"
+    [[ "$REPLY" =~ ^[yY](es)?$ ]] && return 0
+    [[ "$REPLY" =~ ^[nN]o?$ ]] && return 1
+    confirm "Type"
   }
 
   function gf_check {
@@ -203,8 +208,10 @@ function main {
     # checkout to given branch or create feature
     if [[ -n "$1" ]]; then
       if git_branch_exists "$1"; then
-        echo "Checkouting to branch '$1'"
-        git_checkout "$1"
+        echo -n "Checkout branch '$1': "
+        [[ "$(git_current_branch)" != "$1" ]] \
+          && { git_checkout "$1" || return 1; echo $DONE; } \
+          || echo $PASSED
       else
         confirm "* Create feature branch '$1'?" || return 0
         git_branch "$1" || return 1
@@ -213,11 +220,9 @@ function main {
     fi
 
     # set variables
-    local origbranch major minor patch tag master
-    origbranch="$(git rev-parse --abbrev-ref HEAD)"
+    local origbranch tag
+    origbranch="$(git_current_branch)"
     tag=""
-    IFS=. read major minor patch < "$VERSION"
-    master=${major}.$minor
 
     # proceed
     case ${origbranch%-*} in
@@ -295,7 +300,7 @@ function main {
       && { echo 0.0.0 > "$VERSION" || return 1; }
     [[ ! -f "$CHANGELOG" || -z "$(cat "$CHANGELOG")" ]] \
       && { echo "$CHANGELOG created" > "$CHANGELOG" || return 1; }
-    git_status_empty 2>/dev/null && echo $UPTODATE && return 0
+    git_status_empty 2>/dev/null && echo $PASSED && return 0
     git add "$VERSION" "$CHANGELOG" >/dev/null \
       && git commit -m "Init gf: create required files" >/dev/null \
       || return 1
@@ -309,12 +314,17 @@ function main {
     # init git repo
     echo -n "Initializing git repository: "
     git_repo_exists \
-      && { git_branch master || return 1; } \
-      || { git init >/dev/null || return 1; }
-    echo $DONE
+      && { git_branch master || return 1; echo $PASSED; } \
+      || { git init >/dev/null || return 1; echo $DONE; }
     # init files on master and $DEV
     git_status_empty \
       && init_files master \
+      && {
+        echo -n "Create stable branch $master: "
+        git_branch_exists "$master" \
+          && echo $PASSED \
+          || { git_branch "$master" >/dev/null || return 1; echo $DONE; }
+      } \
       && git_branch "$DEV" \
       && init_files "$DEV"
   }
@@ -336,6 +346,12 @@ function main {
     echo -n "GNU gf "
     cat "$version"
   }
+
+  major=0
+  minor=0
+  patch=0
+  [[ -f "$VERSION" ]] && IFS=. read major minor patch < "$VERSION"
+  master=${major}.$minor
 
   # load user options
   while [ $# -gt 0 ]; do

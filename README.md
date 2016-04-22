@@ -68,7 +68,16 @@ release-#.#
 
 1. ``gf feature_name``
 2. … some commits …
+
+## Hotfix
+
+1. ``gf master``
+2. … fixes followed by commits …
 3. ``gf``
+
+## Merge feature
+
+1. ``gf feature_name``
 
 ## New release
 
@@ -83,13 +92,6 @@ release-#.#
 ## Release to production
 
 1. ``gf release-#.#``
-
-## Hotfix
-
-1. ``gf master``
-3. … fixes followed by commits …
-4. ``gf``
-
 
 # INSTALL
 
