@@ -17,6 +17,7 @@ SYSTEM       ?= $(system)
 # Installation paths
 #-------------------------------------------------------------------------------
 
+DIRNAME     := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PANDOC      := pandoc
 GF          := gf
 README      := README
@@ -33,6 +34,7 @@ GCB         := $$(git rev-parse --abbrev-ref HEAD)
 NOMASTER    := $$([[ $(GCB) != master ]] && echo -$(GCB))
 DISTNAME    := compile
 INSTFILE    := install
+INSDEVTFILE := install_develop
 UNINSTFILE  := uninstall
 
 #-------------------------------------------------------------------------------
@@ -87,6 +89,21 @@ all:
 	echo "&& echo 'Installation completed.'"; \
 	} > $(DISTNAME)/$(INSTFILE)
 	@ chmod +x $(DISTNAME)/$(INSTFILE)
+	@ echo DONE
+
+	@ echo -n "Compiling install_develop file ..."
+	@ { \
+	echo "#!/bin/bash"; \
+	echo "mkdir -p $(MANPATH) \\"; \
+	echo "&& ln -fs \"$(DIRNAME)/$(MANFILE)\" $(MANPATH) \\"; \
+	echo "&& mkdir -p $(BINPATH) \\"; \
+	echo "&& ln -fs \"$(DIRNAME)/$(GF)\" $(BINPATH) \\"; \
+	echo "&& mkdir -p $(DATAPATH) \\"; \
+	echo "&& ln -fs \"$(DIRNAME)/$(HELPFILE)\" $(DATAPATH) \\"; \
+	echo "&& ln -fs \"$(DIRNAME)/$(VERFILE)\" $(DATAPATH) \\"; \
+	echo "&& echo 'Installation completed.'"; \
+	} > $(DISTNAME)/$(INSDEVTFILE)
+	@ chmod +x $(DISTNAME)/$(INSDEVTFILE)
 	@ echo DONE
 
 	@ echo -n "Compiling uninstall file ..."
