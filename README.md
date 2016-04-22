@@ -4,9 +4,11 @@ gf
 
 # SYNOPSIS
 
-gf [-ivh]
+gf [-ivh] [BRANCH]
 
 # DESCRIPTION
+
+**gf** automatically create (and merge) git flow branches from current or given BRANCH. If BRANCH does not exist, then gf create new feature (from dev).
 
 **gf** implements **git flow model**(1) similarly to **git-flow command**(2) with following improvements:
 

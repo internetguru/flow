@@ -34,6 +34,7 @@ function main {
     err "Uncommited changes" || return 1
   }
 
+  # TODO checkout only to branch
   # make git checkout return only error to stderr
   function git_checkout {
     local out
@@ -126,7 +127,7 @@ function main {
     [[ -n $commits ]] \
       || err "Nothing to merge - feature branch '$origbranch' is empty" \
       || return 1
-    confirm "* Merge feature '$origbranch'?" || return 0
+    confirm "* Merge feature '$origbranch'?" || exit 0
     local tmpfile
     git_commit_diff $origbranch "$DEV" \
       && echo -n "Rebasing feature branch to '$DEV': " \
@@ -169,7 +170,10 @@ function main {
     echo $DONE
   }
 
-  # Current branch:
+  # Params:
+  #   - $1 from branch
+  #
+  # Desc:
   #
   #  $DEV
   #   - increment minor version, set patch to 0
@@ -191,6 +195,18 @@ function main {
   #   - merge feature branch into $DEV
   #   - delete feature branch
   function gf_run {
+
+    # checkout to given branch or create feature
+    if [[ -n "$1" ]]; then
+      if git_branch_exists "$1"; then
+        echo "Checkouting to branch '$1'"
+        git_checkout "$1"
+      else
+        confirm "* Create feature branch '$1'?" || return 0
+        git_branch "$1" || return 1
+        return 0
+      fi
+    fi
 
     # set variables
     local origbranch major minor patch tag master
@@ -262,9 +278,10 @@ function main {
         ;;
 
       *)
-        merge_feature
-        merge_branches $origbranch "$DEV"
-        delete_branch
+        merge_feature \
+         && merge_branches $origbranch "$DEV" \
+         && delete_branch \
+         || return 1
     esac
   }
 
@@ -329,7 +346,9 @@ function main {
   done
 
   # run gf
-  gf_check && gf_run || {
+  local branch
+  branch="${1:-}"
+  gf_check && gf_run "$branch" || {
     ec=$?
     [[ $ec == 2 ]] \
       && { err "Initializing gf may help (see man gf)" || return $ec; }
