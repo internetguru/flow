@@ -11,7 +11,11 @@ function main {
 
   # defaults and constants
   local ec line script_name
-  local -r DONE="[ done ]" SKIPPED="[ skipped ]" FAILED="[ failed ]"
+  local -r \
+    DONE="[ done ]" \
+    SKIPPED="[ skipped ]" \
+    FAILED="[ failed ]" \
+    UPTODATE="[ up-to-date ]"
   script_name="gf"
 
   # process options
@@ -291,7 +295,7 @@ function main {
       && { echo 0.0.0 > "$VERSION" || return 1; }
     [[ ! -f "$CHANGELOG" || -z "$(cat "$CHANGELOG")" ]] \
       && { echo "$CHANGELOG created" > "$CHANGELOG" || return 1; }
-    git_status_empty 2>/dev/null && echo $SKIPPED && return 0
+    git_status_empty 2>/dev/null && echo $UPTODATE && return 0
     git add "$VERSION" "$CHANGELOG" >/dev/null \
       && git commit -m "Init gf: create required files" >/dev/null \
       || return 1
