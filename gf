@@ -68,9 +68,11 @@ function main {
   }
 
   function confirm {
-    echo -n "${@:-"Are you sure?"} [$(locale yesstr)/$(locale nostr)] "
+    echo -n "${@:-"Are you sure?"} [Yes/No] "
     read
-    [[ "$REPLY" =~ $(locale yesexpr) ]]
+    [[ "$REPLY" =~ ^[yY].* ]] && return 0
+    [[ "$REPLY" =~ ^[nN].* ]] && return 1
+    confirm "$@"
   }
 
   function gf_check {
