@@ -81,11 +81,11 @@ all:
 	echo "#!/bin/bash"; \
 	echo "dir=\"\$$(dirname \"\$$0\")\""; \
 	echo "mkdir -p $(MANPATH) \\"; \
-	echo "&& cp \"\$$dir/$(MANFILE)\" $(MANPATH) \\"; \
+	echo "&& cp --remove-destination \"\$$dir/$(MANFILE)\" $(MANPATH) \\"; \
 	echo "&& mkdir -p $(BINPATH) \\"; \
-	echo "&& cp \"\$$dir/$(GF)\" $(BINPATH) \\"; \
+	echo "&& cp --remove-destination \"\$$dir/$(GF)\" $(BINPATH) \\"; \
 	echo "&& mkdir -p $(DATAPATH) \\"; \
-	echo "&& cp \"\$$dir/$(HELPFILE)\" \"\$$dir/$(VERFILE)\" $(DATAPATH) \\"; \
+	echo "&& cp --remove-destination \"\$$dir/$(HELPFILE)\" \"\$$dir/$(VERFILE)\" $(DATAPATH) \\"; \
 	echo "&& echo 'Installation completed.'"; \
 	} > $(DISTNAME)/$(INSTFILE)
 	@ chmod +x $(DISTNAME)/$(INSTFILE)
