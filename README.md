@@ -66,15 +66,13 @@ release-#.#
 
 ## New feature
 
-1. ``git checkout dev``
-2. ``git checkout -b feature_name``
-3. … some commits …
-4. ``gf``
+1. ``gf feature_name``
+2. … some commits …
+3. ``gf``
 
 ## New release
 
-1. ``git checkout dev``
-2. ``gf``
+1. ``gf dev``
 
 ## Bugfix on release
 
@@ -84,15 +82,14 @@ release-#.#
 
 ## Release to production
 
-1. ``git checkout release-#.#``
-2. ``gf``
+1. ``gf release-#.#``
 
 ## Hotfix
 
-1. ``git checkout master``
-2. ``gf``
+1. ``gf master``
 3. … fixes followed by commits …
 4. ``gf``
+
 
 # INSTALL
 
