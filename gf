@@ -10,20 +10,22 @@ set -eu
 function main {
 
   # defaults and constants
-  local ec line script_name major minor patch master
+  local ec line script_name major minor patch master force
   local -r \
     DONE="[ done ]" \
     SKIPPED="[ skipped ]" \
     FAILED="[ failed ]" \
     PASSED="[ passed ]"
 
+  force=0
+  stash=0
   script_name="gf"
 
   # process options
   if ! line=$(
     getopt -n "$0" \
-           -o ivh\? \
-           -l init,version,help\
+           -o fivh\? \
+           -l force,init,version,help\
            -- "$@"
   )
   then return 1; fi
@@ -77,6 +79,22 @@ function main {
     git rev-parse --abbrev-ref HEAD
   }
 
+  function git_stash {
+    git_status_empty 2>/dev/null && return 0
+    echo -n "Stashing files: "
+    git add -A >/dev/null || return 1
+    git stash >/dev/null || return 1
+    git_status_empty 2>/dev/null \
+      && { stash=1; echo $DONE; } \
+      || { echo $FAILED; return 1; }
+  }
+
+  function git_stash_pop {
+    echo -n "Poping stashed files: "
+    git stash pop >/dev/null || { echo $FAILED; return 1; }
+    echo $DONE
+  }
+
   function confirm {
     echo -n "${@:-"Are you sure?"} [Yes/No] "
     read
@@ -92,6 +110,7 @@ function main {
     { git_branch_exists "$DEV" && git_branch_exists master; } \
       || err "Missing branches '$DEV' or master" \
       || return 2
+    [[ $force == 1 ]] && { git_stash || return 1; }
     git_status_empty \
       || return 1
     [[ -f "$VERSION" && -f "$CHANGELOG" ]] \
@@ -131,12 +150,6 @@ function main {
   }
 
   function merge_feature {
-    local commits
-    commits="$(git log "$DEV"..$origbranch --pretty=format:"#   %s")"
-    [[ -n $commits ]] \
-      || err "Nothing to merge - feature branch '$origbranch' is empty" \
-      || return 1
-    confirm "* Merge feature '$origbranch'?" || exit 0
     local tmpfile
     git_commit_diff $origbranch "$DEV" \
       && echo -n "Rebasing feature branch to '$DEV': " \
@@ -149,7 +162,7 @@ function main {
       echo -e "\n# Please enter the feature description for '$CHANGELOG'. Lines starting"
       echo -e "# with # and empty lines will be ignored."
       echo -e "#\n# Commits of '$origbranch':\n#"
-      echo -e "$commits"
+      echo -e "$1"
       echo -e "#"
     } >> "$tmpfile"
     "${EDITOR:-vi}" "$tmpfile"
@@ -287,7 +300,13 @@ function main {
         ;;
 
       *)
-        merge_feature \
+        local commits
+        commits="$(git log "$DEV"..$origbranch --pretty=format:"#   %s")"
+        [[ -n $commits ]] \
+          || err "Nothing to merge - feature branch '$origbranch' is empty" \
+          || return 1
+        confirm "* Merge feature '$origbranch'?" || return 0
+        merge_feature "$commits" \
          && merge_branches $origbranch "$DEV" \
          && delete_branch \
          || return 1
@@ -317,6 +336,7 @@ function main {
       && { git_branch master || return 1; echo $PASSED; } \
       || { git init >/dev/null || return 1; echo $DONE; }
     # init files on master and $DEV
+    [[ $force == 1 ]] && { git_stash || return 1; }
     git_status_empty \
       && init_files master \
       && {
@@ -327,6 +347,7 @@ function main {
       } \
       && git_branch "$DEV" \
       && init_files "$DEV"
+    [[ $stash == 1 ]] && { git_stash_pop || return 1; }
   }
 
   function gf_help {
@@ -356,6 +377,7 @@ function main {
   # load user options
   while [ $# -gt 0 ]; do
       case $1 in
+     -f|--force) force=1; shift ;;
      -i|--init) gf_init; return $? ;;
      -v|--version) gf_version; return $? ;;
      -h|-\?|--help) gf_help; return $? ;;
@@ -373,6 +395,7 @@ function main {
     [[ $ec == 2 ]] \
       && { err "Initializing gf may help (see man gf)" || return $ec; }
   }
+  [[ $stash == 1 ]] && { git_stash_pop || return 1; }
 
 }
 

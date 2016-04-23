@@ -25,6 +25,9 @@ gf [-ivh] [BRANCH]
 -i, --init
 : Initialize current folder to be compatible with git flow model.
 
+-f, --force
+: Stash (and pop) uncommited changes.
+
 -v, --version
 : Print version number.
 
