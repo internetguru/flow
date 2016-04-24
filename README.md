@@ -134,6 +134,9 @@ Actual change log
 2
 : Initial check failed; initializing gf may help.
 
+3
+: Git status check failed; forcing gf may help.
+
 # SEE ALSO
 
 [**git flow model**(1)](http://nvie.com/posts/a-successful-git-branching-model/)

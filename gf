@@ -10,7 +10,7 @@ set -eu
 function main {
 
   # defaults and constants
-  local ec line script_name major minor patch master force
+  local line script_name major minor patch master force
   local -r \
     DONE="[ done ]" \
     SKIPPED="[ skipped ]" \
@@ -112,7 +112,7 @@ function main {
       || return 2
     [[ $force == 1 ]] && { git_stash || return 1; }
     git_status_empty \
-      || return 1
+      || return 3
     [[ -f "$VERSION" && -f "$CHANGELOG" ]] \
       || err "Missing working files" \
       || return 2
@@ -245,12 +245,9 @@ function main {
         ;;
 
       master)
-        if git_branch_exists $master 2>/dev/null; then
-          git_commit_diff $master master \
-            && { err "Cannot hotfix from unmerged master" || return 1; }
-        else
-          git_branch $master || return 1
-        fi
+        git_branch_exists $master || return 2
+        git_commit_diff $master master \
+          && { err "Cannot hotfix from unmerged master" || return 1; }
         ;&
 
       $master)
@@ -337,10 +334,10 @@ function main {
       || { git init >/dev/null || return 1; echo $DONE; }
     # init files on master and $DEV
     [[ $force == 1 ]] && { git_stash || return 1; }
-    git_status_empty \
-      && init_files master \
+    git_status_empty || return 3
+    init_files master \
       && {
-        echo -n "Create stable branch $master: "
+        echo -n "Initializing stable branch $master: "
         git_branch_exists "$master" \
           && echo $PASSED \
           || { git_branch "$master" >/dev/null || return 1; echo $DONE; }
@@ -391,9 +388,10 @@ function main {
   local branch
   branch="${1:-}"
   gf_check && gf_run "$branch" || {
-    ec=$?
-    [[ $ec == 2 ]] \
-      && { err "Initializing gf may help (see man gf)" || return $ec; }
+    case $? in
+      2) err "Initializing gf may help (see man gf)" || return 2 ;;
+      3) err "Forcing gf may help (see man gf)" || return 3 ;;
+    esac
   }
   [[ $stash == 1 ]] && { git_stash_pop || return 1; }
 
