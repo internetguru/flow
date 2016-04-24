@@ -4,7 +4,7 @@ gf
 
 # SYNOPSIS
 
-gf [-ivh] [BRANCH]
+gf [-ifvh] [BRANCH]
 
 # DESCRIPTION
 
