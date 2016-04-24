@@ -91,21 +91,6 @@ all:
 	@ chmod +x $(DISTNAME)/$(INSTFILE)
 	@ echo DONE
 
-	@ echo -n "Compiling install_develop file ..."
-	@ { \
-	echo "#!/bin/bash"; \
-	echo "mkdir -p $(MANPATH) \\"; \
-	echo "&& ln -fs \"$(DIRNAME)/$(MANFILE)\" $(MANPATH) \\"; \
-	echo "&& mkdir -p $(BINPATH) \\"; \
-	echo "&& ln -fs \"$(DIRNAME)/$(GF)\" $(BINPATH) \\"; \
-	echo "&& mkdir -p $(DATAPATH) \\"; \
-	echo "&& ln -fs \"$(DIRNAME)/$(HELPFILE)\" $(DATAPATH) \\"; \
-	echo "&& ln -fs \"$(DIRNAME)/$(VERFILE)\" $(DATAPATH) \\"; \
-	echo "&& echo 'Installation completed.'"; \
-	} > $(DISTNAME)/$(INSDEVTFILE)
-	@ chmod +x $(DISTNAME)/$(INSDEVTFILE)
-	@ echo DONE
-
 	@ echo -n "Compiling uninstall file ..."
 	@ { \
 	echo "#!/bin/bash"; \
