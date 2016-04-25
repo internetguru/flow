@@ -14,7 +14,7 @@ gf [-ifvh] [BRANCH]
 
 * even simpler usage (with no parameters),
 
-* automatic version number(3) incrementation (file VERSION),
+* automatic **version number**(3) incrementation (file VERSION),
 
 * automatic version history update (file CHANGELOG),
 
@@ -49,52 +49,93 @@ Temporary branches:
 
 hotfix-#.#.#
 : * fixes on production branch
-* for automatic creation run ``gf`` on production branch
 
 feature
 : * develop new feature
 * name of brach should reflect functionality of the feature
-* for creation run ``git checkout -b feature_name`` on branch _dev_
 
 release-#.#
 : * testing functionality before merge or move to production
-* for automatic creation run ``gf``  on branch _dev_
 
 # EXAMPLES
 
-## Init new repository
+## Complete flow example
 
-1. ``cd project_folder``
-2. ``gf --init``
+Init repository
+: * ``gf -i``
 
-## New feature
+Bugfix (0+)
+: * ``echo "bugfix" >> flow``
+* ``git add flow``
+* ``git commit -am "add file flow"``
 
-1. ``gf feature_name``
-2. … some commits …
+Create feature
+: * ``gf example``
 
-## Hotfix
+Develop (1+)
+: * ``echo "new feature example" >> flow``
+* ``git commit -am "flow: add new feature example"``
 
-1. ``gf master``
-2. … fixes followed by commits …
-3. ``gf``
+Merge feature
+: * ``gf``
 
-## Merge feature
+Bugfix (0+)
+: * ``echo "bugfix 2" >> flow``
+* ``git commit -am "flow: add bugfix 2"``
 
-1. ``gf feature_name``
+Create release
+: * ``gf``
 
-## New release
+Bugfix (0+)
+: * ``echo "bugfix 3" >> flow``
+* ``git commit -am "flow: add bugfix 3"``
+* ``gf`` (only to dev)
 
-1. ``gf dev``
+Merge release
+: * ``gf``
 
-## Bugfix on release
+Create hotfix
+: * ``gf``
 
-1. ``git checkout release-#.#``
-2. … fixes followed by commits …
-3. ``gf `` (merge only to dev)
+Hotfix (1+)
+: * ``echo "hotfix" >> flow``
+* ``git commit -am "flow: add hotfix"``
 
-## Release to production
+Merge hotfix
+: * ``gf``
 
-1. ``gf release-#.#``
+Go to step 2
+
+## Advanced flow examples
+
+Init on existing repository
+: * ``gf -i``
+* ``echo 1.12.0 > VERSION``
+* ^ add real project version number
+* ``git commit -am "fix version number"``
+
+New feature with local changes
+: * ``gf myfeature``
+* ^ exit with status code 3 (see below)
+* ``gf -f myfeature``
+* ^ move local changes to new feature
+
+Merge old feature (with rebase)
+: * ``gf myfeature``
+* ^ automatic rebase to develop branch
+
+Merge release conflicting with develop
+: * ``gf release-#.#``
+* ^ exit on branch dev with error (standard git merge conflict message)
+* … resolve conflicts and commit …
+* ``gf release-#.#``
+* ^ success
+
+Try to use gf on corrupted repository
+: * ``gf``
+* ^ exit with stus code 2 (see below)
+* ``gf -i``
+* ^ may help to fix repository
 
 # INSTALL
 
