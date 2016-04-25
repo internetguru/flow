@@ -72,7 +72,7 @@ all:
 	@ echo DONE
 
 	@ echo -n "Compiling help file ..."
-	@ sed -n '/# SYNOPSIS/,/# DESCRIPTION/p;/# OPTIONS/,/# INTRODUCTION/p;/# REPORTING BUGS/,//p' $(README).md  | grep -v "# DESCRIPTION\|# INTRODUCTION" \
+	@ sed -n '/# SYNOPSIS/,/# DESCRIPTION/p;/# OPTIONS/,/# BASIC FLOW EXAMPLES/p;/# REPORTING BUGS/,//p' $(README).md  | grep -v "# DESCRIPTION\|# BASIC FLOW EXAMPLES" \
 	| sed "s/\*\*//g;s/^: \+/       /;s/^[^#]/       \0/;s/^# //;s/\[\(.\+\)(\([0-9]\+\))\](\(.\+\))/(\2) \1\n              \3/;s/\[\(.\+\)\](\(.\+\))/\1\n              \2/" > $(DISTNAME)/$(HELPFILE)
 	@ echo -e "\nOTHER\n\n       See man $(GF) for more information." >> $(DISTNAME)/$(HELPFILE)
 	@ echo DONE

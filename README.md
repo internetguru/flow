@@ -8,25 +8,25 @@ gf [-ifvh] [BRANCH]
 
 # DESCRIPTION
 
-**gf** automatically create (and merge) git flow branches from current or given BRANCH. If BRANCH does not exist, then gf create new feature (from dev).
+**gf** automatically creates (and merges) git flow branches from current or given BRANCH. If BRANCH does not exist, then gf creates new feature (from branch dev).
 
 **gf** implements **git flow model**(1) similarly to **git-flow command**(2) with following improvements:
 
-* even simpler usage (with no parameters),
+* even simpler usage (no parameters required),
 
 * automatic **version number**(3) incrementation (file VERSION),
 
-* automatic version history update (file CHANGELOG),
+* version history update support (file CHANGELOG),
 
 * independent production branches support.
 
 # OPTIONS
 
 -i, --init
-: Initialize current folder to be compatible with git flow model.
+: Initialize current folder.
 
 -f, --force
-: Stash (and pop) uncommited changes.
+: Move (stash and pop) uncommitted changes.
 
 -v, --version
 : Print version number.
@@ -34,32 +34,9 @@ gf [-ifvh] [BRANCH]
 -h, --help
 : Print help.
 
-# INTRODUCTION
+# BASIC FLOW EXAMPLES
 
-**Git flow model** is based on two main branches, _master_ and _dev_:
-
-dev
-: * new features or fixes (bugfix)
-
-master
-: * main production branch
-* also another independent production branches
-
-Temporary branches:
-
-hotfix-#.#.#
-: * fixes on production branch
-
-feature
-: * develop new feature
-* name of brach should reflect functionality of the feature
-
-release-#.#
-: * testing functionality before merge or move to production
-
-# BASIC FLOW EXAMPLE
-
-Initialize repository
+Initialize **gf**
 : * ``gf -i``
 
 Bugfixing on dev...
@@ -112,11 +89,11 @@ Continue with bugfixing on dev...
 
 # ADVANCED EXAMPLES
 
-Init on existing project with version number
+Initialize **gf** on existing project with version number
 : * ``echo 1.12.0 > VERSION``
 * ``gf -i``
 
-New feature from uncommited changes
+New feature from uncommitted changes
 : * ``gf -f myfeature``
 
 Merge conflicting release
