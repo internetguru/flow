@@ -116,7 +116,7 @@ Init on existing repository
 
 New feature with local changes
 : * ``gf myfeature``
-* ^ exit with status code 3 (see below)
+* ^ exit with status code 3 (see EXIT STATUS)
 * ``gf -f myfeature``
 * ^ move local changes to new feature
 
@@ -133,7 +133,7 @@ Merge release conflicting with develop
 
 Try to use gf on corrupted repository
 : * ``gf``
-* ^ exit with stus code 2 (see below)
+* ^ exit with stus code 2 (see EXIT STATUS)
 * ``gf -i``
 * ^ may help to fix repository
 
