@@ -227,7 +227,9 @@ function main {
           || echo $PASSED
       else
         confirm "* Create feature branch '$1'?" || return 0
-        git_branch "$1" || return 1
+        git_checkout $DEV \
+          && git_branch "$1" \
+          || return 1
         return 0
       fi
     fi
