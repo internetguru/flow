@@ -57,38 +57,42 @@ feature
 release-#.#
 : * testing functionality before merge or move to production
 
-# EXAMPLES
+# BASIC FLOW EXAMPLE
 
-## Complete flow example
-
-Init repository
+Initialize repository
 : * ``gf -i``
 
-Bugfix (0+)
-: * ``echo "bugfix" >> flow``
-* ``git add flow``
-* ``git commit -am "add file flow"``
+Bugfixing on dev...
+: * ``echo "bugfix 1" >> myfile``
+* ``git add myfile``
+* ``git commit -m "add bugfix 1"``
 
-Create feature
-: * ``gf example``
+Create a feature
+: * ``gf myfeature``
 
-Develop (1+)
-: * ``echo "new feature example" >> flow``
-* ``git commit -am "flow: add new feature example"``
+Developing a feature...
+: * ``echo "new feature code 1" >> myfile``
+* ``git commit -am "insert myfeature function 1"``
+* ``echo "new feature code 2" >> myfile``
+* ``git commit -am "insert myfeature function 2"``
 
 Merge feature
 : * ``gf``
+* Insert myfeature description into CHANGELOG.
 
-Bugfix (0+)
-: * ``echo "bugfix 2" >> flow``
-* ``git commit -am "flow: add bugfix 2"``
+Bugfixing on dev...
+: * ``echo "bugfix 2" >> myfile``
+* ``git commit -am "add bugfix 2"``
 
 Create release
 : * ``gf``
 
-Bugfix (0+)
-: * ``echo "bugfix 3" >> flow``
-* ``git commit -am "flow: add bugfix 3"``
+Bugfixing on release...
+: * ``echo "release bugfix 1" >> myfile``
+* ``git commit -am "add release bugfix 1"``
+* ``gf`` (only to dev)
+* ``echo "release bugfix 2" >> myfile``
+* ``git commit -am "add release bugfix 2"``
 * ``gf`` (only to dev)
 
 Merge release
@@ -97,45 +101,29 @@ Merge release
 Create hotfix
 : * ``gf``
 
-Hotfix (1+)
-: * ``echo "hotfix" >> flow``
-* ``git commit -am "flow: add hotfix"``
+Hotfixing on stable branch...
+: * ``echo "hotfix 1" >> myfile``
+* ``git commit -am "add hotfix 1"``
 
 Merge hotfix
 : * ``gf``
 
-Go to step 2
+Continue with bugfixing on dev...
 
-## Advanced flow examples
+# ADVANCED EXAMPLES
 
-Init on existing repository
-: * ``gf -i``
-* ``echo 1.12.0 > VERSION``
-* ^ add real project version number
-* ``git commit -am "fix version number"``
-
-New feature with local changes
-: * ``gf myfeature``
-* ^ exit with status code 3 (see EXIT STATUS)
-* ``gf -f myfeature``
-* ^ move local changes to new feature
-
-Merge old feature (with rebase)
-: * ``gf myfeature``
-* ^ automatic rebase to develop branch
-
-Merge release conflicting with develop
-: * ``gf release-#.#``
-* ^ exit on branch dev with error (standard git merge conflict message)
-* … resolve conflicts and commit …
-* ``gf release-#.#``
-* ^ success
-
-Try to use gf on corrupted repository
-: * ``gf``
-* ^ exit with stus code 2 (see EXIT STATUS)
+Init on existing project with version number
+: * ``echo 1.12.0 > VERSION``
 * ``gf -i``
-* ^ may help to fix repository
+
+New feature from uncommited changes
+: * ``gf -f myfeature``
+
+Merge conflicting release
+: * ``gf release-#.#``
+* Exits with standard git merge conflict message.
+* Resolve conflicts and commit.
+* ``gf release-#.#``
 
 # INSTALL
 
@@ -153,10 +141,10 @@ From source
 # HISTORY
 
 Actual version
-: file VERSION
+: see file VERSION
 
 Actual change log
-: file CHANGELOG
+: see file CHANGELOG
 
 # AUTHORS
 
