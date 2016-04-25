@@ -1,5 +1,4 @@
 *~
-*.help
-*.1
-*.tar.gz
+dist
 compile
+test

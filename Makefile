@@ -33,6 +33,7 @@ MANPATH     := $(SHAREPATH)/man/man1
 GCB         := $$(git rev-parse --abbrev-ref HEAD)
 NOMASTER    := $$([[ $(GCB) != master ]] && echo -$(GCB))
 DISTNAME    := compile
+DISTDIR     := dist
 INSTFILE    := install
 INSDEVTFILE := install_develop
 UNINSTFILE  := uninstall
@@ -104,6 +105,7 @@ all:
 
 dist: DISTNAME=$(GF)-$$(cat $(VERFILE))$(NOMASTER)-$(SYSTEM)
 dist: all
-	@ tar czf $(DISTNAME).tar.gz $(DISTNAME)
+	@ mkdir -p $(DISTDIR)
+	@ tar czf $(DISTDIR)/$(DISTNAME).tar.gz $(DISTNAME)
 	@ rm -rf $(DISTNAME)
-	@ echo "Distribution build, see 'tar tvzf $(DISTNAME).tar.gz"
+	@ echo "Distribution built; see 'tar tzf $(DISTDIR)/$(DISTNAME).tar.gz'"
