@@ -42,11 +42,6 @@ function main {
     editor="$(git config --get core.editor)"
     type "$editor" &> /dev/null \
       && { $editor "$1" || return 1; return 0; }
-    echo -e "\n\n***"
-    echo "* Warning:"
-    echo "* - Default git editor not found"
-    echo "* - Set defaults by 'git config --global core.editor EDITOR'"
-    echo "***"
     cat "$1"
     read
     echo "$REPLY" > "$1"
