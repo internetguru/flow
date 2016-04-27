@@ -10,7 +10,7 @@ set -eu
 function main {
 
   # defaults and constants
-  local line script_name major minor patch master force
+  local line script_name major minor patch master force init
   local -r \
     DONE="[ done ]" \
     SKIPPED="[ skipped ]" \
@@ -18,6 +18,7 @@ function main {
     PASSED="[ passed ]"
 
   force=0
+  init=0
   stash=0
   script_name="gf"
 
@@ -331,9 +332,18 @@ function main {
   function gf_init {
     # init git repo
     echo -n "Initializing git repository: "
-    git_repo_exists \
-      && { git_branch master || return 1; echo $PASSED; } \
-      || { git init >/dev/null || return 1; echo $DONE; }
+    if git_repo_exists; then
+      git_branch master || return 1
+      echo $PASSED
+    else
+      git init >/dev/null || return 1
+      git_status_empty 2>/dev/null || {
+        git add -A >/dev/null \
+        && git commit -m "Comit initial files" >/dev/null \
+        || err "Unable to commit existing files" || return 1
+      }
+      echo $DONE
+    fi
     # init files on master and $DEV
     [[ $force == 1 ]] && { git_stash || return 1; }
     git_status_empty || return 3
@@ -347,6 +357,7 @@ function main {
       && git_branch "$DEV" \
       && init_files "$DEV"
     [[ $stash == 1 ]] && { git_stash_pop || return 1; }
+    return 0
   }
 
   function gf_tips {
@@ -420,7 +431,7 @@ function main {
       case $1 in
      -f|--force) force=1; shift ;;
      -t|--tips) gf_tips; return $? ;;
-     -i|--init) gf_init && gf_tips; return $? ;;
+     -i|--init) init=1; shift ;;
      -v|--version) gf_version; return $? ;;
      -h|-\?|--help) gf_help; return $? ;;
       --) shift; break ;;
@@ -428,6 +439,9 @@ function main {
        *) break ;;
     esac
   done
+
+  # init gf
+  [[ $init == 1 ]] && { gf_init && gf_tips; return $?; }
 
   # run gf
   local branch
