@@ -4,7 +4,7 @@ gf
 
 # SYNOPSIS
 
-gf [-ifvh] [BRANCH]
+gf [-iftvh] [BRANCH]
 
 # DESCRIPTION
 
@@ -27,6 +27,9 @@ gf [-ifvh] [BRANCH]
 
 -f, --force
 : Move (stash and pop) uncommitted changes.
+
+-t, --tips
+: Display tips for current branch
 
 -v, --version
 : Print version number.

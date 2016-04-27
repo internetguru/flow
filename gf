@@ -24,8 +24,8 @@ function main {
   # process options
   if ! line=$(
     getopt -n "$0" \
-           -o fivh\? \
-           -l force,init,version,help\
+           -o fitvh\? \
+           -l force,init,tips,version,help\
            -- "$@"
   )
   then return 1; fi
@@ -349,6 +349,42 @@ function main {
     [[ $stash == 1 ]] && { git_stash_pop || return 1; }
   }
 
+  function gf_tips {
+    local gcb
+    gcb=$(git_current_branch)
+    echo "***"
+    echo -n "* Current branch '$gcb' is considered as "
+    case ${gcb%-*} in
+      master|$master)
+        echo "stable branch."
+        echo "* - Run gf to create hotfix or leave :)"
+      ;;
+      "$DEV")
+        echo "developing branch."
+        echo "* - Do some bugfixes..."
+        echo "* - Run gf MYFEATURE to create new feature."
+        echo "* - Run gf to create release branch."
+      ;;
+      release)
+        echo "release branch."
+        echo "* - Do some bugfixes..."
+        echo "* - Run gf to merge all bugfixes into $DEV (hit No, Yes)."
+        echo "* - Run gf to create stable branch (hit Yes)."
+      ;;
+      hotfix)
+        echo "hotfix branch."
+        echo "* - Do some hotfixes..."
+        echo "* - Run gf to merge hotfix into stable branch and"
+        echo "* - and into $DEV is necessary (hit Yes or No)."
+      ;;
+      *)
+        echo "feature branch."
+        echo "* - Develop current feature..."
+        echo "* - Run gf to merge it into $DEV."
+    esac
+    echo "***"
+  }
+
   function gf_help {
     local help_file bwhite nc
     nc=$'\e[m'
@@ -377,6 +413,7 @@ function main {
   while [ $# -gt 0 ]; do
       case $1 in
      -f|--force) force=1; shift ;;
+     -t|--tips) gf_tips; return $? ;;
      -i|--init) gf_init; return $? ;;
      -v|--version) gf_version; return $? ;;
      -h|-\?|--help) gf_help; return $? ;;
@@ -389,7 +426,7 @@ function main {
   # run gf
   local branch
   branch="${1:-}"
-  gf_check && gf_run "$branch" || {
+  gf_check && gf_run "$branch" && gf_tips || {
     case $? in
       2) err "Initializing gf may help (see man gf)" || return 2 ;;
       3) err "Forcing gf may help (see man gf)" || return 3 ;;
