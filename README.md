@@ -105,15 +105,19 @@ Merge conflicting release
 # INSTALL
 
 From dist package
-: 1. ``tar xzf package_name.tar.gz``
-2. ``cd package_name``
-3. ``./install``, resp. ``./uninstall``
+: ``./install``, resp. ``./uninstall``
 
-From source
-: 1. ``git clone git@bitbucket.org:igwr/gf.git``
-2. ``cd gf``
-3. ``./configure && make``
-4. ``compile/install``, resp. ``compile/uninstall``
+Tip: Specify destination directories
+: E.g. ``MANPATH=/usr/share/man/man1 ./install``
+
+Make dist files into ``compiled`` folder
+: ``./configure && make``
+
+Make dist package from source
+: ``./configure && make dist``
+
+Tip: Specify variables
+: E.g. ``./configure && PREFIX=/usr SYSTEM=babun make dist``
 
 # HISTORY
 
