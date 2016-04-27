@@ -351,8 +351,14 @@ function main {
 
   function gf_tips {
     local gcb
-    gcb=$(git_current_branch)
     echo "***"
+    git_repo_exists || {
+      echo "* Not a git repository"
+      echo "* - Run gf -i to initialize gf"
+      echo "***"
+      return 2
+    }
+    gcb=$(git_current_branch)
     echo -n "* Current branch '$gcb' is considered as "
     case ${gcb%-*} in
       master|$master)
@@ -414,7 +420,7 @@ function main {
       case $1 in
      -f|--force) force=1; shift ;;
      -t|--tips) gf_tips; return $? ;;
-     -i|--init) gf_init; return $? ;;
+     -i|--init) gf_init && gf_tips; return $? ;;
      -v|--version) gf_version; return $? ;;
      -h|-\?|--help) gf_help; return $? ;;
       --) shift; break ;;
