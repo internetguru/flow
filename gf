@@ -16,6 +16,7 @@ function main {
     SKIPPED="[ skipped ]" \
     FAILED="[ failed ]" \
     PASSED="[ passed ]"
+    REFSHEADS="refs/heads"
 
   force=0
   init=0
@@ -141,7 +142,16 @@ function main {
       || err "Empty '$VERSION' file" \
       || return 2
     [[ "$(cat "$VERSION")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
-      || err "Invalid '$VERSION' file content format"
+      || err "Invalid '$VERSION' file content format" \
+      || return 1
+    [[ -z "$origbranch" ]] && { origbranch="$(git_current_branch)"; return $?; }
+    git check-ref-format "$REFSHEADS/$origbranch" \
+      || err "Invalid branchname format" \
+      || return 1
+    git_branch_exists "$origbranch" \
+      || [[ ! "$origbranch" =~ ^(hotfix|release|[0-9]) ]] \
+      || err "Feature branch cannot start with hotfix, release or number" \
+      || return 1
   }
 
   function create_branch {
@@ -206,7 +216,7 @@ function main {
   function delete_branch {
     echo -n "Deleting branch '$origbranch': "
     git branch -r | grep origin/$origbranch$ >/dev/null \
-      && { git push origin :refs/heads/$origbranch >/dev/null || return 1; }
+      && { git push origin :$REFSHEADS/$origbranch >/dev/null || return 1; }
     git branch -d $origbranch >/dev/null || return 1
     echo $DONE
   }
@@ -238,24 +248,21 @@ function main {
   function gf_run {
 
     # checkout to given branch or create feature
-    if [[ -n "$1" ]]; then
-      if git_branch_exists "$1"; then
-        echo -n "Checkout branch '$1': "
-        [[ "$(git_current_branch)" != "$1" ]] \
-          && { git_checkout "$1" || return 1; echo $DONE; } \
-          || echo $PASSED
-      else
-        confirm "* Create feature branch '$1'?" || return 0
-        git_checkout $DEV \
-          && git_branch "$1" \
-          || return 1
-        return 0
-      fi
+    if git_branch_exists "$origbranch" && [[ "$origbranch" != "$(git_current_branch)" ]]; then
+      echo -n "Checkout branch '$origbranch': "
+      [[ "$(git_current_branch)" != "$origbranch" ]] \
+        && { git_checkout "$origbranch" || return 1; echo $DONE; } \
+        || echo $PASSED
+    else
+      confirm "* Create feature branch '$origbranch'?" || return 0
+      git_checkout $DEV \
+        && git_branch "$origbranch" \
+        || return 1
+      return 0
     fi
 
     # set variables
-    local origbranch tag
-    origbranch="$(git_current_branch)"
+    local tag
     tag=""
 
     # proceed
@@ -473,9 +480,9 @@ function main {
   [[ $init == 1 ]] && { gf_init && gf_tips; return $?; }
 
   # run gf
-  local branch
-  branch="${1:-}"
-  gf_check && gf_run "$branch" && gf_tips || {
+  local origbranch
+  origbranch="${1:-}"
+  gf_check && gf_run && gf_tips || {
     case $? in
       1) err "Unexpected error occured (see REPORTING BUGS in man gf)"; return 1 ;;
       2) err "Initializing gf may help (see OPTIONS in man gf)"; return 2 ;;
