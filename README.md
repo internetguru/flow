@@ -102,8 +102,8 @@ New feature from uncommitted changes
 Merge conflicting release
 : * ``gf release-#.#``
 * Exits with standard git merge conflict message.
-* Resolve conflicts and commit.
-* ``gf release-#.#``
+* Resolve conflicts...
+* ``gf``
 
 # INSTALL
 
@@ -149,6 +149,9 @@ Actual change log
 
 3
 : Git status check failed; forcing gf may help.
+
+4
+: Conflict occured; git status may help.
 
 # SEE ALSO
 

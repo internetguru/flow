@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eu
+set -u
 
 : ${DATAPATH:=.}
 : ${CHANGELOG:=CHANGELOG}
@@ -63,7 +63,14 @@ function main {
       || err "$out" || return 1
   }
 
-  # make git checkout return only error to stderr
+  # make git return only error to stderr
+  function git_tag {
+    local out
+    out="$(git tag $@ 2>&1)" \
+      || err "$out"
+  }
+
+  # make git return only error to stderr
   function git_merge {
     local out
     out="$(git merge $@ 2>&1)" \
@@ -155,10 +162,9 @@ function main {
     echo ${major}.${minor}.$patch > "$VERSION" || return 1
     git commit -am "$1" >/dev/null || return 1
     if [[ $origbranch == "$DEV" ]]; then
-      git_checkout "$DEV" \
-      && git_merge --no-ff $1 \
+      merge_branches $1 "$DEV" \
       && git_checkout $1 \
-      || return 1
+      || return $?
     fi
     echo $DONE
   }
@@ -167,7 +173,7 @@ function main {
     local tmpfile
     git_commit_diff $origbranch "$DEV" \
       && echo -n "Rebasing feature branch to '$DEV': " \
-      && { git rebase "$DEV" >/dev/null || return 1; } \
+      && { git rebase "$DEV" >/dev/null || return 4; } \
       && echo $DONE
     # message for $CHANGELOG
     echo -n "Updating changelog: "
@@ -194,7 +200,7 @@ function main {
   function merge_branches {
     echo -n "Merging '$1' into branch '$2': " \
       && git_checkout "$2" \
-      && git_merge $1 "${3:---no-ff}" \
+      && { git_merge $1 "${3:---no-ff}" || return 4; } \
       && echo $DONE
     }
 
@@ -281,16 +287,16 @@ function main {
         confirm "* Merge hotfix?" || return 0
         if git_commit_diff $master master; then
           merge_branches $origbranch $master \
-            && git tag ${master}.$patch >/dev/null \
-            || return 1
+            && git_tag ${master}.$patch \
+            || return $?
         else
           merge_branches $origbranch $master \
-            && git tag ${master}.$patch >/dev/null \
+            && git_tag ${master}.$patch \
             && merge_branches $master master --ff \
-            || return 1
+            || return $?
         fi
         confirm "* Merge hotfix into '$DEV'?" \
-          && { merge_branches $origbranch "$DEV" || return 1; }
+          && { merge_branches $origbranch "$DEV" || return $?; }
         delete_branch
         ;;
 
@@ -301,14 +307,14 @@ function main {
             && git_branch $master \
             && { git_commit_diff $master master || merge_branches $origbranch master; } \
             && merge_branches master $master --ff \
-            && git tag ${master}.0 >/dev/null \
+            && git_tag ${master}.0 \
             && delete_branch \
-            || return 1
+            || return $?
         else
           confirm "* Merge branch release into branch '$DEV'?" || return 0;
           merge_branches $origbranch "$DEV" \
             && git_checkout $origbranch \
-            || return 1
+            || return $?
         fi
         ;;
 
@@ -322,7 +328,7 @@ function main {
         merge_feature "$commits" \
          && merge_branches $origbranch "$DEV" \
          && delete_branch \
-         || return 1
+         || return $?
     esac
   }
 
@@ -398,14 +404,19 @@ function main {
       release)
         echo "release branch."
         echo "* - Do some bugfixes..."
-        echo "* - Run gf to merge all bugfixes into $DEV (hit No, Yes)."
-        echo "* - Run gf to create stable branch (hit Yes)."
+        echo "* - Run gf to create stable branch."
+        echo "* - Hit [No-Yes] to merge only into $DEV."
       ;;
       hotfix)
         echo "hotfix branch."
         echo "* - Do some hotfixes..."
-        echo "* - Run gf to merge hotfix into stable branch and"
-        echo "* - and into $DEV is necessary (hit Yes or No)."
+        echo "* - Run gf to merge hotfix into stable branch."
+        echo "* - Hit [Yes-No] to skip merging into $DEV."
+      ;;
+      HEAD)
+        echo "detached."
+        echo "*"
+        git status | sed "s/^/* /"
       ;;
       *)
         echo "feature branch."
@@ -461,10 +472,14 @@ function main {
   branch="${1:-}"
   gf_check && gf_run "$branch" && gf_tips || {
     case $? in
-      2) err "Initializing gf may help (see man gf)" || return 2 ;;
-      3) err "Forcing gf may help (see man gf)" || return 3 ;;
+      1) err "Unexpected error occured (see REPORTING BUGS in man gf)"; return 1 ;;
+      2) err "Initializing gf may help (see OPTIONS in man gf)"; return 2 ;;
+      3) err "Forcing gf may help (see OPTIONS in man gf)"; return 3 ;;
+      4) err "Conflict occured (see git status)"; gf_tips; return 4 ;;
     esac
   }
+
+  # unstash if stashed
   [[ $stash == 1 ]] && { git_stash_pop || return 1; }
 
 }
