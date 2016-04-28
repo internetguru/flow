@@ -78,19 +78,15 @@ Bugfixing on release...
 Merge release
 : * ``gf``
 
-Create hotfix
-: * ``gf``
-
-Hotfixing on stable branch...
-: * ``echo "hotfix 1" >> myfile``
-* ``git commit -am "add hotfix 1"``
-
-Merge hotfix
-: * ``gf``
-
 Continue with bugfixing on dev...
 
 # ADVANCED EXAMPLES
+
+Hotfix master branch
+: * ``gf master``
+* ``echo "hotfix 1" >> myfile``
+* ``git commit -am "add hotfix 1"``
+* ``gf``
 
 Initialize **gf** on existing project with version number
 : * ``echo 1.12.0 > VERSION``

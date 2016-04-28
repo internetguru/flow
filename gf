@@ -52,15 +52,15 @@ function main {
 
   function git_status_empty {
     [[ -z "$(git status --porcelain)" ]] && return 0
-    err "Uncommited changes" || return 1
+    err "Uncommited changes"
   }
 
   # TODO checkout only to branch
-  # make git checkout return only error to stderr
+  # make git return only error to stderr
   function git_checkout {
     local out
     out="$(git checkout $@ 2>&1)" \
-      || err "$out" || return 1
+      || err "$out"
   }
 
   # make git return only error to stderr
@@ -74,7 +74,7 @@ function main {
   function git_merge {
     local out
     out="$(git merge $@ 2>&1)" \
-      || err "$out" || return 1
+      || err "$out"
   }
 
   function git_branch {
@@ -141,8 +141,7 @@ function main {
       || err "Empty '$VERSION' file" \
       || return 2
     [[ "$(cat "$VERSION")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
-      || err "Invalid '$VERSION' file content format" \
-      || return 1
+      || err "Invalid '$VERSION' file content format"
   }
 
   function create_branch {
@@ -358,8 +357,9 @@ function main {
       git init >/dev/null || return 1
       git_status_empty 2>/dev/null || {
         git add -A >/dev/null \
-        && git commit -m "Comit initial files" >/dev/null \
-        || err "Unable to commit existing files" || return 1
+          && git commit -m "Comit initial files" >/dev/null \
+          || err "Unable to commit existing files" \
+          || return 1
       }
       echo $DONE
     fi
@@ -384,7 +384,7 @@ function main {
     echo "***"
     git_repo_exists || {
       echo "* Not a git repository"
-      echo "* - Run gf -i to initialize gf"
+      echo "* - Run 'gf -i' to initialize gf"
       echo "***"
       return 2
     }
@@ -393,24 +393,24 @@ function main {
     case ${gcb%-*} in
       master|$master)
         echo "stable branch."
-        echo "* - Run gf to create hotfix or leave :)"
+        echo "* - Run 'gf' to create hotfix or leave :)"
       ;;
       "$DEV")
         echo "developing branch."
         echo "* - Do some bugfixes..."
-        echo "* - Run gf MYFEATURE to create new feature."
-        echo "* - Run gf to create release branch."
+        echo "* - Run 'gf MYFEATURE' to create new feature."
+        echo "* - Run 'gf' to create release branch."
       ;;
       release)
         echo "release branch."
         echo "* - Do some bugfixes..."
-        echo "* - Run gf to create stable branch."
+        echo "* - Run 'gf' to create stable branch."
         echo "* - Hit [No-Yes] to merge only into $DEV."
       ;;
       hotfix)
         echo "hotfix branch."
         echo "* - Do some hotfixes..."
-        echo "* - Run gf to merge hotfix into stable branch."
+        echo "* - Run 'gf' to merge hotfix into stable branch."
         echo "* - Hit [Yes-No] to skip merging into $DEV."
       ;;
       HEAD)
@@ -421,7 +421,7 @@ function main {
       *)
         echo "feature branch."
         echo "* - Develop current feature..."
-        echo "* - Run gf to merge it into $DEV."
+        echo "* - Run 'gf' to merge it into $DEV."
     esac
     echo "***"
   }
@@ -431,15 +431,19 @@ function main {
     nc=$'\e[m'
     bwhite=$'\e[1;37m'
     help_file="$DATAPATH/${script_name}.help"
-    [ -f "$help_file" ] || err "Help file not found" || return 1
+    [ -f "$help_file" ] \
+      || err "Help file not found" \
+      || return 1
     cat "$help_file" | fmt -w $(tput cols) \
-    | sed "s/\(^\| \)\(--\?[a-zA-Z]\+\|$script_name\|^[A-Z].\+\)/\1\\$bwhite\2\\$nc/g"
+      | sed "s/\(^\| \)\(--\?[a-zA-Z]\+\|$script_name\|^[A-Z].\+\)/\1\\$bwhite\2\\$nc/g"
   }
 
   function gf_version {
     local version
     version="$DATAPATH/VERSION"
-    [ -f "$version" ] || err "Version file not found" || return 1
+    [ -f "$version" ] \
+      || err "Version file not found" \
+      || return 1
     echo -n "GNU gf "
     cat "$version"
   }
