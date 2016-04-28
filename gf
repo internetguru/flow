@@ -176,7 +176,7 @@ function main {
       echo -e "$1"
       echo -e "#"
     } >> "$tmpfile"
-    edit "$tmpfile" || { echo $SKIPPED; return 1; }
+    edit "$tmpfile" || { echo $FAILED; return 1; }
     sed -i '/^\s*\(#\|$\)/d;/^\s+/d' "$tmpfile"
     if [[ -n "$(cat "$tmpfile")" ]]; then
       cat "$CHANGELOG" >> "$tmpfile" || return 1
