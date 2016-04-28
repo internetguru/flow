@@ -248,11 +248,10 @@ function main {
   function gf_run {
 
     # checkout to given branch or create feature
-    if git_branch_exists "$origbranch" && [[ "$origbranch" != "$(git_current_branch)" ]]; then
-      echo -n "Checkout branch '$origbranch': "
+    if git_branch_exists "$origbranch"; then
       [[ "$(git_current_branch)" != "$origbranch" ]] \
-        && { git_checkout "$origbranch" || return 1; echo $DONE; } \
-        || echo $PASSED
+        && echo -n "Checkout branch '$origbranch': " \
+        && { git_checkout "$origbranch" || return 1; echo $DONE; }
     else
       confirm "* Create feature branch '$origbranch'?" || return 0
       git_checkout $DEV \
@@ -308,12 +307,12 @@ function main {
 
       release)
         if confirm "* Create stable branch from release?"; then
-          merge_branches $origbranch "$DEV" \
-            && git_checkout master \
+          git_checkout master \
             && git_branch $master \
             && { git_commit_diff $master master || merge_branches $origbranch master; } \
             && merge_branches master $master --ff \
             && git_tag ${master}.0 \
+            && merge_branches $origbranch "$DEV" \
             && delete_branch \
             || return $?
         else
