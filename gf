@@ -37,6 +37,19 @@ function main {
     return 1
   }
 
+  function edit {
+    local editor
+    editor="$(git config --get core.editor)"
+    type "$editor" &> /dev/null \
+      && { $editor "$1" || return 1; return 0; }
+    echo
+    cat "$1"
+    echo
+    echo -n "Type message or press Enter to skip: "
+    read
+    echo "$REPLY" > "$1"
+  }
+
   function git_status_empty {
     [[ -z "$(git status --porcelain)" ]] && return 0
     err "Uncommited changes" || return 1
@@ -166,7 +179,7 @@ function main {
       echo -e "$1"
       echo -e "#"
     } >> "$tmpfile"
-    "${EDITOR:-vi}" "$tmpfile"
+    edit "$tmpfile" || { echo $FAILED; return 1; }
     sed -i '/^\s*\(#\|$\)/d;/^\s+/d' "$tmpfile"
     if [[ -n "$(cat "$tmpfile")" ]]; then
       cat "$CHANGELOG" >> "$tmpfile" || return 1
