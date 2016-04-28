@@ -128,9 +128,9 @@ Actual change log
 
 # AUTHORS
 
-* Pavel Petržela <pavel@petrzela.eu>
+* Pavel Petržela <pavel.petrzela@internetguru.cz>
 
-* Jiří Pavelka <j.pavelka@seznam.cz>
+* Jiří Pavelka <jiri.pavelka@internetguru.cz>
 
 # EXIT STATUS
 
