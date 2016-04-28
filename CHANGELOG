@@ -1,2 +1,3 @@
+parameter branch validation
 Merge and rebase conflict support (exit code 4)
 use git editor or set changelog message from command line
