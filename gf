@@ -42,7 +42,10 @@ function main {
     editor="$(git config --get core.editor)"
     type "$editor" &> /dev/null \
       && { $editor "$1" || return 1; return 0; }
+    echo
     cat "$1"
+    echo
+    echo -n "Type message or press Enter to skip: "
     read
     echo "$REPLY" > "$1"
   }
