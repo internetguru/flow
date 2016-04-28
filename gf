@@ -375,8 +375,9 @@ function main {
       } \
       && git_branch "$DEV" \
       && init_files "$DEV"
-    [[ $stash == 1 ]] && { git_stash_pop || return 1; }
-    return 0
+    # unstash and return
+    [[ $stash == 0 ]] && return 0
+    git_stash_pop
   }
 
   function gf_tips {
@@ -483,8 +484,9 @@ function main {
     esac
   }
 
-  # unstash if stashed
-  [[ $stash == 1 ]] && { git_stash_pop || return 1; }
+  # unstash and return
+  [[ $stash == 0 ]] && return 0
+  git_stash_pop
 
 }
 
