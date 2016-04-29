@@ -12,12 +12,11 @@ function main {
   function msg_start {
     echo -n "[ "
     tput sc
-    echo -n " ] $1"
+    echo -n "...    ] $1"
   }
 
   function msg_end {
     tput rc
-    tput ich ${#1}
     echo "$1"
   }
 
@@ -70,7 +69,7 @@ function main {
     git_checkout $1 2>/dev/null && return 0
     msg_start "Creating branch '$1'"
     git_checkout -b $1 || return 1
-    msg_end $DONE
+    msg_end "$DONE"
   }
 
   function git_branch_exists {
@@ -95,14 +94,14 @@ function main {
     git add -A >/dev/null || return 1
     git stash >/dev/null || return 1
     git_status_empty 2>/dev/null \
-      && { stash=1; msg_end $DONE; } \
-      || { msg_end $FAILED; return 1; }
+      && { stash=1; msg_end "$DONE"; } \
+      || { msg_end "$FAILED"; return 1; }
   }
 
   function git_stash_pop {
     msg_start "Poping stashed files"
-    git stash pop >/dev/null || { msg_end $FAILED; return 1; }
-    msg_end $DONE
+    git stash pop >/dev/null || { msg_end "$FAILED"; return 1; }
+    msg_end "$DONE"
   }
 
   function confirm {
@@ -157,7 +156,7 @@ function main {
       msg_start "Updating '$VERSION' file"
     fi
     echo ${major}.${minor}.$patch > "$VERSION" || return 1
-    msg_end $DONE
+    msg_end "$DONE"
     git commit -am "$1" >/dev/null || return 1
     if [[ $origbranch == "$DEV" ]]; then
       merge_branches $1 "$DEV" \
@@ -171,7 +170,7 @@ function main {
     git_commit_diff $origbranch "$DEV" \
       && msg_start "Rebasing feature branch to '$DEV'" \
       && { git rebase "$DEV" >/dev/null || return 4; } \
-      && msg_end $DONE
+      && msg_end "$DONE"
     # message for $CHANGELOG
     msg_start "Updating changelog"
     tmpfile="$(mktemp)"
@@ -182,15 +181,15 @@ function main {
       echo -e "$1"
       echo -e "#"
     } >> "$tmpfile"
-    edit "$tmpfile" || { msg_end $FAILED; return 1; }
+    edit "$tmpfile" || { msg_end "$FAILED"; return 1; }
     sed -i '/^\s*\(#\|$\)/d;/^\s+/d' "$tmpfile"
     if [[ -n "$(cat "$tmpfile")" ]]; then
       cat "$CHANGELOG" >> "$tmpfile" || return 1
       mv "$tmpfile" "$CHANGELOG" || return 1
       git commit -am "Version history updated" >/dev/null || return 1
-      msg_end $DONE
+      msg_end "$DONE"
     else
-      msg_end $PASSED
+      msg_end "$PASSED"
     fi
   }
 
@@ -198,7 +197,7 @@ function main {
     msg_start "Merging '$1' into branch '$2'" \
       && git_checkout "$2" \
       && { git_merge $1 "${3:---no-ff}" || return 4; } \
-      && msg_end $DONE
+      && msg_end "$DONE"
     }
 
   function delete_branch {
@@ -206,7 +205,7 @@ function main {
     git branch -r | grep origin/$origbranch$ >/dev/null \
       && { git push origin :$REFSHEADS/$origbranch >/dev/null || return 1; }
     git branch -d $origbranch >/dev/null || return 1
-    msg_end $DONE
+    msg_end "$DONE"
   }
 
   # Params:
@@ -239,7 +238,7 @@ function main {
     if git_branch_exists "$origbranch"; then
       [[ "$(git_current_branch)" != "$origbranch" ]] \
         && msg_start "Checkout branch '$origbranch'" \
-        && { git_checkout "$origbranch" || return 1; msg_end $DONE; }
+        && { git_checkout "$origbranch" || return 1; msg_end "$DONE"; }
     else
       confirm "* Create feature branch '$origbranch'?" || return 0
       git_checkout $DEV \
@@ -331,11 +330,11 @@ function main {
       && { echo 0.0.0 > "$VERSION" || return 1; }
     [[ ! -f "$CHANGELOG" || -z "$(cat "$CHANGELOG")" ]] \
       && { echo "$CHANGELOG created" > "$CHANGELOG" || return 1; }
-    git_status_empty 2>/dev/null && msg_end $PASSED && return 0
+    git_status_empty 2>/dev/null && msg_end "$PASSED" && return 0
     git add "$VERSION" "$CHANGELOG" >/dev/null \
       && git commit -m "Init gf: create required files" >/dev/null \
       || return 1
-    msg_end $DONE
+    msg_end "$DONE"
   }
 
   # Prepare enviroment for gf:
@@ -346,7 +345,7 @@ function main {
     msg_start "Initializing git repository"
     if git_repo_exists; then
       git_branch master || return 1
-      msg_end $PASSED
+      msg_end "$PASSED"
     else
       git init >/dev/null || return 1
       git_status_empty 2>/dev/null || {
@@ -355,7 +354,7 @@ function main {
           || err "Unable to commit existing files" \
           || return 1
       }
-      msg_end $DONE
+      msg_end "$DONE"
     fi
     # init files on master and $DEV
     [[ $force == 1 ]] && { git_stash || return 1; }
@@ -364,8 +363,8 @@ function main {
       && {
         msg_start "Initializing stable branch $master"
         git_branch_exists "$master" \
-          && msg_end $PASSED \
-          || { git_branch "$master" >/dev/null || return 1; msg_end $DONE; }
+          && msg_end "$PASSED" \
+          || { git_branch "$master" >/dev/null || return 1; msg_end "$DONE"; }
       } \
       && git_branch "$DEV" \
       && init_files "$DEV"
