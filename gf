@@ -9,6 +9,18 @@ set -u
 
 function main {
 
+  function msg_start {
+    echo -n "[ "
+    tput sc
+    echo -n " ] $1"
+  }
+
+  function msg_end {
+    tput rc
+    tput ich ${#1}
+    echo "$1"
+  }
+
   function err {
     echo "$(basename "${0}")[error]: $@" >&2
     return 1
@@ -56,9 +68,9 @@ function main {
 
   function git_branch {
     git_checkout $1 2>/dev/null && return 0
-    echo -n "Creating branch '$1': "
+    msg_start "Creating branch '$1'"
     git_checkout -b $1 || return 1
-    echo $DONE
+    msg_end $DONE
   }
 
   function git_branch_exists {
@@ -79,18 +91,18 @@ function main {
 
   function git_stash {
     git_status_empty 2>/dev/null && return 0
-    echo -n "Stashing files: "
+    msg_start "Stashing files"
     git add -A >/dev/null || return 1
     git stash >/dev/null || return 1
     git_status_empty 2>/dev/null \
-      && { stash=1; echo $DONE; } \
-      || { echo $FAILED; return 1; }
+      && { stash=1; msg_end $DONE; } \
+      || { msg_end $FAILED; return 1; }
   }
 
   function git_stash_pop {
-    echo -n "Poping stashed files: "
-    git stash pop >/dev/null || { echo $FAILED; return 1; }
-    echo $DONE
+    msg_start "Poping stashed files"
+    git stash pop >/dev/null || { msg_end $FAILED; return 1; }
+    msg_end $DONE
   }
 
   function confirm {
@@ -138,30 +150,30 @@ function main {
     # updating CHANGELOG and VERSION files
     if [[ $origbranch == "$DEV" ]]; then
       local header
-      echo -n "Updating '$CHANGELOG' and '$VERSION' files: "
+      msg_start "Updating '$CHANGELOG' and '$VERSION' files"
       header="${major}.${minor} | $(date "+%Y-%m-%d")" || return 1
       printf '\n%s\n\n%s\n' "$header" "$(<$CHANGELOG)" > "$CHANGELOG" || return 1
     else
-      echo -n "Updating '$VERSION' file: "
+      msg_start "Updating '$VERSION' file"
     fi
     echo ${major}.${minor}.$patch > "$VERSION" || return 1
+    msg_end $DONE
     git commit -am "$1" >/dev/null || return 1
     if [[ $origbranch == "$DEV" ]]; then
       merge_branches $1 "$DEV" \
       && git_checkout $1 \
       || return $?
     fi
-    echo $DONE
   }
 
   function merge_feature {
     local tmpfile
     git_commit_diff $origbranch "$DEV" \
-      && echo -n "Rebasing feature branch to '$DEV': " \
+      && msg_start "Rebasing feature branch to '$DEV'" \
       && { git rebase "$DEV" >/dev/null || return 4; } \
-      && echo $DONE
+      && msg_end $DONE
     # message for $CHANGELOG
-    echo -n "Updating changelog: "
+    msg_start "Updating changelog"
     tmpfile="$(mktemp)"
     {
       echo -e "\n# Please enter the feature description for '$CHANGELOG'. Lines starting"
@@ -170,31 +182,31 @@ function main {
       echo -e "$1"
       echo -e "#"
     } >> "$tmpfile"
-    edit "$tmpfile" || { echo $FAILED; return 1; }
+    edit "$tmpfile" || { msg_end $FAILED; return 1; }
     sed -i '/^\s*\(#\|$\)/d;/^\s+/d' "$tmpfile"
     if [[ -n "$(cat "$tmpfile")" ]]; then
       cat "$CHANGELOG" >> "$tmpfile" || return 1
       mv "$tmpfile" "$CHANGELOG" || return 1
       git commit -am "Version history updated" >/dev/null || return 1
-      echo $DONE
+      msg_end $DONE
     else
-      echo $SKIPPED
+      msg_end $PASSED
     fi
   }
 
   function merge_branches {
-    echo -n "Merging '$1' into branch '$2': " \
+    msg_start "Merging '$1' into branch '$2'" \
       && git_checkout "$2" \
       && { git_merge $1 "${3:---no-ff}" || return 4; } \
-      && echo $DONE
+      && msg_end $DONE
     }
 
   function delete_branch {
-    echo -n "Deleting branch '$origbranch': "
+    msg_start "Deleting branch '$origbranch'"
     git branch -r | grep origin/$origbranch$ >/dev/null \
       && { git push origin :$REFSHEADS/$origbranch >/dev/null || return 1; }
     git branch -d $origbranch >/dev/null || return 1
-    echo $DONE
+    msg_end $DONE
   }
 
   # Params:
@@ -226,8 +238,8 @@ function main {
     # checkout to given branch or create feature
     if git_branch_exists "$origbranch"; then
       [[ "$(git_current_branch)" != "$origbranch" ]] \
-        && echo -n "Checkout branch '$origbranch': " \
-        && { git_checkout "$origbranch" || return 1; echo $DONE; }
+        && msg_start "Checkout branch '$origbranch'" \
+        && { git_checkout "$origbranch" || return 1; msg_end $DONE; }
     else
       confirm "* Create feature branch '$origbranch'?" || return 0
       git_checkout $DEV \
@@ -314,16 +326,16 @@ function main {
   }
 
   function init_files {
-    echo -n "Initializing files on branch '$1': "
+    msg_start "Initializing files on branch '$1'"
     [[ ! -f "$VERSION" || -z "$(cat "$VERSION")" ]] \
       && { echo 0.0.0 > "$VERSION" || return 1; }
     [[ ! -f "$CHANGELOG" || -z "$(cat "$CHANGELOG")" ]] \
       && { echo "$CHANGELOG created" > "$CHANGELOG" || return 1; }
-    git_status_empty 2>/dev/null && echo $PASSED && return 0
+    git_status_empty 2>/dev/null && msg_end $PASSED && return 0
     git add "$VERSION" "$CHANGELOG" >/dev/null \
       && git commit -m "Init gf: create required files" >/dev/null \
       || return 1
-    echo $DONE
+    msg_end $DONE
   }
 
   # Prepare enviroment for gf:
@@ -331,10 +343,10 @@ function main {
   # - create $DEV branch
   function gf_init {
     # init git repo
-    echo -n "Initializing git repository: "
+    msg_start "Initializing git repository"
     if git_repo_exists; then
       git_branch master || return 1
-      echo $PASSED
+      msg_end $PASSED
     else
       git init >/dev/null || return 1
       git_status_empty 2>/dev/null || {
@@ -343,17 +355,17 @@ function main {
           || err "Unable to commit existing files" \
           || return 1
       }
-      echo $DONE
+      msg_end $DONE
     fi
     # init files on master and $DEV
     [[ $force == 1 ]] && { git_stash || return 1; }
     git_status_empty || return 3
     init_files master \
       && {
-        echo -n "Initializing stable branch $master: "
+        msg_start "Initializing stable branch $master"
         git_branch_exists "$master" \
-          && echo $PASSED \
-          || { git_branch "$master" >/dev/null || return 1; echo $DONE; }
+          && msg_end $PASSED \
+          || { git_branch "$master" >/dev/null || return 1; msg_end $DONE; }
       } \
       && git_branch "$DEV" \
       && init_files "$DEV"
@@ -434,10 +446,9 @@ function main {
   # defaults and constants
   local line script_name major minor patch master force init
   local -r \
-    DONE="[ done ]" \
-    SKIPPED="[ skipped ]" \
-    FAILED="[ failed ]" \
-    PASSED="[ passed ]"
+    DONE="done" \
+    FAILED="failed" \
+    PASSED="passed"
     REFSHEADS="refs/heads"
 
   stash=0
