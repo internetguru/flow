@@ -22,6 +22,20 @@ function main {
     echo "$1"
   }
 
+  function stdout_silent {
+    local v
+    v="${1:-}"
+    [[ -n "$v" && $v != 0 ]] && return 0
+    exec 5<&1
+    exec 1>/dev/null
+    verbose=0
+  }
+
+  function stdout_verbose {
+    exec 1<&5
+    verbose=1
+  }
+
   function err {
     echo "$(basename "${0}")[error]: $@" >&2
     return 1
@@ -108,10 +122,17 @@ function main {
 
   function confirm {
     [[ $yes == 1 ]] && return 0
+    local v
+    v=$verbose
+    [[ $v == 0 ]] && stdout_verbose
     echo -n "${@:-"Are you sure?"} [YES/No] "
     read
-    [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] && return 0
-    [[ "$REPLY" =~ ^[nN]o?$ ]] && return 1
+    [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] \
+      && stdout_silent $v \
+      && return 0
+    [[ "$REPLY" =~ ^[nN]o?$ ]] \
+      && stdout_silent $v \
+      && return 1
     confirm "Type"
   }
 
@@ -452,17 +473,22 @@ function main {
     cat "$version"
   }
 
+
   # defaults and constants
-  local line script_name major minor patch master force init yes
+  local line script_name major minor patch master force init yes verbose
   local -r \
     DONE="done" \
     FAILED="failed" \
     PASSED="passed"
     REFSHEADS="refs/heads"
 
+  verbose=0
   stash=0
   yes=0
   script_name="gf"
+
+  # hide stdout by defualt
+  stdout_silent
 
   # read $VERSION
   major=0
@@ -473,8 +499,8 @@ function main {
   # process options
   if ! line=$(
     IFS=" " getopt -n "$0" \
-           -o fityvh\? \
-           -l force,init,tips,yes,version,help\
+           -o fityvVh\? \
+           -l force,init,tips,yes,verbose,version,help\
            -- $GF_OPTIONS $*
   )
   then gf_usage; return 2; fi
@@ -486,11 +512,12 @@ function main {
   while [ $# -gt 0 ]; do
     case $1 in
      -f|--force) force=1; shift ;;
-     -t|--tips) gf_tips; return $? ;;
+     -t|--tips) stdout_verbose; gf_tips; return $? ;;
      -i|--init) init=1; shift ;;
      -y|--yes) yes=1; shift ;;
-     -v|--version) gf_version; return $? ;;
-     -h|-\?|--help) gf_usage; return $? ;;
+     -v|--verbose) stdout_verbose; shift ;;
+     -V|--version) stdout_verbose; gf_version; return $? ;;
+     -h|-\?|--help) stdout_verbose; gf_usage; return $? ;;
       --) shift; break ;;
       *-) echo "$script_name: Unrecognized option '$1'" >&2; gf_usage; return 2 ;;
        *) break ;;

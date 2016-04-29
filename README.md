@@ -29,12 +29,15 @@ gf [-iftvh] [BRANCH]
 : Move (stash and pop) uncommitted changes.
 
 -t, --tips
-: Display tips for current branch
+: Display tips for current branch.
 
 -y, --yes
 : Assume yes for all questions
 
--v, --version
+-v, --verbose
+: Verbose mode.
+
+-V, --version
 : Print version number.
 
 -h, --help
