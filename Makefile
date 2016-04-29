@@ -36,7 +36,7 @@ DISTDIR     := dist
 INSTFILE    := install
 INSDEVTFILE := install_develop
 UNINSTFILE  := uninstall
-USAGEHEADER := "Usage: $(GF) [OPTIONS]... [BRANCH]"
+USAGEHEADER := "Usage: $(GF) [OPTION]... [BRANCH]"
 
 #-------------------------------------------------------------------------------
 # Recipes
