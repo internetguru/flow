@@ -471,7 +471,7 @@ function main {
   master=${major}.$minor
   # process options
   if ! line=$(
-    getopt -n "$0" \
+    IFS=" " getopt -n "$0" \
            -o fitvh\? \
            -l force,init,tips,version,help\
            -- $GF_OPTIONS $*
