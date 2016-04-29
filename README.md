@@ -141,12 +141,15 @@ Actual change log
 : Generic error code.
 
 2
-: Initial check failed; initializing gf may help.
+: Parse or invalid option error.
 
 3
-: Git status check failed; forcing gf may help.
+: Initial check failed; initializing gf may help.
 
 4
+: Git status check failed; forcing gf may help.
+
+5
 : Conflict occured; git status may help.
 
 # SEE ALSO

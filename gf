@@ -117,19 +117,19 @@ function main {
   function gf_check {
     git_repo_exists \
       || err "Git repository does not exist" \
-      || return 2
+      || return 3
     { git_branch_exists "$DEV" && git_branch_exists master; } \
       || err "Missing branches '$DEV' or master" \
-      || return 2
+      || return 3
     [[ $force == 1 ]] && { git_stash || return 1; }
     git_status_empty \
-      || return 3
+      || return 4
     [[ -f "$VERSION" && -f "$CHANGELOG" ]] \
       || err "Missing working files" \
-      || return 2
+      || return 3
     [[ -n "$(cat "$VERSION")" ]] \
       || err "Empty '$VERSION' file" \
-      || return 2
+      || return 3
     [[ "$(cat "$VERSION")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
       || err "Invalid '$VERSION' file content format" \
       || return 1
@@ -171,7 +171,7 @@ function main {
     local tmpfile
     git_commit_diff $origbranch "$DEV" \
       && msg_start "Rebasing feature branch to '$DEV'" \
-      && { git rebase "$DEV" >/dev/null || return 4; } \
+      && { git rebase "$DEV" >/dev/null || return 5; } \
       && msg_end "$DONE"
     # message for $CHANGELOG
     tmpfile="$(mktemp)"
@@ -198,9 +198,9 @@ function main {
   function merge_branches {
     msg_start "Merging '$1' into branch '$2'" \
       && git_checkout "$2" \
-      && { git_merge $1 "${3:---no-ff}" || return 4; } \
+      && { git_merge $1 "${3:---no-ff}" || return 5; } \
       && msg_end "$DONE"
-    }
+  }
 
   function delete_branch {
     msg_start "Deleting remote branch '$origbranch'"
@@ -269,7 +269,7 @@ function main {
         ;;
 
       master)
-        git_branch_exists $master || return 2
+        git_branch_exists $master || return 3
         git_commit_diff $master master \
           && { err "Cannot hotfix from unmerged master" || return 1; }
         ;&
@@ -368,7 +368,7 @@ function main {
     fi
     # init files on master and $DEV
     [[ $force == 1 ]] && { git_stash || return 1; }
-    git_status_empty || return 3
+    git_status_empty || return 4
     init_files master \
       && {
         msg_start "Initializing stable branch $master"
@@ -390,7 +390,7 @@ function main {
       echo "* Not a git repository"
       echo "* - Run 'gf -i' to initialize gf"
       echo "***"
-      return 2
+      return 3
     }
     gcb=$(git_current_branch)
     echo -n "* Current branch '$gcb' is considered as "
@@ -430,16 +430,15 @@ function main {
     echo "***"
   }
 
-  function gf_help {
-    local help_file bwhite nc
+  function gf_usage {
+    local usage_file bwhite nc
     nc=$'\e[m'
     bwhite=$'\e[1;37m'
-    help_file="$DATAPATH/${script_name}.help"
-    [ -f "$help_file" ] \
-      || err "Help file not found" \
+    usage_file="$DATAPATH/${script_name}.usage"
+    [ -f "$usage_file" ] \
+      || err "Usage file not found" \
       || return 1
-    cat "$help_file" | fmt -w $(tput cols) \
-      | sed "s/\(^\| \)\(--\?[a-zA-Z]\+\|$script_name\|^[A-Z].\+\)/\1\\$bwhite\2\\$nc/g"
+    cat "$usage_file"
   }
 
   function gf_version {
@@ -476,21 +475,21 @@ function main {
            -l force,init,tips,version,help\
            -- $GF_OPTIONS $*
   )
-  then return 1; fi
+  then gf_usage; return 2; fi
   eval set -- "$line"
 
   # load user options
   force=0
   init=0
   while [ $# -gt 0 ]; do
-      case $1 in
+    case $1 in
      -f|--force) force=1; shift ;;
      -t|--tips) gf_tips; return $? ;;
      -i|--init) init=1; shift ;;
      -v|--version) gf_version; return $? ;;
-     -h|-\?|--help) gf_help; return $? ;;
+     -h|-\?|--help) gf_usage; return $? ;;
       --) shift; break ;;
-      *-) echo "$0: Unrecognized option '$1'" >&2; return 1 ;;
+      *-) echo "$script_name: Unrecognized option '$1'" >&2; gf_usage; return 2 ;;
        *) break ;;
     esac
   done
@@ -504,9 +503,10 @@ function main {
   gf_check && gf_run && gf_tips || {
     case $? in
       1) err "Unexpected error occured (see REPORTING BUGS in man gf)"; return 1 ;;
-      2) err "Initializing gf may help (see OPTIONS in man gf)"; return 2 ;;
-      3) err "Forcing gf may help (see OPTIONS in man gf)"; return 3 ;;
-      4) err "Conflict occured (see git status)"; gf_tips; return 4 ;;
+    # 2) only parse or invalid option error
+      3) err "Initializing gf may help (see OPTIONS in man gf)"; return 3 ;;
+      4) err "Forcing gf may help (see OPTIONS in man gf)"; return 4 ;;
+      5) err "Conflict occured (see git status)"; gf_tips; return 5 ;;
     esac
   }
 
