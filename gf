@@ -9,30 +9,6 @@ set -u
 
 function main {
 
-  # defaults and constants
-  local line script_name major minor patch master force init
-  local -r \
-    DONE="[ done ]" \
-    SKIPPED="[ skipped ]" \
-    FAILED="[ failed ]" \
-    PASSED="[ passed ]"
-    REFSHEADS="refs/heads"
-
-  force=0
-  init=0
-  stash=0
-  script_name="gf"
-
-  # process options
-  if ! line=$(
-    getopt -n "$0" \
-           -o fitvh\? \
-           -l force,init,tips,version,help\
-           -- "$@"
-  )
-  then return 1; fi
-  eval set -- "$line"
-
   function err {
     echo "$(basename "${0}")[error]: $@" >&2
     return 1
@@ -455,13 +431,38 @@ function main {
     cat "$version"
   }
 
+  # defaults and constants
+  local line script_name major minor patch master force init
+  local -r \
+    DONE="[ done ]" \
+    SKIPPED="[ skipped ]" \
+    FAILED="[ failed ]" \
+    PASSED="[ passed ]"
+    REFSHEADS="refs/heads"
+
+  stash=0
+  script_name="gf"
+
+  # read $VERSION
   major=0
   minor=0
   patch=0
   [[ -f "$VERSION" ]] && IFS=. read major minor patch < "$VERSION"
   master=${major}.$minor
 
+  # process options
+  if ! line=$(
+    getopt -n "$0" \
+           -o fitvh\? \
+           -l force,init,tips,version,help\
+           -- "$@"
+  )
+  then return 1; fi
+  eval set -- "$line"
+
   # load user options
+  force=0
+  init=0
   while [ $# -gt 0 ]; do
       case $1 in
      -f|--force) force=1; shift ;;
