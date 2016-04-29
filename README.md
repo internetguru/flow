@@ -159,7 +159,7 @@ Actual change log
 
 # REPORTING BUGS
 
-[**Issue tracker**](https://bitbucket.org/igwr/gf/issues)
+[**Issue tracker**](https://github.com/InternetGuru/gf/issues)
 
 # COPYRIGHT
 
