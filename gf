@@ -107,7 +107,8 @@ function main {
   }
 
   function confirm {
-    echo -n "${@:-"Are you sure?"} [YES/no] "
+    echo -n "${@:-"Are you sure?"} [YES/No] "
+    [[ $yes == 1 ]] && echo "yes" && return 0
     read
     [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] && return 0
     [[ "$REPLY" =~ ^[nN]o?$ ]] && return 1
@@ -452,7 +453,7 @@ function main {
   }
 
   # defaults and constants
-  local line script_name major minor patch master force init
+  local line script_name major minor patch master force init yes
   local -r \
     DONE="done" \
     FAILED="failed" \
@@ -460,6 +461,7 @@ function main {
     REFSHEADS="refs/heads"
 
   stash=0
+  yes=0
   script_name="gf"
 
   # read $VERSION
@@ -471,8 +473,8 @@ function main {
   # process options
   if ! line=$(
     IFS=" " getopt -n "$0" \
-           -o fitvh\? \
-           -l force,init,tips,version,help\
+           -o fityvh\? \
+           -l force,init,tips,yes-to-all,version,help\
            -- $GF_OPTIONS $*
   )
   then gf_usage; return 2; fi
@@ -486,6 +488,7 @@ function main {
      -f|--force) force=1; shift ;;
      -t|--tips) gf_tips; return $? ;;
      -i|--init) init=1; shift ;;
+     -y|--yes-to-all) yes=1; shift ;;
      -v|--version) gf_version; return $? ;;
      -h|-\?|--help) gf_usage; return $? ;;
       --) shift; break ;;
