@@ -398,7 +398,7 @@ function main {
 
   function gf_tips {
     [[ $tips == 0 ]] && return 0
-    stdout_verbose
+    [[ $verbose == 0 ]] && stdout_verbose
     local gcb
     echo "***"
     git_repo_exists || {
@@ -489,7 +489,7 @@ function main {
   # process options
   if ! line=$(
     IFS=" " getopt -n "$0" \
-           -o fitynvVh\? \
+           -o iftynvVh\? \
            -l force,init,tips,dry-run,yes,verbose,version,help\
            -- $GF_OPTIONS $*
   )
@@ -519,10 +519,10 @@ function main {
   local origbranch
   origbranch="${1:-}"
   [[ $verbose == 0 ]] && stdout_silent
-  [[ $dry == 1 ]] && { gf_tips; return 0; }
-  [[ $init == 1 ]] && { gf_init; return $?; }
   [[ -f "$VERSION" ]] && IFS=. read major minor patch < "$VERSION"
   master=${major}.$minor
+  [[ $dry == 1 ]] && { gf_tips; return 0; }
+  [[ $init == 1 ]] && { gf_init && gf_tips; return $?; }
 
   # run gf
   gf_check && gf_run && gf_tips || {

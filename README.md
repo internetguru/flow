@@ -32,7 +32,10 @@ gf [-iftvh] [BRANCH]
 : Display tips for current branch.
 
 -y, --yes
-: Assume yes for all questions
+: Assume yes for all questions.
+
+-n, --dry-run
+: Do not run commands; only parse user options.
 
 -v, --verbose
 : Verbose mode.
