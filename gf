@@ -107,8 +107,8 @@ function main {
   }
 
   function confirm {
+    [[ $yes == 1 ]] && return 0
     echo -n "${@:-"Are you sure?"} [YES/No] "
-    [[ $yes == 1 ]] && echo "yes" && return 0
     read
     [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] && return 0
     [[ "$REPLY" =~ ^[nN]o?$ ]] && return 1
@@ -474,7 +474,7 @@ function main {
   if ! line=$(
     IFS=" " getopt -n "$0" \
            -o fityvh\? \
-           -l force,init,tips,yes-to-all,version,help\
+           -l force,init,tips,yes,version,help\
            -- $GF_OPTIONS $*
   )
   then gf_usage; return 2; fi
