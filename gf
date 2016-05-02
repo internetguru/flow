@@ -23,9 +23,6 @@ function main {
   }
 
   function stdout_silent {
-    local v
-    v="${1:-}"
-    [[ -n "$v" && $v != 0 ]] && return 0
     exec 5<&1
     exec 1>/dev/null
     verbose=0
@@ -128,10 +125,10 @@ function main {
     echo -n "${@:-"Are you sure?"} [YES/No] "
     read
     [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] \
-      && stdout_silent $v \
+      && { [[ $v == 0 ]] && stdout_silent; } \
       && return 0
     [[ "$REPLY" =~ ^[nN]o?$ ]] \
-      && stdout_silent $v \
+      && { [[ $v == 0 ]] && stdout_silent; } \
       && return 1
     confirm "Type"
   }
