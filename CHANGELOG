@@ -1,3 +1,5 @@
+Dry run option for syntax validation
+Verbose option support
 Yes to all option support
 simple usage and syntax exit status 2
 Environment variable GF_OPTIONS support
