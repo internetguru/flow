@@ -488,7 +488,7 @@ function main {
      -f|--force) force=1; shift ;;
      -t|--tips) gf_tips; return $? ;;
      -i|--init) init=1; shift ;;
-     -y|--yes-to-all) yes=1; shift ;;
+     -y|--yes) yes=1; shift ;;
      -v|--version) gf_version; return $? ;;
      -h|-\?|--help) gf_usage; return $? ;;
       --) shift; break ;;

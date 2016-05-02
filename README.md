@@ -31,8 +31,8 @@ gf [-iftvh] [BRANCH]
 -t, --tips
 : Display tips for current branch
 
--y, --yes-to-all
-: Assume yes to all questions
+-y, --yes
+: Assume yes for all questions
 
 -v, --version
 : Print version number.
