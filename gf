@@ -469,13 +469,14 @@ function main {
 
 
   # defaults and constants
-  local line script_name major minor patch master force init yes verbose
+  local line script_name major minor patch master force init yes verbose dry
   local -r \
     DONE="done" \
     FAILED="failed" \
     PASSED="passed"
     REFSHEADS="refs/heads"
 
+  dry=0
   verbose=0
   stash=0
   yes=0
@@ -493,8 +494,8 @@ function main {
   # process options
   if ! line=$(
     IFS=" " getopt -n "$0" \
-           -o fityvVh\? \
-           -l force,init,tips,yes,verbose,version,help\
+           -o fitynvVh\? \
+           -l force,init,tips,dry-run,yes,verbose,version,help\
            -- $GF_OPTIONS $*
   )
   then gf_usage; return 2; fi
@@ -509,6 +510,7 @@ function main {
      -t|--tips) stdout_verbose; gf_tips; return $? ;;
      -i|--init) init=1; shift ;;
      -y|--yes) yes=1; shift ;;
+     -n|--dry-run) dry=1; shift ;;
      -v|--verbose) stdout_verbose; shift ;;
      -V|--version) stdout_verbose; gf_version; return $? ;;
      -h|-\?|--help) stdout_verbose; gf_usage; return $? ;;
@@ -518,12 +520,22 @@ function main {
     esac
   done
 
+  local origbranch
+  origbranch="${1:-}"
+
+  # TODO
+  # - show commands with echo
+  #   ^^ problem with command dependencies
+  # - OR output commands
+  #   ^^ set -v or set -xv
+  # - OR create temporary .git repo
+  #   ^^ problem with big repositories?
+  [[ $dry == 1 ]] && set -xv
+
   # init gf
   [[ $init == 1 ]] && { gf_init; return $?; }
 
   # run gf
-  local origbranch
-  origbranch="${1:-}"
   gf_check && gf_run || {
     case $? in
       1) err "Unexpected error occured (see REPORTING BUGS in man gf)"; return 1 ;;
