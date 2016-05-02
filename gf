@@ -400,6 +400,8 @@ function main {
   }
 
   function gf_tips {
+    [[ $tips == 0 ]] && return 0
+    stdout_verbose
     local gcb
     echo "***"
     git_repo_exists || {
@@ -469,13 +471,18 @@ function main {
 
 
   # defaults and constants
+<<<<<<< HEAD
   local line script_name major minor patch master force init yes verbose dry
+=======
+  local line script_name major minor patch master force init verbose dry tips
+>>>>>>> dry run working
   local -r \
     DONE="done" \
     FAILED="failed" \
     PASSED="passed"
     REFSHEADS="refs/heads"
 
+  tips=0
   dry=0
   verbose=0
   stash=0
@@ -507,7 +514,7 @@ function main {
   while [ $# -gt 0 ]; do
     case $1 in
      -f|--force) force=1; shift ;;
-     -t|--tips) stdout_verbose; gf_tips; return $? ;;
+     -t|--tips) tips=1; shift ;;
      -i|--init) init=1; shift ;;
      -y|--yes) yes=1; shift ;;
      -n|--dry-run) dry=1; shift ;;
@@ -523,20 +530,14 @@ function main {
   local origbranch
   origbranch="${1:-}"
 
-  # TODO
-  # - show commands with echo
-  #   ^^ problem with command dependencies
-  # - OR output commands
-  #   ^^ set -v or set -xv
-  # - OR create temporary .git repo
-  #   ^^ problem with big repositories?
-  [[ $dry == 1 ]] && set -xv
+  # dry-run => not execute run
+  [[ $dry == 1 ]] && { gf_tips; return 0; }
 
   # init gf
   [[ $init == 1 ]] && { gf_init; return $?; }
 
   # run gf
-  gf_check && gf_run || {
+  gf_check && gf_run && gf_tips || {
     case $? in
       1) err "Unexpected error occured (see REPORTING BUGS in man gf)"; return 1 ;;
     # 2) only parse or invalid option error
