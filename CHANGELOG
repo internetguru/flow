@@ -1,3 +1,4 @@
+Display command status on the start of line
 Hitting Enter confirms question by default
 parameter branch validation
 Merge and rebase conflict support (exit code 4)
