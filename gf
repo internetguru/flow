@@ -522,12 +522,12 @@ function main {
   done
 
   # init gf
-  [[ $init == 1 ]] && { gf_init && gf_tips; return $?; }
+  [[ $init == 1 ]] && { gf_init; return $?; }
 
   # run gf
   local origbranch
   origbranch="${1:-}"
-  gf_check && gf_run && gf_tips || {
+  gf_check && gf_run || {
     case $? in
       1) err "Unexpected error occured (see REPORTING BUGS in man gf)"; return 1 ;;
     # 2) only parse or invalid option error
