@@ -1,3 +1,4 @@
+simple usage and syntax exit status 2
 Environment variable GF_OPTIONS support
 Display command status on the start of line
 Hitting Enter confirms question by default
