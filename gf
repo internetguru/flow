@@ -124,12 +124,9 @@ function main {
     [[ $v == 0 ]] && stdout_verbose
     echo -n "${@:-"Are you sure?"} [YES/No] "
     read
-    [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] \
-      && { [[ $v == 0 ]] && stdout_silent; } \
-      && return 0
-    [[ "$REPLY" =~ ^[nN]o?$ ]] \
-      && { [[ $v == 0 ]] && stdout_silent; } \
-      && return 1
+    [[ $v == 0 ]] && stdout_silent
+    [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] && return 0
+    [[ "$REPLY" =~ ^[nN]o?$ ]] && return 1
     confirm "Type"
   }
 
