@@ -22,7 +22,7 @@ PANDOC      := pandoc
 GF          := gf
 README      := README
 MANFILE     := $(GF).1
-HELPFILE    := $(GF).help
+USAGEFILE   := $(GF).usage
 VERFILE     := VERSION
 CHLOGFILE   := CHANGELOG
 DESTPATH    := $(DESTDIR)$(PREFIX)
@@ -36,6 +36,7 @@ DISTDIR     := dist
 INSTFILE    := install
 INSDEVTFILE := install_develop
 UNINSTFILE  := uninstall
+USAGEHEADER := "Usage: $(GF) [OPTION]... [BRANCH]"
 
 #-------------------------------------------------------------------------------
 # Recipes
@@ -70,10 +71,10 @@ all:
 	@ $(PANDOC) -s -t rst $(README).md -o $(DISTNAME)/$(README).rst
 	@ echo DONE
 
-	@ echo -n "Compiling help file ..."
-	@ sed -n '/# SYNOPSIS/,/# DESCRIPTION/p;/# OPTIONS/,/# BASIC FLOW EXAMPLES/p;/# REPORTING BUGS/,//p' $(README).md  | grep -v "# DESCRIPTION\|# BASIC FLOW EXAMPLES" \
-	| sed "s/\*\*//g;s/^: \+/       /;s/^[^#]/       \0/;s/^# //;s/\[\(.\+\)(\([0-9]\+\))\](\(.\+\))/(\2) \1\n              \3/;s/\[\(.\+\)\](\(.\+\))/\1\n              \2/" > $(DISTNAME)/$(HELPFILE)
-	@ echo -e "\nOTHER\n\n       See man $(GF) for more information." >> $(DISTNAME)/$(HELPFILE)
+	@ echo -n "Compiling usage file ..."
+	@ echo -e "$(USAGEHEADER)\n" > $(DISTNAME)/$(USAGEFILE)
+	@ sed -n '/# OPTIONS/,/# BASIC FLOW EXAMPLES/p;' README.md  | grep -v "# BASIC FLOW EXAMPLES\|# OPTIONS" \
+	| sed '/^-.*$$/ { N; s/\n// }' | sed 's/: /\t/' | sed '/^$$/d' >> $(DISTNAME)/$(USAGEFILE)
 	@ echo DONE
 
 	@ echo -n "Compiling install file ..."
@@ -90,7 +91,7 @@ all:
 	echo "&& mkdir -p \"\$$BINPATH\" \\"; \
 	echo "&& cp --remove-destination \"\$$dir/$(GF)\" \"\$$BINPATH\" \\"; \
 	echo "&& mkdir -p \"\$$SHAREPATH/$(GF)\" \\"; \
-	echo "&& cp --remove-destination \"\$$dir/$(HELPFILE)\" \"\$$dir/$(VERFILE)\" \"\$$SHAREPATH/$(GF)\" \\"; \
+	echo "&& cp --remove-destination \"\$$dir/$(USAGEFILE)\" \"\$$dir/$(VERFILE)\" \"\$$SHAREPATH/$(GF)\" \\"; \
 	echo "&& echo 'Installation completed.'"; \
 	} > $(DISTNAME)/$(INSTFILE)
 	@ chmod +x $(DISTNAME)/$(INSTFILE)
