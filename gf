@@ -31,7 +31,7 @@ function main {
     local editor
     editor="$(git config --get core.editor)"
     type "$editor" &> /dev/null \
-      && { $editor "$1" || return 1; return 0; }
+      && { $editor "$1" && return 0; }
     echo
     cat "$1"
     echo
@@ -174,7 +174,6 @@ function main {
       && { git rebase "$DEV" >/dev/null || return 4; } \
       && msg_end "$DONE"
     # message for $CHANGELOG
-    msg_start "Updating changelog"
     tmpfile="$(mktemp)"
     {
       echo -e "\n# Please enter the feature description for '$CHANGELOG'. Lines starting"
@@ -183,7 +182,8 @@ function main {
       echo -e "$1"
       echo -e "#"
     } >> "$tmpfile"
-    edit "$tmpfile" || { msg_end "$FAILED"; return 1; }
+    edit "$tmpfile"
+    msg_start "Updating changelog"
     sed -i '/^\s*\(#\|$\)/d;/^\s+/d' "$tmpfile"
     if [[ -n "$(cat "$tmpfile")" ]]; then
       cat "$CHANGELOG" >> "$tmpfile" || return 1
