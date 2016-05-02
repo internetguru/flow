@@ -1,3 +1,4 @@
+Environment variable GF_OPTIONS support
 Display command status on the start of line
 Hitting Enter confirms question by default
 parameter branch validation
