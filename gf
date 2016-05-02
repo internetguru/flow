@@ -6,6 +6,7 @@ set -u
 : ${CHANGELOG:=CHANGELOG}
 : ${VERSION:=VERSION}
 : ${DEV:=dev}
+: ${ORIGIN:=origin}
 
 function main {
 
@@ -201,9 +202,17 @@ function main {
     }
 
   function delete_branch {
-    msg_start "Deleting branch '$origbranch'"
-    git branch -r | grep origin/$origbranch$ >/dev/null \
-      && { git push origin :$REFSHEADS/$origbranch >/dev/null || return 1; }
+    msg_start "Deleting remote branch '$origbranch'"
+    if git branch -r | grep $ORIGIN/$origbranch$ >/dev/null; then
+      local out
+      out="$(git push $ORIGIN :$REFSHEADS/$origbranch 2>&1)" \
+        || err "$out" \
+        || return 1
+      msg_end "$DONE"
+    else
+      msg_end "$PASSED"
+    fi
+    msg_start "Deleting local branch '$origbranch'"
     git branch -d $origbranch >/dev/null || return 1
     msg_end "$DONE"
   }
