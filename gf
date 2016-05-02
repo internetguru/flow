@@ -7,6 +7,7 @@ set -u
 : ${VERSION:=VERSION}
 : ${DEV:=dev}
 : ${ORIGIN:=origin}
+: ${GF_OPTIONS:=}
 
 function main {
 
@@ -468,13 +469,12 @@ function main {
   patch=0
   [[ -f "$VERSION" ]] && IFS=. read major minor patch < "$VERSION"
   master=${major}.$minor
-
   # process options
   if ! line=$(
-    getopt -n "$0" \
+    IFS=" " getopt -n "$0" \
            -o fitvh\? \
            -l force,init,tips,version,help\
-           -- "$@"
+           -- $GF_OPTIONS $*
   )
   then return 1; fi
   eval set -- "$line"
