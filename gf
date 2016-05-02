@@ -94,9 +94,9 @@ function main {
   }
 
   function confirm {
-    echo -n "${@:-"Are you sure?"} [Yes/No] "
+    echo -n "${@:-"Are you sure?"} [YES/no] "
     read
-    [[ "$REPLY" =~ ^[yY](es)?$ ]] && return 0
+    [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] && return 0
     [[ "$REPLY" =~ ^[nN]o?$ ]] && return 1
     confirm "Type"
   }
