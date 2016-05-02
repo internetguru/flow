@@ -22,6 +22,15 @@ function main {
     echo "$1"
   }
 
+  function stdout_silent {
+    exec 5<&1
+    exec 1>/dev/null
+  }
+
+  function stdout_verbose {
+    exec 1<&5
+  }
+
   function err {
     echo "$(basename "${0}")[error]: $@" >&2
     return 1
@@ -107,9 +116,12 @@ function main {
   }
 
   function confirm {
-    [[ $yes == 1 ]] && return 0
+    [[ $verbose == 0 && $yes == 1 ]] && return 0
+    [[ $verbose == 0 ]] && stdout_verbose
     echo -n "${@:-"Are you sure?"} [YES/No] "
+    [[ $yes == 1 ]] && echo "yes" && return 0
     read
+    [[ $verbose == 0 ]] && stdout_silent
     [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] && return 0
     [[ "$REPLY" =~ ^[nN]o?$ ]] && return 1
     confirm "Type"
@@ -385,6 +397,8 @@ function main {
   }
 
   function gf_tips {
+    [[ $tips == 0 ]] && return 0
+    [[ $verbose == 0 ]] && stdout_verbose
     local gcb
     echo "***"
     git_repo_exists || {
@@ -452,29 +466,31 @@ function main {
     cat "$version"
   }
 
+
   # defaults and constants
-  local line script_name major minor patch master force init yes
+  local line script_name major minor patch master force init yes verbose dry tips
   local -r \
     DONE="done" \
     FAILED="failed" \
     PASSED="passed"
     REFSHEADS="refs/heads"
 
+  # init variables
+  tips=0
+  dry=0
+  verbose=0
   stash=0
   yes=0
   script_name="gf"
-
-  # read $VERSION
   major=0
   minor=0
   patch=0
-  [[ -f "$VERSION" ]] && IFS=. read major minor patch < "$VERSION"
-  master=${major}.$minor
+
   # process options
   if ! line=$(
     IFS=" " getopt -n "$0" \
-           -o fityvh\? \
-           -l force,init,tips,yes,version,help\
+           -o iftynvVh\? \
+           -l force,init,tips,dry-run,yes,verbose,version,help\
            -- $GF_OPTIONS $*
   )
   then gf_usage; return 2; fi
@@ -486,10 +502,12 @@ function main {
   while [ $# -gt 0 ]; do
     case $1 in
      -f|--force) force=1; shift ;;
-     -t|--tips) gf_tips; return $? ;;
+     -t|--tips) tips=1; shift ;;
      -i|--init) init=1; shift ;;
      -y|--yes) yes=1; shift ;;
-     -v|--version) gf_version; return $? ;;
+     -n|--dry-run) dry=1; shift ;;
+     -v|--verbose) verbose=1; shift ;;
+     -V|--version) gf_version; return $? ;;
      -h|-\?|--help) gf_usage; return $? ;;
       --) shift; break ;;
       *-) echo "$script_name: Unrecognized option '$1'" >&2; gf_usage; return 2 ;;
@@ -497,12 +515,16 @@ function main {
     esac
   done
 
-  # init gf
+  # proceed options
+  local origbranch
+  origbranch="${1:-}"
+  [[ $verbose == 0 ]] && stdout_silent
+  [[ -f "$VERSION" ]] && IFS=. read major minor patch < "$VERSION"
+  master=${major}.$minor
+  [[ $dry == 1 ]] && { gf_tips; return 0; }
   [[ $init == 1 ]] && { gf_init && gf_tips; return $?; }
 
   # run gf
-  local origbranch
-  origbranch="${1:-}"
   gf_check && gf_run && gf_tips || {
     case $? in
       1) err "Unexpected error occured (see REPORTING BUGS in man gf)"; return 1 ;;
