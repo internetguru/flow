@@ -298,7 +298,8 @@ function main {
       "$DEV")
         confirm "* Create release branch from branch '$DEV'?" || return 0
         patch=0
-        create_branch "release-${major}.$((++minor))"
+        ((minor++))
+        create_branch release
         ;;
 
       hotfix)
