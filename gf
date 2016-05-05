@@ -241,13 +241,13 @@ function main {
   #
   #  $DEV
   #   - increment minor version, set patch to 0
-  #   - create release-major.minor branch
+  #   - create release branch
   #
   #  master, stable (major.minor, eg. 1.10)
   #   - increment patch version
   #   - create hotfix-major.minor.patch branch
   #
-  #  hotfix-x or release-x; alias current
+  #  hotfix-x or release; alias current
   #   - merge current branch into $DEV
   #   - merge current branch into stable
   #   - merge current branch into master (if matches stable)
