@@ -23,12 +23,11 @@ function main {
   }
 
   function stdout_silent {
-    exec 5<&1
-    exec 1>/dev/null
+    [[ $verbose == 0 ]] && exec 5<&1 && exec 1>/dev/null
   }
 
   function stdout_verbose {
-    exec 1<&5
+    [[ $verbose == 0 ]] && exec 1<&5
   }
 
   function err {
@@ -39,14 +38,18 @@ function main {
   function edit {
     local editor
     editor="$(git config --get core.editor)"
-    type "$editor" &> /dev/null \
-      && { $editor "$1" && return 0; }
-    echo
-    cat "$1"
-    echo
-    echo -n "Type message or press Enter to skip: "
-    read
-    echo "$REPLY" > "$1"
+    stdout_verbose
+    if type "$editor" &> /dev/null; then
+      $editor "$1"
+    else
+      echo
+      cat "$1"
+      echo
+      echo -n "Type message or press Enter to skip: "
+      read
+      echo "$REPLY" > "$1"
+    fi
+    stdout_silent
   }
 
   function git_status_empty {
@@ -117,11 +120,11 @@ function main {
 
   function confirm {
     [[ $verbose == 0 && $yes == 1 ]] && return 0
-    [[ $verbose == 0 ]] && stdout_verbose
+    stdout_verbose
     echo -n "${@:-"Are you sure?"} [YES/No] "
     [[ $yes == 1 ]] && echo "yes" && return 0
     read
-    [[ $verbose == 0 ]] && stdout_silent
+    stdout_silent
     [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] && return 0
     [[ "$REPLY" =~ ^[nN]o?$ ]] && return 1
     confirm "Type"
@@ -398,7 +401,7 @@ function main {
 
   function gf_tips {
     [[ $tips == 0 ]] && return 0
-    [[ $verbose == 0 ]] && stdout_verbose
+    stdout_verbose
     local gcb
     echo "***"
     git_repo_exists || {
@@ -443,6 +446,7 @@ function main {
         echo "* - Run 'gf' to merge it into $DEV."
     esac
     echo "***"
+    stdout_silent
   }
 
   function gf_usage {
@@ -518,7 +522,7 @@ function main {
   # proceed options
   local origbranch
   origbranch="${1:-}"
-  [[ $verbose == 0 ]] && stdout_silent
+  stdout_silent
   [[ -f "$VERSION" ]] && IFS=. read major minor patch < "$VERSION"
   master=${major}.$minor
   [[ $dry == 1 ]] && { gf_tips; return 0; }
