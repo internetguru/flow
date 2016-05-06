@@ -35,6 +35,11 @@ function main {
     return 1
   }
 
+  function load_version {
+    IFS=. read major minor patch < "$VERSION"
+    master=${major}.$minor
+  }
+
   function edit {
     local editor
     editor="$(git config --get core.editor)"
@@ -90,12 +95,20 @@ function main {
     git rev-parse --verify "$1" >/dev/null 2>&1
   }
 
+  function git_tag_exists {
+    git show-ref --tags | egrep -q "$REFSTAGS/$1$" >/dev/null 2>&1
+  }
+
   function git_repo_exists {
     [[ -d .git ]]
   }
 
   function git_commit_diff {
     [[ "$( git rev-parse $1 )" != "$( git rev-parse $2 )" ]]
+  }
+
+  function git_version_diff {
+    [[ "$(git show $1:"$VERSION" | cut -d. -f1-2)" != "$2" ]]
   }
 
   function git_current_branch {
@@ -243,13 +256,15 @@ function main {
   #   - increment minor version, set patch to 0
   #   - create release branch
   #
-  #  master, stable (major.minor, eg. 1.10)
+  #  tag on branch master (major.minor, eg. 1.10)
+  #   - create stable branch "major.minor"
+  #   - continue master
+  #  master
   #   - increment patch version
   #   - create hotfix-major.minor.patch branch
   #
   #  hotfix-x or release; alias current
   #   - merge current branch into $DEV
-  #   - merge current branch into stable
   #   - merge current branch into master (if matches stable)
   #   - create tag
   #   - delete current branch
@@ -263,8 +278,14 @@ function main {
     # checkout to given branch or create feature
     if git_branch_exists "$origbranch"; then
       [[ "$(git_current_branch)" != "$origbranch" ]] \
-        && msg_start "Checkout branch '$origbranch'" \
-        && { git_checkout "$origbranch" || return 1; msg_end "$DONE"; }
+        && msg_start "Checkout '$origbranch'" \
+        && {
+          # assume checkout to tag or branch
+          git_checkout "$origbranch" || return 1
+          load_version
+          origbranch="$(git_current_branch)"
+          msg_end "$DONE"
+        }
     else
       confirm "* Create feature branch '$origbranch'?" || return 0
       git_checkout $DEV \
@@ -277,20 +298,32 @@ function main {
     local tag
     tag=""
 
+    # HEAD
+    if [[ $origbranch == HEAD ]]; then
+      # not master -> create new stable branch
+      if git_version_diff master "$master"; then
+        [[ "$(git describe --tags)" == ${master}.$patch ]] \
+          || err "No ${master}.$patch tag detected on current HEAD" \
+          || return 1
+        git_tag_exists "${master}.$((patch+1))" \
+          && { err "Hotfix are allowed only from newest version of stable branch." || return 1; }
+        git_branch_exists "$master" \
+        || {
+          confirm "* Create stable branch $master?" || return 0;
+          git_branch "$master" || return 1
+        }
+        origbranch=$(git_current_branch)
+      # master -> checkout on master
+      else ! git_version_diff master "$master"
+        git_checkout master || return 1
+        load_version
+      fi
+    fi
+
     # proceed
     case ${origbranch%-*} in
 
-      HEAD)
-        err "No branch detected on current HEAD" || return 1
-        ;;
-
-      master)
-        git_branch_exists $master || return 3
-        git_commit_diff $master master \
-          && { err "Cannot hotfix from unmerged master" || return 1; }
-        ;&
-
-      $master)
+      HEAD|master|$master)
         confirm "* Create hotfix?" || return 0
         create_branch "hotfix-${master}.$((++patch))"
         ;;
@@ -304,27 +337,26 @@ function main {
 
       hotfix)
         confirm "* Merge hotfix?" || return 0
-        if git_commit_diff $master master; then
-          merge_branches $origbranch $master \
+        # master -> merge + confirm merge to dev
+        if ! git_version_diff master "$master"; then
+          merge_branches $origbranch master \
             && git_tag ${master}.$patch \
             || return $?
+          confirm "* Merge hotfix into '$DEV'?" \
+            && { merge_branches $origbranch "$DEV" || return $?; }
+        # not master -> merge only to stable branch
         else
           merge_branches $origbranch $master \
             && git_tag ${master}.$patch \
-            && merge_branches $master master --ff \
             || return $?
         fi
-        confirm "* Merge hotfix into '$DEV'?" \
-          && { merge_branches $origbranch "$DEV" || return $?; }
         delete_branch
         ;;
 
       release)
         if confirm "* Create stable branch from release?"; then
           git_checkout master \
-            && git_branch $master \
-            && { git_commit_diff $master master || merge_branches $origbranch master; } \
-            && merge_branches master $master --ff \
+            && merge_branches $origbranch master \
             && git_tag ${master}.0 \
             && merge_branches $origbranch "$DEV" \
             && delete_branch \
@@ -387,12 +419,7 @@ function main {
     [[ $force == 1 ]] && { git_stash || return 1; }
     git_status_empty || return 4
     init_files master \
-      && {
-        msg_start "Initializing stable branch $master"
-        git_branch_exists "$master" \
-          && msg_end "$PASSED" \
-          || { git_branch "$master" >/dev/null || return 1; msg_end "$DONE"; }
-      } \
+      && git_tag "${master}.$patch" \
       && git_branch "$DEV" \
       && init_files "$DEV"
     # unstash and return
@@ -451,9 +478,7 @@ function main {
   }
 
   function gf_usage {
-    local usage_file bwhite nc
-    nc=$'\e[m'
-    bwhite=$'\e[1;37m'
+    local usage_file
     usage_file="$DATAPATH/${script_name}.usage"
     [ -f "$usage_file" ] \
       || err "Usage file not found" \
@@ -479,6 +504,7 @@ function main {
     FAILED="failed" \
     PASSED="passed"
     REFSHEADS="refs/heads"
+    REFSTAGS="refs/tags"
 
   # init variables
   tips=0
@@ -524,8 +550,7 @@ function main {
   local origbranch
   origbranch="${1:-}"
   stdout_silent
-  [[ -f "$VERSION" ]] && IFS=. read major minor patch < "$VERSION"
-  master=${major}.$minor
+  [[ -f "$VERSION" ]] && load_version
   [[ $dry == 1 ]] && { gf_tips; return 0; }
   [[ $init == 1 ]] && { gf_init && gf_tips; return $?; }
 
