@@ -409,7 +409,7 @@ function main {
       git init >/dev/null || return 1
       git_status_empty 2>/dev/null || {
         git add -A >/dev/null \
-          && git commit -m "Comit initial files" >/dev/null \
+          && git commit -m "Commit initial files" >/dev/null \
           || err "Unable to commit existing files" \
           || return 1
       }
@@ -419,7 +419,7 @@ function main {
     [[ $force == 1 ]] && { git_stash || return 1; }
     git_status_empty || return 4
     init_files master \
-      && git_tag "${master}.$patch" \
+      && { git_tag_exists ${master}.$patch || git_tag "${master}.$patch"; } \
       && git_branch "$DEV" \
       && init_files "$DEV"
     # unstash and return
@@ -516,6 +516,7 @@ function main {
   major=0
   minor=0
   patch=0
+  master=0.0
 
   # process options
   if ! line=$(
