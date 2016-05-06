@@ -97,6 +97,13 @@ Hotfix master branch
 * ``git commit -am "add hotfix 1"``
 * ``gf``
 
+Hotfix previous release
+: * ``gf 0.1.0``
+* ``echo "hotfix 2" >> myfile``
+* ``git commit -am "add hotfix 2"``
+* ``gf``
+
+
 Initialize **gf** on existing project with version number
 : * ``echo 1.12.0 > VERSION``
 * ``gf -i``
