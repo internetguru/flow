@@ -36,8 +36,19 @@ function main {
   }
 
   function load_version {
-    IFS=. read major minor patch < "$VERSION"
-    master=${major}.$minor
+    [[ -f "$VERSION" ]] \
+      || err "Version file not found" \
+      || return 3
+    [[ -n "$(cat "$VERSION")" ]] \
+      || err "Version file is empty" \
+      || return 3
+    [[ "$(cat "$VERSION")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+      || err "Invalid version file content format" \
+      || return 1
+    IFS=. read major minor patch < "$VERSION" \
+      || err "Unable to load version"
+      || return 1
+    $master="master-$major.$minor"
   }
 
   function edit {
@@ -58,8 +69,8 @@ function main {
   }
 
   function git_status_empty {
-    [[ -z "$(git status --porcelain)" ]] && return 0
-    err "Uncommited changes"
+    [[ -z "$(git status --porcelain)" ]] \
+      || err "Uncommited changes"
   }
 
   # TODO checkout only to branch
@@ -117,15 +128,17 @@ function main {
 
   function git_stash {
     git_status_empty 2>/dev/null && return 0
+    [[ $force == 0 ]] && return 0
     msg_start "Stashing files"
     git add -A >/dev/null || return 1
     git stash >/dev/null || return 1
     git_status_empty 2>/dev/null \
-      && { stash=1; msg_end "$DONE"; } \
+      && { stashed=1; msg_end "$DONE"; } \
       || { msg_end "$FAILED"; return 1; }
   }
 
   function git_stash_pop {
+    [[ $stashed == 0 ]] && return 0
     msg_start "Poping stashed files"
     git stash pop >/dev/null || { msg_end "$FAILED"; return 1; }
     msg_end "$DONE"
@@ -143,25 +156,15 @@ function main {
     confirm "Type"
   }
 
-  function gf_check {
+  function gf_validate {
     git_repo_exists \
       || err "Git repository does not exist" \
       || return 3
     { git_branch_exists "$DEV" && git_branch_exists master; } \
       || err "Missing branches '$DEV' or master" \
       || return 3
-    [[ $force == 1 ]] && { git_stash || return 1; }
-    git_status_empty \
-      || return 4
-    [[ -f "$VERSION" && -f "$CHANGELOG" ]] \
-      || err "Missing working files" \
-      || return 3
-    [[ -n "$(cat "$VERSION")" ]] \
-      || err "Empty '$VERSION' file" \
-      || return 3
-    [[ "$(cat "$VERSION")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
-      || err "Invalid '$VERSION' file content format" \
-      || return 1
+    git_stash || return $?
+    git_status_empty || return 4
     [[ -z "$origbranch" ]] && { origbranch="$(git_current_branch)"; return $?; }
     git check-ref-format "$REFSHEADS/$origbranch" \
       || err "Invalid branchname format" \
@@ -170,6 +173,29 @@ function main {
       || [[ ! "$origbranch" =~ ^(hotfix|release|[0-9]) ]] \
       || err "Feature branch cannot start with hotfix, release or number" \
       || return 1
+  }
+
+  function gf_checkout {
+    # checkout to given branch or create feature
+    if git_branch_exists "$origbranch"; then
+      [[ "$(git_current_branch)" != "$origbranch" ]] \
+        && msg_start "Checkout '$origbranch'" \
+        && {
+          # assume checkout to tag or branch
+          git_checkout "$origbranch" \
+            && gf_validate \
+            && load_version \
+            || return $?
+          origbranch="$(git_current_branch)"
+          msg_end "$DONE"
+        }
+    else
+      confirm "* Create feature branch '$origbranch'?" || return 0
+      git_checkout $DEV \
+        && git_branch "$origbranch" \
+        || return 1
+      return 0
+    fi
   }
 
   function create_branch {
@@ -247,6 +273,23 @@ function main {
     msg_end "$DONE"
   }
 
+  function create_stable_branch {
+    git_commit_diff $origbranch master \
+      || { git_checkout master; return $?; }
+    git_commit_diff $origbranch $master \
+      || { git_checkout $master; return $?; }
+    confirm "* Create stable branch $master?" || return 0;
+    git_branch "$master" || return 1
+  }
+
+  function gf_hotfixable {
+    [[ "$(git describe --tags)" == $major.$minor.$patch ]] \
+      || err "Required tag not detected" \
+      || return 1
+    git_tag_exists "$major.$minor.$((patch+1))" || return 0
+    err "Current branch is already hotfixed"
+  }
+
   # Params:
   #   - $1 from branch
   #
@@ -263,7 +306,7 @@ function main {
   #   - increment patch version
   #   - create hotfix-major.minor.patch branch
   #
-  #  hotfix-x or release; alias current
+  #  hotfix-x or release; alias current branch
   #   - merge current branch into $DEV
   #   - merge current branch into master (if matches stable)
   #   - create tag
@@ -275,56 +318,20 @@ function main {
   #   - delete feature branch
   function gf_run {
 
-    # checkout to given branch or create feature
-    if git_branch_exists "$origbranch"; then
-      [[ "$(git_current_branch)" != "$origbranch" ]] \
-        && msg_start "Checkout '$origbranch'" \
-        && {
-          # assume checkout to tag or branch
-          git_checkout "$origbranch" || return 1
-          load_version
-          origbranch="$(git_current_branch)"
-          msg_end "$DONE"
-        }
-    else
-      confirm "* Create feature branch '$origbranch'?" || return 0
-      git_checkout $DEV \
-        && git_branch "$origbranch" \
-        || return 1
-      return 0
-    fi
-
     # set variables
     local tag
     tag=""
 
-    # HEAD
-    if [[ $origbranch == HEAD ]]; then
-      # not master -> create new stable branch
-      if git_version_diff master "$master"; then
-        [[ "$(git describe --tags)" == ${master}.$patch ]] \
-          || err "No ${master}.$patch tag detected on current HEAD" \
-          || return 1
-        git_tag_exists "${master}.$((patch+1))" \
-          && { err "Hotfix are allowed only from newest version of stable branch." || return 1; }
-        git_branch_exists "$master" \
-        || {
-          confirm "* Create stable branch $master?" || return 0;
-          git_branch "$master" || return 1
-        }
-        origbranch=$(git_current_branch)
-      # master -> checkout on master
-      else ! git_version_diff master "$master"
-        git_checkout master || return 1
-        load_version
-      fi
-    fi
-
     # proceed
     case ${origbranch%-*} in
 
-      HEAD|master|$master)
+      HEAD|master)
+        gf_hotfixable || return 1
         confirm "* Create hotfix?" || return 0
+        [[ $origbranch == HEAD ]] && {
+          create_stable_branch || return $?;
+          origbranch=$(git_current_branch)
+        }
         create_branch "hotfix-${master}.$((++patch))"
         ;;
 
@@ -416,15 +423,14 @@ function main {
       msg_end "$DONE"
     fi
     # init files on master and $DEV
-    [[ $force == 1 ]] && { git_stash || return 1; }
-    git_status_empty || return 4
     init_files master \
-      && { git_tag_exists ${master}.$patch || git_tag "${master}.$patch"; } \
+      && load_version \
+      && { git_tag_exists $major.$minor.$patch || git_tag $major.$minor.$patch; } \
+      && git_stash
       && git_branch "$DEV" \
-      && init_files "$DEV"
-    # unstash and return
-    [[ $stash == 0 ]] && return 0
-    git_stash_pop
+      && init_files "$DEV" \
+      && load_version \
+      && git_stash_pop
   }
 
   function gf_tips {
@@ -441,9 +447,15 @@ function main {
     gcb=$(git_current_branch)
     echo -n "* Current branch '$gcb' is considered as "
     case ${gcb%-*} in
-      master|$master)
-        echo "stable branch."
-        echo "* - Run 'gf' to create hotfix or leave :)"
+      HEAD|master)
+        if gf_hotfixable 2>/dev/null; then
+          echo "stable branch."
+          echo "* - Run 'gf' to create hotfix or leave :)"
+        else
+          echo "detached."
+          echo "*"
+          git status | sed "s/^/* /"
+        fi
       ;;
       "$DEV")
         echo "developing branch."
@@ -462,11 +474,6 @@ function main {
         echo "* - Do some hotfixes..."
         echo "* - Run 'gf' to merge hotfix into stable branch."
         echo "* - Hit [Yes-No] to skip merging into $DEV."
-      ;;
-      HEAD)
-        echo "detached."
-        echo "*"
-        git status | sed "s/^/* /"
       ;;
       *)
         echo "feature branch."
@@ -498,7 +505,7 @@ function main {
 
 
   # defaults and constants
-  local line script_name major minor patch master force init yes verbose dry tips
+  local line script_name major minor patch master force init yes verbose dry tips stashed
   local -r \
     DONE="done" \
     FAILED="failed" \
@@ -510,7 +517,7 @@ function main {
   tips=0
   dry=0
   verbose=0
-  stash=0
+  stashed=0
   yes=0
   script_name="gf"
   major=0
@@ -551,12 +558,11 @@ function main {
   local origbranch
   origbranch="${1:-}"
   stdout_silent
-  [[ -f "$VERSION" ]] && load_version
   [[ $dry == 1 ]] && { gf_tips; return 0; }
   [[ $init == 1 ]] && { gf_init && gf_tips; return $?; }
 
   # run gf
-  gf_check && gf_run && gf_tips || {
+  gf_validate && gf_checkout && load_version && gf_run && git_stash_pop && gf_tips || {
     case $? in
       1) err "Unexpected error occured (see REPORTING BUGS in man gf)"; return 1 ;;
     # 2) only parse or invalid option error
@@ -565,10 +571,6 @@ function main {
       5) err "Conflict occured (see git status)"; gf_tips; return 5 ;;
     esac
   }
-
-  # unstash and return
-  [[ $stash == 0 ]] && return 0
-  git_stash_pop
 
 }
 
