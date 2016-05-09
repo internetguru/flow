@@ -144,6 +144,10 @@ function main {
     msg_end "$DONE"
   }
 
+  function git_inited {
+    git log >/dev/null 2>&1
+  }
+
   function confirm {
     [[ $verbose == 0 && $yes == 1 ]] && return 0
     stdout_verbose
@@ -410,6 +414,17 @@ function main {
     msg_end "$DONE"
   }
 
+  function initial_commit {
+    git_status_empty 2>/dev/null || {
+      msg_start "Initial commit"
+      git add -A >/dev/null \
+        && git commit -m "Commit initial files" >/dev/null \
+        || err "Unable to commit existing files" \
+        || return 1
+      msg_end "$DONE"
+    }
+  }
+
   # Prepare enviroment for gf:
   # - create $VERSION and $CHANGELOG file
   # - create $DEV branch
@@ -417,23 +432,23 @@ function main {
     # init git repo
     msg_start "Initializing git repository"
     if git_repo_exists; then
-      git_branch master || return 1
       msg_end "$PASSED"
+      git_branch master || return 1
     else
       git init >/dev/null || return 1
-      git_status_empty 2>/dev/null || {
-        git add -A >/dev/null \
-          && git commit -m "Commit initial files" >/dev/null \
-          || err "Unable to commit existing files" \
-          || return 1
-      }
       msg_end "$DONE"
+      initial_commit || return $?
+
+    fi
+    if git_inited; then
+      git_stash || return $?
+    else
+      initial_commit || return $?
     fi
     [[ $force == 0 ]] \
       && { git_status_empty || return 4; }
     # init files on master and $DEV
-    git_stash \
-      && init_files master \
+    init_files master \
       && load_version \
       && { git_tag_exists $master.$patch || git_tag $master.$patch; } \
       && git_branch "$DEV" \
