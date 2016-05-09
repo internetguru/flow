@@ -103,7 +103,6 @@ Hotfix previous release
 * ``git commit -am "add hotfix 2"``
 * ``gf``
 
-
 Initialize **gf** on existing project with version number
 : * ``echo 1.12.0 > VERSION``
 * ``gf -i``
@@ -112,7 +111,7 @@ New feature from uncommitted changes
 : * ``gf -f myfeature``
 
 Merge conflicting release
-: * ``gf release-#.#``
+: * ``gf release``
 * Exits with standard git merge conflict message.
 * Resolve conflicts...
 * ``gf``

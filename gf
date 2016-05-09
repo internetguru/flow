@@ -46,9 +46,9 @@ function main {
       || err "Invalid version file content format" \
       || return 1
     IFS=. read major minor patch < "$VERSION" \
-      || err "Unable to load version"
+      || err "Unable to load version" \
       || return 1
-    $master="master-$major.$minor"
+    master="master-$major.$minor"
   }
 
   function edit {
@@ -170,8 +170,8 @@ function main {
       || err "Invalid branchname format" \
       || return 1
     git_branch_exists "$origbranch" \
-      || [[ ! "$origbranch" =~ ^(hotfix|release|[0-9]) ]] \
-      || err "Feature branch cannot start with hotfix, release or number" \
+      || [[ ! "$origbranch" =~ ^(hotfix|master|release|[0-9]) ]] \
+      || err "Feature branch cannot start with hotfix, master, release or number" \
       || return 1
   }
 
@@ -189,12 +189,13 @@ function main {
           origbranch="$(git_current_branch)"
           msg_end "$DONE"
         }
+      return 0
     else
       confirm "* Create feature branch '$origbranch'?" || return 0
       git_checkout $DEV \
         && git_branch "$origbranch" \
         || return 1
-      return 0
+      return 44
     fi
   }
 
@@ -207,12 +208,12 @@ function main {
     if [[ $origbranch == "$DEV" ]]; then
       local header
       msg_start "Updating '$CHANGELOG' and '$VERSION' files"
-      header="${major}.${minor} | $(date "+%Y-%m-%d")" || return 1
+      header="$major.$minor | $(date "+%Y-%m-%d")" || return 1
       printf '\n%s\n\n%s\n' "$header" "$(<$CHANGELOG)" > "$CHANGELOG" || return 1
     else
       msg_start "Updating '$VERSION' file"
     fi
-    echo ${major}.${minor}.$patch > "$VERSION" || return 1
+    echo $major.$minor.$patch > "$VERSION" || return 1
     msg_end "$DONE"
     git commit -am "$1" >/dev/null || return 1
     if [[ $origbranch == "$DEV" ]]; then
@@ -276,46 +277,52 @@ function main {
   function create_stable_branch {
     git_commit_diff $origbranch master \
       || { git_checkout master; return $?; }
-    git_commit_diff $origbranch $master \
-      || { git_checkout $master; return $?; }
+    if git_branch_exists $master; then
+      git_commit_diff $origbranch $master \
+        || { git_checkout $master; return $?; }
+    fi
     confirm "* Create stable branch $master?" || return 0;
     git_branch "$master" || return 1
   }
 
   function gf_hotfixable {
-    [[ "$(git describe --tags)" == $major.$minor.$patch ]] \
+    [[ "$(git describe --tags)" == $master.$patch ]] \
       || err "Required tag not detected" \
       || return 1
-    git_tag_exists "$major.$minor.$((patch+1))" || return 0
+    git_tag_exists "$master.$((patch+1))" || return 0
     err "Current branch is already hotfixed"
   }
 
-  # Params:
-  #   - $1 from branch
-  #
-  # Desc:
+  # Origbranch:
   #
   #  $DEV
   #   - increment minor version, set patch to 0
   #   - create release branch
   #
-  #  tag on branch master (major.minor, eg. 1.10)
-  #   - create stable branch "major.minor"
+  #  newest tag on stable branch (master-major.minor.patch, eg. master-1.10.1)
+  #   - create stable branch "master-major.minor"
   #   - continue master
   #  master
   #   - increment patch version
   #   - create hotfix-major.minor.patch branch
   #
-  #  hotfix-x or release; alias current branch
-  #   - merge current branch into $DEV
-  #   - merge current branch into master (if matches stable)
+  #  hotfix-x (eg. hotfix-1.10.2)
+  #   - merge hotfix branch into stable branch
+  #   - merge hotfix branch into $DEV (if hotfixing master)
   #   - create tag
-  #   - delete current branch
+  #   - delete hotfix branch
+  #
+  #  release
+  #   - merge release branch into master
+  #   - merge release branch into $DEV
+  #   - create tag
+  #   - delete release branch
   #
   #  feature
   #   - update version history
   #   - merge feature branch into $DEV
   #   - delete feature branch
+  #
   function gf_run {
 
     # set variables
@@ -332,7 +339,7 @@ function main {
           create_stable_branch || return $?;
           origbranch=$(git_current_branch)
         }
-        create_branch "hotfix-${master}.$((++patch))"
+        create_branch "hotfix-$major.$minor.$((++patch))"
         ;;
 
       "$DEV")
@@ -345,16 +352,16 @@ function main {
       hotfix)
         confirm "* Merge hotfix?" || return 0
         # master -> merge + confirm merge to dev
-        if ! git_version_diff master "$master"; then
+        if ! git_version_diff master $major.$minor; then
           merge_branches $origbranch master \
-            && git_tag ${master}.$patch \
+            && git_tag $master.$patch \
             || return $?
           confirm "* Merge hotfix into '$DEV'?" \
             && { merge_branches $origbranch "$DEV" || return $?; }
         # not master -> merge only to stable branch
         else
           merge_branches $origbranch $master \
-            && git_tag ${master}.$patch \
+            && git_tag $master.$patch \
             || return $?
         fi
         delete_branch
@@ -364,7 +371,7 @@ function main {
         if confirm "* Create stable branch from release?"; then
           git_checkout master \
             && merge_branches $origbranch master \
-            && git_tag ${master}.0 \
+            && git_tag $master.0 \
             && merge_branches $origbranch "$DEV" \
             && delete_branch \
             || return $?
@@ -425,8 +432,8 @@ function main {
     # init files on master and $DEV
     init_files master \
       && load_version \
-      && { git_tag_exists $major.$minor.$patch || git_tag $major.$minor.$patch; } \
-      && git_stash
+      && { git_tag_exists $master.$patch || git_tag $master.$patch; } \
+      && git_stash \
       && git_branch "$DEV" \
       && init_files "$DEV" \
       && load_version \
@@ -565,7 +572,6 @@ function main {
   gf_validate && gf_checkout && load_version && gf_run && git_stash_pop && gf_tips || {
     case $? in
       1) err "Unexpected error occured (see REPORTING BUGS in man gf)"; return 1 ;;
-    # 2) only parse or invalid option error
       3) err "Initializing gf may help (see OPTIONS in man gf)"; return 3 ;;
       4) err "Forcing gf may help (see OPTIONS in man gf)"; return 4 ;;
       5) err "Conflict occured (see git status)"; gf_tips; return 5 ;;
