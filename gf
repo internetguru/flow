@@ -199,7 +199,8 @@ function main {
       git_checkout $DEV \
         && git_branch "$origbranch" \
         || return 1
-      return 44
+      git_stash_pop
+      return 44 # better solution to exit?
     fi
   }
 
