@@ -429,11 +429,13 @@ function main {
       }
       msg_end "$DONE"
     fi
+    [[ $force == 0 ]] \
+      && { git_status_empty || return 4; }
     # init files on master and $DEV
-    init_files master \
+    git_stash \
+      && init_files master \
       && load_version \
       && { git_tag_exists $master.$patch || git_tag $master.$patch; } \
-      && git_stash \
       && git_branch "$DEV" \
       && init_files "$DEV" \
       && load_version \
@@ -516,8 +518,8 @@ function main {
   local -r \
     DONE="done" \
     FAILED="failed" \
-    PASSED="passed"
-    REFSHEADS="refs/heads"
+    PASSED="passed" \
+    REFSHEADS="refs/heads" \
     REFSTAGS="refs/tags"
 
   # init variables
