@@ -146,7 +146,7 @@ function main {
     msg_end "$DONE"
   }
 
-  function git_inited {
+  function git_has_commits {
     git log >/dev/null 2>&1
   }
 
@@ -176,8 +176,8 @@ function main {
       || err "Invalid branchname format" \
       || return 1
     git_branch_exists "$origbranch" \
-      || [[ ! "$origbranch" =~ ^(hotfix|master|release|[0-9]) ]] \
-      || err "Feature branch cannot start with hotfix, master, release or number" \
+      || [[ ! "$origbranch" =~ ^(hotfix|release|master) ]] \
+      || err "Feature branch cannot start with hotfix, release or master" \
       || return 1
   }
 
@@ -201,8 +201,7 @@ function main {
       git_checkout $DEV \
         && git_branch "$origbranch" \
         || return 1
-      git_stash_pop
-      return 44 # better solution to exit?
+      newfeature=1
     fi
   }
 
@@ -306,14 +305,14 @@ function main {
   #   - increment minor version, set patch to 0
   #   - create release branch
   #
-  #  newest tag on stable branch (master-major.minor.patch, eg. master-1.10.1)
-  #   - create stable branch "master-major.minor"
+  #  newest tag on stable branch (eg. master-1.10.1)
+  #   - create stable branch
   #   - continue master
   #  master
   #   - increment patch version
-  #   - create hotfix-major.minor.patch branch
+  #   - create hotfix branch
   #
-  #  hotfix-x (eg. hotfix-1.10.2)
+  #  hotfix (eg. hotfix-1.10.2)
   #   - merge hotfix branch into stable branch
   #   - merge hotfix branch into $DEV (if hotfixing master)
   #   - create tag
@@ -443,7 +442,7 @@ function main {
       initial_commit || return $?
 
     fi
-    if git_inited; then
+    if git_has_commits; then
       git_stash || return $?
     else
       initial_commit || return $?
@@ -582,14 +581,17 @@ function main {
   done
 
   # proceed options
-  local origbranch
+  local origbranch newfeature
+  newfeature=0
   origbranch="${1:-}"
   stdout_silent
   [[ $dry == 1 ]] && { gf_tips; return 0; }
   [[ $init == 1 ]] && { gf_init && gf_tips; return $?; }
 
   # run gf
-  gf_validate && gf_checkout && load_version && gf_run && git_stash_pop && gf_tips || {
+  gf_validate && gf_checkout && {
+    if [[ $newfeature == 0 ]]; then load_version && gf_run; fi
+    } && git_stash_pop && gf_tips || {
     case $? in
       1) err "Unexpected error occured (see REPORTING BUGS in man gf)"; return 1 ;;
       3) err "Initializing gf may help (see OPTIONS in man gf)"; return 3 ;;
