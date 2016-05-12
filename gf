@@ -24,10 +24,12 @@ function main {
 
   function stdout_silent {
     [[ $verbose == 0 ]] && exec 5<&1 && exec 1>/dev/null
+    return 0
   }
 
   function stdout_verbose {
     [[ $verbose == 0 ]] && exec 1<&5
+    return 0
   }
 
   function err {
