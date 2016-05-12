@@ -37,6 +37,32 @@ function main {
     return 1
   }
 
+  function setcolor {
+    local c
+    c=${1:-always}
+    case $c in
+      always|never|auto)
+        color=$c
+        return 0
+      ;;
+    esac
+    return 2
+  }
+
+  function stdoutpipe {
+    readlink /proc/$$/fd/1 | grep -q "^pipe:"
+  }
+
+  function colorize {
+    [[ $color == never ]] && echo -n "$1" && return
+    [[ $color == auto ]] && stdoutpipe && echo -n "$1" && return
+    local c
+    c="${2:-$GREEN}"
+    tput setaf "$c"
+    echo -n "$1"
+    tput sgr0
+  }
+
   function load_version {
     [[ -f "$VERSION" ]] \
       || err "Version file not found" \
@@ -517,7 +543,7 @@ function main {
     [ -f "$usage_file" ] \
       || err "Usage file not found" \
       || return 1
-    cat "$usage_file"
+    cat "$usage_file" | column -ts $'\t'
   }
 
   function gf_version {
@@ -531,16 +557,8 @@ function main {
   }
 
 
-  # defaults and constants
-  local line script_name major minor patch master force init yes verbose dry tips stashed
-  local -r \
-    DONE="done" \
-    FAILED="failed" \
-    PASSED="passed" \
-    REFSHEADS="refs/heads" \
-    REFSTAGS="refs/tags"
-
-  # init variables
+  # variables
+  local line script_name major minor patch master force init yes verbose dry tips stashed color
   tips=0
   dry=0
   verbose=0
@@ -551,12 +569,15 @@ function main {
   minor=0
   patch=0
   master=0.0
+  color=auto
+
+  # constants
 
   # process options
   if ! line=$(
     IFS=" " getopt -n "$0" \
            -o iftynvVh\? \
-           -l force,init,tips,dry-run,yes,verbose,version,help\
+           -l force,init,tips,dry-run,yes,color::,colour::,verbose,version,help\
            -- $GF_OPTIONS $*
   )
   then gf_usage; return 2; fi
@@ -571,6 +592,7 @@ function main {
      -t|--tips) tips=1; shift ;;
      -i|--init) init=1; shift ;;
      -y|--yes) yes=1; shift ;;
+     --color|--colour) shift; setcolor "$1" || { gf_usage; return 2; }; shift ;;
      -n|--dry-run) dry=1; shift ;;
      -v|--verbose) verbose=1; shift ;;
      -V|--version) gf_version; return $? ;;
@@ -580,6 +602,18 @@ function main {
        *) break ;;
     esac
   done
+
+  # status messages
+  local -r \
+    RED=1 \
+    GREEN=2 \
+    BLUE=4
+  local -r \
+    REFSHEADS="refs/heads" \
+    REFSTAGS="refs/tags" \
+    DONE="$(colorize "  ok" $GREEN)" \
+    FAILED="$(colorize "failed" $RED)" \
+    PASSED="$(colorize "passed" $BLUE)"
 
   # proceed options
   local origbranch newfeature
