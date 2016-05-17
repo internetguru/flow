@@ -292,9 +292,8 @@ function main {
   }
 
   function gf_hotfixable {
-    [[ "$(git describe --tags)" == $master.$patch ]] \
-      || err "Required tag not detected" \
-      || return 1
+    git_commit_diff $master.$patch HEAD \
+      && { err "Required tag $master.$patch not detected on current HEAD" || return 1; }
     git_tag_exists "$master.$((patch+1))" || return 0
     err "Current branch is already hotfixed"
   }
