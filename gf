@@ -154,8 +154,10 @@ function main {
     [[ $verbose == 0 && $yes == 1 ]] && return 0
     stdout_verbose
     echo -n "${@:-"Are you sure?"} [YES/No] "
+    tput sc
     [[ $yes == 1 ]] && echo "yes" && return 0
-    read
+    read -r
+    [[ -z "$REPLY" ]] && tput rc && tput cuu1 && echo "yes"
     stdout_silent
     [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] && return 0
     [[ "$REPLY" =~ ^[nN]o?$ ]] && return 1
