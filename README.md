@@ -34,6 +34,10 @@ gf [-iftvh] [BRANCH]
 -y, --yes
 : Assume yes for all questions.
 
+--color[=WHEN], --colour[=WHEN]
+: Use markers to highlight command status;
+: WHEN is 'always', 'never', or 'auto'
+
 -n, --dry-run
 : Do not run commands; only parse user options.
 
