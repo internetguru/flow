@@ -228,7 +228,8 @@ function main {
 
   function gf_checkout {
     # checkout to given branch or create feature
-    if git_branch_exists "$origbranch"; then
+    if git_branch_exists "$origbranch" \
+      || git_branch_exists "$ORIGIN/$origbranch"; then
       gf_checkout_to "$origbranch"
     else
       # predefined checkout kws
@@ -238,7 +239,7 @@ function main {
       esac
       # -> or create feature branch
       newfeature=1
-      confirm "* Create feature branch '$origbranch'?" || return 0
+      confirm "* Create feature branch '$origbranch'?" || return 0;
       git_checkout $DEV \
         && git_branch "$origbranch" \
         || return 1
