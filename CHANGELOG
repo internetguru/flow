@@ -6,10 +6,8 @@ Create separate stable branch iff necessary
 Dry run option for syntax validation
 Verbose option support
 Yes to all option support
-simple usage and syntax exit status 2
 Environment variable GF_OPTIONS support
 Display command status on the start of line
 Hitting Enter confirms question by default
-parameter branch validation
 Merge and rebase conflict support (exit code 4)
-use git editor or set changelog message from command line
+Use git editor or set changelog message from command line
