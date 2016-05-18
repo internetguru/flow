@@ -102,7 +102,7 @@ Hotfix master branch
 * ``gf``
 
 Hotfix previous release
-: * ``gf master-0.1.0``
+: * ``gf v0.1.0``
 * ``echo "hotfix 2" >> myfile``
 * ``git commit -am "add hotfix 2"``
 * ``gf``
