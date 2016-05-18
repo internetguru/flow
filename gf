@@ -271,24 +271,27 @@ function main {
   }
 
   function merge_feature {
-    local tmpfile
+    local tmpfile commits
     git_commit_diff $origbranch "$DEV" \
       && msg_start "Rebasing feature branch to '$DEV'" \
       && { git rebase "$DEV" >/dev/null || return 5; } \
       && msg_end "$DONE"
+    commits="$(git log "$DEV"..$origbranch --pretty=format:"#   %s")"
     # message for $CHANGELOG
-    tmpfile="$(mktemp)"
-    {
-      echo -e "\n# Please enter the feature description for '$CHANGELOG'. Lines starting"
-      echo -e "# with # and empty lines will be ignored."
-      echo -e "#\n# Commits of '$origbranch':\n#"
-      echo -e "$1"
-      echo -e "#"
-    } >> "$tmpfile"
-    edit "$tmpfile"
+    if [[ -n "$commits" ]]; then
+      tmpfile="$(mktemp)"
+      {
+        echo -e "\n# Please enter the feature description for '$CHANGELOG'. Lines starting"
+        echo -e "# with # and empty lines will be ignored."
+        echo -e "#\n# Commits of '$origbranch':\n#"
+        echo -e "$commits"
+        echo -e "#"
+      } >> "$tmpfile"
+      edit "$tmpfile"
+      sed -i '/^\s*\(#\|$\)/d;/^\s+/d' "$tmpfile"
+    fi
     msg_start "Updating changelog"
-    sed -i '/^\s*\(#\|$\)/d;/^\s+/d' "$tmpfile"
-    if [[ -n "$(cat "$tmpfile")" ]]; then
+    if [[ -n "$commits" && -n "$(cat "$tmpfile")" ]]; then
       cat "$CHANGELOG" >> "$tmpfile" || return 1
       mv "$tmpfile" "$CHANGELOG" || return 1
       git commit -am "Version history updated" >/dev/null || return 1
@@ -430,13 +433,11 @@ function main {
         ;;
 
       *)
-        local commits
-        commits="$(git log "$DEV"..$origbranch --pretty=format:"#   %s")"
-        [[ -n $commits ]] \
+        [[ -n "$(git log "$DEV"..$origbranch)" ]] \
           || err "Nothing to merge - feature branch '$origbranch' is empty" \
           || return 1
         confirm "* Merge feature '$origbranch'?" || return 0
-        merge_feature "$commits" \
+        merge_feature \
          && merge_branches $origbranch "$DEV" \
          && delete_branch \
          || return $?
