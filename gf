@@ -205,32 +205,44 @@ function main {
       || err "Invalid branchname format" \
       || return 1
     git_branch_exists "$origbranch" \
-      || [[ ! "$origbranch" =~ ^(hotfix|release|master) ]] \
+      || [[ ! "$origbranch" =~ ^(hotfix|release|master).+ ]] \
       || err "Feature branch cannot start with hotfix, release or master" \
       || return 1
   }
 
+  function gf_checkout_to {
+    msg_start "Checkout '$1'" && {
+      [[ "$(git_current_branch)" == "$1" ]] \
+        && origbranch="$(git_current_branch)" \
+        && msg_end "$PASSED" \
+        && return 0
+      # assume checkout to tag or branch
+      git_checkout "$1" \
+        && gf_validate \
+        && load_version \
+        || return $?
+      origbranch="$(git_current_branch)"
+      msg_end "$DONE"
+    }
+  }
+
   function gf_checkout {
     # checkout to given branch or create feature
-    if git_branch_exists "$origbranch"; then
-      [[ "$(git_current_branch)" != "$origbranch" ]] \
-        && msg_start "Checkout '$origbranch'" \
-        && {
-          # assume checkout to tag or branch
-          git_checkout "$origbranch" \
-            && gf_validate \
-            && load_version \
-            || return $?
-          origbranch="$(git_current_branch)"
-          msg_end "$DONE"
-        }
-      return 0
+    if git_branch_exists "$origbranch" \
+      || git_branch_exists "$ORIGIN/$origbranch"; then
+      gf_checkout_to "$origbranch"
     else
-      confirm "* Create feature branch '$origbranch'?" || return 0
+      # predefined checkout kws
+      case "$origbranch" in
+        hotfix) gf_checkout_to master || return 1; return 0 ;;
+        release) gf_checkout_to dev || return 1; return 0 ;;
+      esac
+      # -> or create feature branch
+      newfeature=1
+      confirm "* Create feature branch '$origbranch'?" || return 0;
       git_checkout $DEV \
         && git_branch "$origbranch" \
         || return 1
-      newfeature=1
     fi
   }
 
