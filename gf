@@ -486,8 +486,8 @@ function main {
       && git_stash_pop
   }
 
-  function gf_tips {
-    [[ $tips == 0 ]] && return 0
+  function gf_what_now {
+    [[ $what_now == 0 ]] && return 0
     stdout_verbose
     local gcb
     echo "***"
@@ -558,8 +558,8 @@ function main {
 
 
   # variables
-  local line script_name major minor patch master force init yes verbose dry tips stashed color
-  tips=0
+  local line script_name major minor patch master force init yes verbose dry what_now stashed color
+  what_now=0
   dry=0
   verbose=0
   stashed=0
@@ -576,8 +576,8 @@ function main {
   # process options
   if ! line=$(
     IFS=" " getopt -n "$0" \
-           -o iftynvVh\? \
-           -l force,init,tips,dry-run,yes,color::,colour::,verbose,version,help\
+           -o ifwynvVh\? \
+           -l force,init,what-now,dry-run,yes,color::,colour::,verbose,version,help \
            -- $GF_OPTIONS $*
   )
   then gf_usage; return 2; fi
@@ -589,7 +589,7 @@ function main {
   while [ $# -gt 0 ]; do
     case $1 in
      -f|--force) force=1; shift ;;
-     -t|--tips) tips=1; shift ;;
+     -w|--what-now) what_now=1; shift ;;
      -i|--init) init=1; shift ;;
      -y|--yes) yes=1; shift ;;
      --color|--colour) shift; setcolor "$1" || { gf_usage; return 2; }; shift ;;
@@ -620,18 +620,18 @@ function main {
   newfeature=0
   origbranch="${1:-}"
   stdout_silent
-  [[ $dry == 1 ]] && { gf_tips; return 0; }
-  [[ $init == 1 ]] && { gf_init && gf_tips; return $?; }
+  [[ $dry == 1 ]] && { gf_what_now; return 0; }
+  [[ $init == 1 ]] && { gf_init && gf_what_now; return $?; }
 
   # run gf
   gf_validate && gf_checkout && {
     if [[ $newfeature == 0 ]]; then load_version && gf_run; fi
-    } && git_stash_pop && gf_tips || {
+    } && git_stash_pop && gf_what_now || {
     case $? in
       1) err "Unexpected error occured (see REPORTING BUGS in man gf)"; return 1 ;;
       3) err "Initializing gf may help (see OPTIONS in man gf)"; return 3 ;;
       4) err "Forcing gf may help (see OPTIONS in man gf)"; return 4 ;;
-      5) err "Conflict occured (see git status)"; gf_tips; return 5 ;;
+      5) err "Conflict occured (see git status)"; gf_what_now; return 5 ;;
     esac
   }
 

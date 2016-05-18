@@ -28,8 +28,8 @@ gf [-iftvh] [BRANCH]
 -f, --force
 : Move (stash and pop) uncommitted changes.
 
--t, --tips
-: Display tips for current branch.
+-w, --what_now
+: Display what to do on current branch.
 
 -y, --yes
 : Assume yes for all questions.
