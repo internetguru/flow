@@ -1,5 +1,6 @@
 #!/bin/bash
 
+shopt -s extglob
 set -u
 
 : ${DATAPATH:=.}
@@ -76,7 +77,7 @@ function main {
     IFS=. read major minor patch < "$VERSION" \
       || err "Unable to load version" \
       || return 1
-    master="master-$major.$minor"
+    master="v$major.$minor"
   }
 
   function edit {
@@ -332,7 +333,7 @@ function main {
   #   - increment minor version, set patch to 0
   #   - create release branch
   #
-  #  newest tag on stable branch (eg. master-1.10.1)
+  #  newest tag on stable branch (eg. v1.10.1)
   #   - create stable branch
   #   - continue master
   #  master
@@ -365,7 +366,7 @@ function main {
     # proceed
     case ${origbranch%-*} in
 
-      HEAD|master)
+      HEAD|master|v+([0-9]).+([0-9]))
         gf_hotfixable || return 1
         confirm "* Create hotfix?" || return 0
         [[ $origbranch == HEAD ]] && {
@@ -500,7 +501,7 @@ function main {
     gcb=$(git_current_branch)
     echo -n "* Current branch '$gcb' is considered as "
     case ${gcb%-*} in
-      HEAD|master)
+      HEAD|master|v+([0-9]).+([0-9]))
         if gf_hotfixable 2>/dev/null; then
           echo "stable branch."
           echo "* - Run 'gf' to create hotfix or leave :)"
@@ -568,7 +569,7 @@ function main {
   major=0
   minor=0
   patch=0
-  master=0.0
+  master=v0.0
   color=auto
 
   # constants
