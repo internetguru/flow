@@ -4,17 +4,17 @@ gf
 
 # SYNOPSIS
 
-gf [-iftvh] [BRANCH]
+gf [-ifwynvVh] [--color[=WHEN]] [BRANCH|TAG|KEYWORD]
 
 # DESCRIPTION
 
-**gf** automatically creates (and merges) git flow branches from current or given BRANCH. If BRANCH does not exist, then gf creates new feature (from branch dev).
+**gf** proceeds git **flow branching model**(1) according to current or selected BRANCH, TAG or KEYWORD (such as 'hotfix'). If the BRANCH does not exist, new feature is created.
 
-**gf** implements **git flow model**(1) similarly to **git-flow command**(2) with following improvements:
+**gf** is an alternative to **git-flow command**(2) with following improvements:
 
 * even simpler usage (no parameters required),
 
-* automatic **version number**(3) incrementation (file VERSION),
+* automatic **semantic version numbering**(3) (file VERSION),
 
 * version history update support (file CHANGELOG),
 
@@ -35,8 +35,7 @@ gf [-iftvh] [BRANCH]
 : Assume yes for all questions.
 
 --color[=WHEN], --colour[=WHEN]
-: Use markers to highlight command status;
-: WHEN is 'always', 'never', or 'auto'
+: Use markers to highlight command status; WHEN is 'always', 'never', or 'auto'
 
 -n, --dry-run
 : Do not run commands; only parse user options.

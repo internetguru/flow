@@ -36,7 +36,7 @@ DISTDIR     := dist
 INSTFILE    := install
 INSDEVTFILE := install_develop
 UNINSTFILE  := uninstall
-USAGEHEADER := "Usage: $(GF) [OPTION]... [BRANCH]"
+USAGEHEADER := "Usage: "
 
 #-------------------------------------------------------------------------------
 # Recipes
@@ -72,8 +72,10 @@ all:
 	@ echo DONE
 
 	@ echo -n "Compiling usage file ..."
-	@ echo -e "$(USAGEHEADER)\n" > $(DISTNAME)/$(USAGEFILE)
-	@ sed -n '/# OPTIONS/,/# BASIC FLOW EXAMPLES/p;' README.md  | grep -v "# BASIC FLOW EXAMPLES\|# OPTIONS" \
+	@ echo -n "$(USAGEHEADER)" > $(DISTNAME)/$(USAGEFILE)
+	@ grep "^gf \[" $(README).md >> $(DISTNAME)/$(USAGEFILE)
+	@ echo >> $(DISTNAME)/$(USAGEFILE)
+	@ sed -n '/# OPTIONS/,/# BASIC FLOW EXAMPLES/p;' $(README).md  | grep -v "# BASIC FLOW EXAMPLES\|# OPTIONS" \
 	| sed '/^-.*$$/ { N; s/\n// }' | sed 's/: /\t/' | sed '/^$$/d' >> $(DISTNAME)/$(USAGEFILE)
 	@ echo DONE
 

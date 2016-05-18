@@ -557,7 +557,8 @@ function main {
     [ -f "$usage_file" ] \
       || err "Usage file not found" \
       || return 1
-    cat "$usage_file" | column -ts $'\t'
+    head -n2 "$usage_file"
+    tail -n+3 "$usage_file" | column -ts $'\t'
   }
 
   function gf_version {
