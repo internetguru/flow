@@ -239,7 +239,7 @@ function main {
       esac
       # -> or create feature branch
       newfeature=1
-      confirm "* Create feature branch '$origbranch'?" || return 0;
+      confirm "* Create feature branch '$origbranch'?" || return 0
       git_checkout $DEV \
         && git_branch "$origbranch" \
         || return 1
@@ -331,7 +331,7 @@ function main {
       git_commit_diff $origbranch $master \
         || { git_checkout $master; return $?; }
     fi
-    confirm "* Create stable branch $master?" || return 0;
+    confirm "* Create stable branch $master?" || return 0
     git_branch "$master" || return 1
   }
 
@@ -385,7 +385,7 @@ function main {
         gf_hotfixable || return 1
         confirm "* Create hotfix?" || return 0
         [[ $origbranch == HEAD ]] && {
-          create_stable_branch || return $?;
+          create_stable_branch || return $?
           origbranch=$(git_current_branch)
         }
         create_branch "hotfix-$major.$minor.$((++patch))"
@@ -425,7 +425,7 @@ function main {
             && delete_branch \
             || return $?
         else
-          confirm "* Merge branch release into branch '$DEV'?" || return 0;
+          confirm "* Merge branch release into branch '$DEV'?" || return 0
           merge_branches $origbranch "$DEV" \
             && git_checkout $origbranch \
             || return $?
