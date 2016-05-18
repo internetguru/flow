@@ -237,11 +237,11 @@ function main {
         release) gf_checkout_to dev || return 1; return 0 ;;
       esac
       # -> or create feature branch
+      newfeature=1
       confirm "* Create feature branch '$origbranch'?" || return 0
       git_checkout $DEV \
         && git_branch "$origbranch" \
         || return 1
-      newfeature=1
     fi
   }
 
