@@ -51,7 +51,7 @@ all:
 	@ echo -n "Compiling command file ..."
 	@ { \
 	head -n1 $(GF); \
-	echo "DATAPATH=\"$(SHAREPATH)/$(GF)\""; \
+	echo "GF_DATAPATH=\"$(SHAREPATH)/$(GF)\""; \
 	tail -n+2 $(GF); \
 	} > $(DISTNAME)/$(GF)
 	@ chmod +x $(DISTNAME)/$(GF)
