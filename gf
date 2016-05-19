@@ -230,12 +230,30 @@ function main {
     # checkout to given branch or create feature
     if git_branch_exists "$origbranch" \
       || git_branch_exists "$ORIGIN/$origbranch"; then
-      gf_checkout_to "$origbranch"
+      gf_checkout_to "$origbranch" || return $?
     else
       # predefined checkout kws
       case "$origbranch" in
-        hotfix) gf_checkout_to master || return 1; return 0 ;;
-        release) gf_checkout_to dev || return 1; return 0 ;;
+        hotfix)
+          local to
+          to=$master
+          # already on hotfix
+          [[ "$(git_current_branch)" == "hotfix-$major.$minor.$patch" ]] \
+            && origbranch="hotfix-$major.$minor.$patch" \
+            && return 0
+          # TODO: replace this two ifs with "checkout to newest tag on current stable"
+          # is there stable branch?
+          ! git_branch_exists "$master" \
+            && to="$master.$patch"
+          # diff version with master?
+          ! git_version_diff master $major.$minor \
+            && to="master"
+          gf_checkout_to "$to" || return $?
+          # hotfix already exists
+          git_branch_exists "hotfix-$major.$minor.$((patch+1))" \
+            && { gf_checkout_to "hotfix-$major.$minor.$((patch+1))" || return $?; }
+          return 0 ;;
+        release) gf_checkout_to dev || return $?; return 0 ;;
       esac
       # -> or create feature branch
       newfeature=1
