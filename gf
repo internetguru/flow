@@ -9,6 +9,7 @@ set -u
 : ${DEV:=dev}
 : ${ORIGIN:=origin}
 : ${GF_OPTIONS:=}
+: ${NOPREFIX:=}
 
 function main {
 
@@ -77,7 +78,7 @@ function main {
     IFS=. read major minor patch < "$VERSION" \
       || err "Unable to load version" \
       || return 1
-    master="v$major.$minor"
+    master=$prefix$major.$minor
   }
 
   function edit {
@@ -235,19 +236,14 @@ function main {
       # predefined checkout kws
       case "$origbranch" in
         hotfix)
-          local to
-          to=$master
           # already on hotfix
+          load_version || return $?
           [[ "$(git_current_branch)" == "hotfix-$major.$minor.$patch" ]] \
             && origbranch="hotfix-$major.$minor.$patch" \
             && return 0
-          # TODO: replace this two ifs with "checkout to newest tag on current stable"
-          # is there stable branch?
-          ! git_branch_exists "$master" \
-            && to="$master.$patch"
-          # diff version with master?
-          ! git_version_diff master $major.$minor \
-            && to="master"
+          local to
+          to="$( git tag | grep -e ^$master. | sort -V | tail -n1 )"
+          [ -z "$to" ] && to="master"
           gf_checkout_to "$to" || return $?
           # hotfix already exists
           git_branch_exists "hotfix-$major.$minor.$((patch+1))" \
@@ -591,7 +587,7 @@ function main {
 
 
   # variables
-  local line script_name major minor patch master force init yes verbose dry what_now stashed color
+  local line script_name major minor patch master force init yes verbose dry what_now stashed color prefix
   what_now=0
   dry=0
   verbose=0
@@ -601,7 +597,8 @@ function main {
   major=0
   minor=0
   patch=0
-  master=v0.0
+  prefix="$([ -z $NOPREFIX ] && echo v)"
+  master=${prefix}0.0
   color=auto
 
   # constants
