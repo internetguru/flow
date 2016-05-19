@@ -3,13 +3,13 @@
 shopt -s extglob
 set -u
 
-: ${DATAPATH:=.}
-: ${CHANGELOG:=CHANGELOG}
-: ${VERSION:=VERSION}
-: ${DEV:=dev}
-: ${ORIGIN:=origin}
+: ${GF_DATAPATH:=.}
+: ${GF_CHANGELOG:=CHANGELOG}
+: ${GF_VERSION:=VERSION}
+: ${GF_DEV:=dev}
+: ${GF_ORIGIN:=origin}
 : ${GF_OPTIONS:=}
-: ${NOPREFIX:=}
+: ${GF_NOPREFIX:=}
 
 function main {
 
@@ -66,16 +66,16 @@ function main {
   }
 
   function load_version {
-    [[ -f "$VERSION" ]] \
+    [[ -f "$GF_VERSION" ]] \
       || err "Version file not found" \
       || return 3
-    [[ -n "$(cat "$VERSION")" ]] \
+    [[ -n "$(cat "$GF_VERSION")" ]] \
       || err "Version file is empty" \
       || return 3
-    [[ "$(cat "$VERSION")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+    [[ "$(cat "$GF_VERSION")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
       || err "Invalid version file content format" \
       || return 1
-    IFS=. read major minor patch < "$VERSION" \
+    IFS=. read major minor patch < "$GF_VERSION" \
       || err "Unable to load version" \
       || return 1
     master=$prefix$major.$minor
@@ -149,7 +149,7 @@ function main {
   }
 
   function git_version_diff {
-    [[ "$(git show $1:"$VERSION" | cut -d. -f1-2)" != "$2" ]]
+    [[ "$(git show $1:"$GF_VERSION" | cut -d. -f1-2)" != "$2" ]]
   }
 
   function git_current_branch {
@@ -196,8 +196,8 @@ function main {
     git_repo_exists \
       || err "Git repository does not exist" \
       || return 3
-    { git_branch_exists "$DEV" && git_branch_exists master; } \
-      || err "Missing branches '$DEV' or master" \
+    { git_branch_exists "$GF_DEV" && git_branch_exists master; } \
+      || err "Missing branches '$GF_DEV' or master" \
       || return 3
     git_stash || return $?
     git_status_empty || return 4
@@ -230,7 +230,7 @@ function main {
   function gf_checkout {
     # checkout to given branch or create feature
     if git_branch_exists "$origbranch" \
-      || git_branch_exists "$ORIGIN/$origbranch"; then
+      || git_branch_exists "$GF_ORIGIN/$origbranch"; then
       gf_checkout_to "$origbranch" || return $?
     else
       # predefined checkout kws
@@ -254,7 +254,7 @@ function main {
       # -> or create feature branch
       newfeature=1
       confirm "* Create feature branch '$origbranch'?" || return 0
-      git_checkout $DEV \
+      git_checkout $GF_DEV \
         && git_branch "$origbranch" \
         || return 1
     fi
@@ -265,20 +265,20 @@ function main {
     git_branch_exists $1 \
       && { err "Destination branch '$1' already exists" || return 1; }
     git_branch $1 || return 1
-    # updating CHANGELOG and VERSION files
-    if [[ $origbranch == "$DEV" ]]; then
+    # updating GF_CHANGELOG and GF_VERSION files
+    if [[ $origbranch == "$GF_DEV" ]]; then
       local header
-      msg_start "Updating '$CHANGELOG' and '$VERSION' files"
+      msg_start "Updating '$GF_CHANGELOG' and '$GF_VERSION' files"
       header="$major.$minor | $(date "+%Y-%m-%d")" || return 1
-      printf '\n%s\n\n%s\n' "$header" "$(<$CHANGELOG)" > "$CHANGELOG" || return 1
+      printf '\n%s\n\n%s\n' "$header" "$(<$GF_CHANGELOG)" > "$GF_CHANGELOG" || return 1
     else
-      msg_start "Updating '$VERSION' file"
+      msg_start "Updating '$GF_VERSION' file"
     fi
-    echo $major.$minor.$patch > "$VERSION" || return 1
+    echo $major.$minor.$patch > "$GF_VERSION" || return 1
     msg_end "$DONE"
     git commit -am "$1" >/dev/null || return 1
-    if [[ $origbranch == "$DEV" ]]; then
-      merge_branches $1 "$DEV" \
+    if [[ $origbranch == "$GF_DEV" ]]; then
+      merge_branches $1 "$GF_DEV" \
       && git_checkout $1 \
       || return $?
     fi
@@ -286,16 +286,16 @@ function main {
 
   function merge_feature {
     local tmpfile commits
-    git_commit_diff $origbranch "$DEV" \
-      && msg_start "Rebasing feature branch to '$DEV'" \
-      && { git rebase "$DEV" >/dev/null || return 5; } \
+    git_commit_diff $origbranch "$GF_DEV" \
+      && msg_start "Rebasing feature branch to '$GF_DEV'" \
+      && { git rebase "$GF_DEV" >/dev/null || return 5; } \
       && msg_end "$DONE"
-    commits="$(git log "$DEV"..$origbranch --pretty=format:"#   %s")"
-    # message for $CHANGELOG
+    commits="$(git log "$GF_DEV"..$origbranch --pretty=format:"#   %s")"
+    # message for $GF_CHANGELOG
     if [[ -n "$commits" ]]; then
       tmpfile="$(mktemp)"
       {
-        echo -e "\n# Please enter the feature description for '$CHANGELOG'. Lines starting"
+        echo -e "\n# Please enter the feature description for '$GF_CHANGELOG'. Lines starting"
         echo -e "# with # and empty lines will be ignored."
         echo -e "#\n# Commits of '$origbranch':\n#"
         echo -e "$commits"
@@ -306,8 +306,8 @@ function main {
     fi
     msg_start "Updating changelog"
     if [[ -n "$commits" && -n "$(cat "$tmpfile")" ]]; then
-      cat "$CHANGELOG" >> "$tmpfile" || return 1
-      mv "$tmpfile" "$CHANGELOG" || return 1
+      cat "$GF_CHANGELOG" >> "$tmpfile" || return 1
+      mv "$tmpfile" "$GF_CHANGELOG" || return 1
       git commit -am "Version history updated" >/dev/null || return 1
       msg_end "$DONE"
     else
@@ -324,9 +324,9 @@ function main {
 
   function delete_branch {
     msg_start "Deleting remote branch '$origbranch'"
-    if git branch -r | grep $ORIGIN/$origbranch$ >/dev/null; then
+    if git branch -r | grep $GF_ORIGIN/$origbranch$ >/dev/null; then
       local out
-      out="$(git push $ORIGIN :$REFSHEADS/$origbranch 2>&1)" \
+      out="$(git push $GF_ORIGIN :$REFSHEADS/$origbranch 2>&1)" \
         || err "$out" \
         || return 1
       msg_end "$DONE"
@@ -358,7 +358,7 @@ function main {
 
   # Origbranch:
   #
-  #  $DEV
+  #  $GF_DEV
   #   - increment minor version, set patch to 0
   #   - create release branch
   #
@@ -371,19 +371,19 @@ function main {
   #
   #  hotfix (eg. hotfix-1.10.2)
   #   - merge hotfix branch into stable branch
-  #   - merge hotfix branch into $DEV (if hotfixing master)
+  #   - merge hotfix branch into $GF_DEV (if hotfixing master)
   #   - create tag
   #   - delete hotfix branch
   #
   #  release
   #   - merge release branch into master
-  #   - merge release branch into $DEV
+  #   - merge release branch into $GF_DEV
   #   - create tag
   #   - delete release branch
   #
   #  feature
   #   - update version history
-  #   - merge feature branch into $DEV
+  #   - merge feature branch into $GF_DEV
   #   - delete feature branch
   #
   function gf_run {
@@ -405,8 +405,8 @@ function main {
         create_branch "hotfix-$major.$minor.$((++patch))"
         ;;
 
-      "$DEV")
-        confirm "* Create release branch from branch '$DEV'?" || return 0
+      "$GF_DEV")
+        confirm "* Create release branch from branch '$GF_DEV'?" || return 0
         patch=0
         ((minor++))
         create_branch release
@@ -419,8 +419,8 @@ function main {
           merge_branches $origbranch master \
             && git_tag $master.$patch \
             || return $?
-          confirm "* Merge hotfix into '$DEV'?" \
-            && { merge_branches $origbranch "$DEV" || return $?; }
+          confirm "* Merge hotfix into '$GF_DEV'?" \
+            && { merge_branches $origbranch "$GF_DEV" || return $?; }
         # not master -> merge only to stable branch
         else
           merge_branches $origbranch $master \
@@ -435,24 +435,24 @@ function main {
           git_checkout master \
             && merge_branches $origbranch master \
             && git_tag $master.0 \
-            && merge_branches $origbranch "$DEV" \
+            && merge_branches $origbranch "$GF_DEV" \
             && delete_branch \
             || return $?
         else
-          confirm "* Merge branch release into branch '$DEV'?" || return 0
-          merge_branches $origbranch "$DEV" \
+          confirm "* Merge branch release into branch '$GF_DEV'?" || return 0
+          merge_branches $origbranch "$GF_DEV" \
             && git_checkout $origbranch \
             || return $?
         fi
         ;;
 
       *)
-        [[ -n "$(git log "$DEV"..$origbranch)" ]] \
+        [[ -n "$(git log "$GF_DEV"..$origbranch)" ]] \
           || err "Nothing to merge - feature branch '$origbranch' is empty" \
           || return 1
         confirm "* Merge feature '$origbranch'?" || return 0
         merge_feature \
-         && merge_branches $origbranch "$DEV" \
+         && merge_branches $origbranch "$GF_DEV" \
          && delete_branch \
          || return $?
     esac
@@ -460,12 +460,12 @@ function main {
 
   function init_files {
     msg_start "Initializing files on branch '$1'"
-    [[ ! -f "$VERSION" || -z "$(cat "$VERSION")" ]] \
-      && { echo 0.0.0 > "$VERSION" || return 1; }
-    [[ ! -f "$CHANGELOG" || -z "$(cat "$CHANGELOG")" ]] \
-      && { echo "$CHANGELOG created" > "$CHANGELOG" || return 1; }
+    [[ ! -f "$GF_VERSION" || -z "$(cat "$GF_VERSION")" ]] \
+      && { echo 0.0.0 > "$GF_VERSION" || return 1; }
+    [[ ! -f "$GF_CHANGELOG" || -z "$(cat "$GF_CHANGELOG")" ]] \
+      && { echo "$GF_CHANGELOG created" > "$GF_CHANGELOG" || return 1; }
     git_status_empty 2>/dev/null && msg_end "$PASSED" && return 0
-    git add "$VERSION" "$CHANGELOG" >/dev/null \
+    git add "$GF_VERSION" "$GF_CHANGELOG" >/dev/null \
       && git commit -m "Init gf: create required files" >/dev/null \
       || return 1
     msg_end "$DONE"
@@ -483,8 +483,8 @@ function main {
   }
 
   # Prepare enviroment for gf:
-  # - create $VERSION and $CHANGELOG file
-  # - create $DEV branch
+  # - create $GF_VERSION and $GF_CHANGELOG file
+  # - create $GF_DEV branch
   function gf_init {
     # init git repo
     msg_start "Initializing git repository"
@@ -504,12 +504,12 @@ function main {
     fi
     [[ $force == 0 ]] \
       && { git_status_empty || return 4; }
-    # init files on master and $DEV
+    # init files on master and $GF_DEV
     init_files master \
       && load_version \
       && { git_tag_exists $master.$patch || git_tag $master.$patch; } \
-      && git_branch "$DEV" \
-      && init_files "$DEV" \
+      && git_branch "$GF_DEV" \
+      && init_files "$GF_DEV" \
       && load_version \
       && git_stash_pop
   }
@@ -538,7 +538,7 @@ function main {
           git status | sed "s/^/* /"
         fi
       ;;
-      "$DEV")
+      "$GF_DEV")
         echo "developing branch."
         echo "* - Do some bugfixes..."
         echo "* - Run 'gf MYFEATURE' to create new feature."
@@ -548,18 +548,18 @@ function main {
         echo "release branch."
         echo "* - Do some bugfixes..."
         echo "* - Run 'gf' to create stable branch."
-        echo "* - Hit [No-Yes] to merge only into $DEV."
+        echo "* - Hit [No-Yes] to merge only into $GF_DEV."
       ;;
       hotfix)
         echo "hotfix branch."
         echo "* - Do some hotfixes..."
         echo "* - Run 'gf' to merge hotfix into stable branch."
-        echo "* - Hit [Yes-No] to skip merging into $DEV."
+        echo "* - Hit [Yes-No] to skip merging into $GF_DEV."
       ;;
       *)
         echo "feature branch."
         echo "* - Develop current feature..."
-        echo "* - Run 'gf' to merge it into $DEV."
+        echo "* - Run 'gf' to merge it into $GF_DEV."
     esac
     echo "***"
     stdout_silent
@@ -567,7 +567,7 @@ function main {
 
   function gf_usage {
     local usage_file
-    usage_file="$DATAPATH/${script_name}.usage"
+    usage_file="$GF_DATAPATH/${script_name}.usage"
     [ -f "$usage_file" ] \
       || err "Usage file not found" \
       || return 1
@@ -577,7 +577,7 @@ function main {
 
   function gf_version {
     local version
-    version="$DATAPATH/VERSION"
+    version="$GF_DATAPATH/VERSION"
     [ -f "$version" ] \
       || err "Version file not found" \
       || return 1
@@ -597,7 +597,7 @@ function main {
   major=0
   minor=0
   patch=0
-  prefix="$([ -z $NOPREFIX ] && echo v)"
+  prefix="$([ -z $GF_NOPREFIX ] && echo v)"
   master=${prefix}0.0
   color=auto
 
