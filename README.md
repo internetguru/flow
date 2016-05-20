@@ -85,7 +85,6 @@ Bugfixing on release...
 * ``gf`` (only to dev)
 * ``echo "release bugfix 2" >> myfile``
 * ``git commit -am "add release bugfix 2"``
-* ``gf`` (only to dev)
 
 Merge release
 : * ``gf``
@@ -102,8 +101,8 @@ Hotfix master branch
 
 Hotfix previous release
 : * ``gf v0.1.0``
-* ``echo "hotfix 2" >> myfile``
-* ``git commit -am "add hotfix 2"``
+* ``echo "hotfix old" >> myfile``
+* ``git commit -am "add old hotfix"``
 * ``gf``
 
 Initialize **gf** on existing project with version number
@@ -111,7 +110,10 @@ Initialize **gf** on existing project with version number
 * ``gf -i``
 
 New feature from uncommitted changes
-: * ``gf -f myfeature``
+: * ``git checkout dev``
+* ``echo "feature x" >> myfile``
+* ``gf -f myfeature``
+* ``git commit -am "add feature x"``
 
 Merge conflicting release
 : * ``gf release``
