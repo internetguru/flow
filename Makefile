@@ -72,11 +72,13 @@ all:
 	@ echo DONE
 
 	@ echo -n "Compiling usage file ..."
-	@ echo -n "$(USAGEHEADER)" > $(DISTNAME)/$(USAGEFILE)
+	@ echo ".TH" > $(DISTNAME)/$(USAGEFILE)
+	@ echo ".TP" >> $(DISTNAME)/$(USAGEFILE)
+	@ echo -n "$(USAGEHEADER)" >> $(DISTNAME)/$(USAGEFILE)
 	@ grep "^gf \[" $(README).md >> $(DISTNAME)/$(USAGEFILE)
 	@ echo >> $(DISTNAME)/$(USAGEFILE)
 	@ sed -n '/# OPTIONS/,/# BASIC FLOW EXAMPLES/p;' $(README).md  | grep -v "# BASIC FLOW EXAMPLES\|# OPTIONS" \
-	| sed '/^-.*$$/ { N; s/\n// }' | sed 's/: /\t/' | sed '/^$$/d' >> $(DISTNAME)/$(USAGEFILE)
+	| sed 's/^-/.TP\n-/' | sed 's/: //' | sed '/^$$/d' >> $(DISTNAME)/$(USAGEFILE)
 	@ echo DONE
 
 	@ echo -n "Compiling install file ..."
