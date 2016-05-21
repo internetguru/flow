@@ -573,8 +573,10 @@ function main {
     [ -f "$usage_file" ] \
       || err "Usage file not found" \
       || return 1
+    head -n1 "$usage_file"
+    echo
     [[ $COLUMNS -gt 1 ]] && export MANWIDTH=$((COLUMNS+5)) SHIFT=';s/^ \{5\}//'
-    man --nj --nh "$usage_file" | sed '1,2d;/^[[:space:]]*$/d;$d'"$SHIFT"
+    echo "$(tail -n+2 "$usage_file")" | man --nj --nh -l - | sed '1,2d;/^[[:space:]]*$/d;$d'"$SHIFT"
   }
 
   function gf_version {
