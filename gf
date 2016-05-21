@@ -415,7 +415,7 @@ function main {
         ;;
 
       hotfix)
-        confirm "* Merge hotfix?" || return 0
+        confirm "* Merge hotfix into stable branch (master)?" || return 0
         # master -> merge + confirm merge to dev
         if ! git_version_diff master $major.$minor; then
           merge_branches $origbranch master \
@@ -441,7 +441,7 @@ function main {
             && delete_branch \
             || return $?
         else
-          confirm "* Merge branch release into branch '$GF_DEV'?" || return 0
+          confirm "* Merge release branch into '$GF_DEV'?" || return 0
           merge_branches $origbranch "$GF_DEV" \
             && git_checkout $origbranch \
             || return $?
@@ -452,7 +452,7 @@ function main {
         [[ -n "$(git log "$GF_DEV"..$origbranch)" ]] \
           || err "Nothing to merge - feature branch '$origbranch' is empty" \
           || return 1
-        confirm "* Merge feature '$origbranch'?" || return 0
+        confirm "* Merge feature '$origbranch' into '$GF_DEV'?" || return 0
         merge_feature \
          && merge_branches $origbranch "$GF_DEV" \
          && delete_branch \
