@@ -10,6 +10,8 @@ set -u
 : ${GF_ORIGIN:=origin}
 : ${GF_OPTIONS:=}
 : ${GF_NOPREFIX:=}
+: ${COLUMNS:=$(tput cols)}
+: ${SHIFT:=}
 
 function main {
 
@@ -571,8 +573,10 @@ function main {
     [ -f "$usage_file" ] \
       || err "Usage file not found" \
       || return 1
-    head -n2 "$usage_file"
-    tail -n+3 "$usage_file" | column -ts $'\t'
+    head -n1 "$usage_file"
+    echo
+    [[ $COLUMNS -gt 1 ]] && export MANWIDTH=$((COLUMNS+5)) SHIFT=';s/^ \{5\}//'
+    echo "$(tail -n+2 "$usage_file")" | man --nj --nh -l - | sed '1,2d;/^[[:space:]]*$/d;$d'"$SHIFT"
   }
 
   function gf_version {
