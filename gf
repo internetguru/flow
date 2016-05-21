@@ -662,7 +662,7 @@ function main {
     if [[ $newfeature == 0 ]]; then load_version && gf_run; fi
     } && git_stash_pop && gf_what_now || {
     case $? in
-      1) err "Unexpected error occured (see REPORTING BUGS in man gf)"; return 1 ;;
+      1) err "Generic error occured (see REPORTING BUGS in man gf)"; return 1 ;;
       3) err "Initializing gf may help (see OPTIONS in man gf)"; return 3 ;;
       4) err "Forcing gf may help (see OPTIONS in man gf)"; return 4 ;;
       5) err "Conflict occured (see git status)"; gf_what_now; return 5 ;;
