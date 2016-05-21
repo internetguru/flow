@@ -60,10 +60,10 @@ all:
 	@ echo -n "Compiling man file ..."
 	@ { \
 	echo -n "% GF(1) User Manual | Version "; cat VERSION; \
-	echo -n "% "; sed -n '/# AUTHORS/,/# COPYRIGHT/p' $(README).md | grep "@" | tr -d '*'; \
+	echo -n "% "; sed -n '/# AUTHORS/,/# DONATION/p' $(README).md | grep "@" | tr -d '*'; \
 	echo -n "% "; stat -c %z $(README).md | cut -d" " -f1; \
 	echo; \
-	sed -n '/# NAME/,/# INSTALL/p;/# EXIT STATUS/,//p' $(README).md | grep -v "# INSTALL"; \
+	sed -n '/# NAME/,/# INSTALL/p;/# EXIT STATUS/,/# AUTHORS/p' $(README).md | grep -v "# \(INSTALL\|AUTHORS\)"; \
 	} | $(PANDOC) -s -t man -o $(DISTNAME)/$(MANFILE)
 	@ echo DONE
 
@@ -75,7 +75,7 @@ all:
 	@ echo -n "$(USAGEHEADER)" > $(DISTNAME)/$(USAGEFILE)
 	@ grep "^gf \[" $(README).md >> $(DISTNAME)/$(USAGEFILE)
 	@ echo ".TH" >> $(DISTNAME)/$(USAGEFILE)
-	@ sed -n '/# OPTIONS/,/# BASIC FLOW EXAMPLES/p;' $(README).md  | grep -v "# BASIC FLOW EXAMPLES\|# OPTIONS" \
+	@ sed -n '/# OPTIONS/,/# BASIC FLOW EXAMPLES/p;' $(README).md  | grep -v "# \(BASIC FLOW EXAMPLES\|OPTIONS\)" \
 	| sed 's/^-/.TP 18\n-/' | sed 's/: //' | sed '/^$$/d' >> $(DISTNAME)/$(USAGEFILE)
 	@ echo DONE
 
