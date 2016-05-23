@@ -433,9 +433,8 @@ function main {
         if ! git_version_diff master $major.$minor; then
           merge_branches $origbranch master \
             && git_tag $master.$patch \
+            && merge_branches $origbranch "$GF_DEV" \
             || return $?
-          confirm "* Merge hotfix into '$GF_DEV'?" \
-            && { merge_branches $origbranch "$GF_DEV" || return $?; }
         # not master -> merge only to stable branch
         else
           merge_branches $origbranch $master \
