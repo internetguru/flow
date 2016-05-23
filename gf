@@ -186,6 +186,7 @@ function main {
     echo -n "${@:-"Are you sure?"} [YES/No] "
     tput sc
     [[ $yes == 1 ]] && echo "yes" && return 0
+    while read -r -t 0; do read -r; done
     read -r
     [[ -z "$REPLY" ]] && tput rc && tput cuu1 && echo "yes"
     stdout_silent
