@@ -512,8 +512,6 @@ function main {
     fi
     if git_has_commits; then
       git_stash || return $?
-      git branch --contains $(master_last_change) | grep "$GF_DEV" >/dev/null \
-        || { merge_branches $(master_last_change) "$GF_DEV" || return $?; }
     else
       initial_commit || return $?
     fi
@@ -527,6 +525,8 @@ function main {
       && init_files "$GF_DEV" \
       && load_version \
       && git_stash_pop
+    git branch --contains $(master_last_change) | grep "$GF_DEV" >/dev/null \
+      || { merge_branches $(master_last_change) "$GF_DEV" || return $?; }
   }
 
   function gf_what_now {
