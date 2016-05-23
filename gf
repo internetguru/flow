@@ -195,6 +195,10 @@ function main {
     confirm "Type"
   }
 
+  function master_last_change {
+    git log master --no-merges -n1 --format="%h"
+  }
+
   function gf_validate {
     git_repo_exists \
       || err "Git repository does not exist" \
@@ -212,6 +216,9 @@ function main {
       || [[ ! "$origbranch" =~ ^(hotfix|release|master).+ ]] \
       || err "Feature branch cannot start with hotfix, release or master" \
       || return 1
+    git branch --contains $(master_last_change) | grep "$GF_DEV" >/dev/null \
+      || err "Branch master is not merged with '$GF_DEV'" \
+      || return 3
   }
 
   function gf_checkout_to {
@@ -498,10 +505,11 @@ function main {
       git init >/dev/null || return 1
       msg_end "$DONE"
       initial_commit || return $?
-
     fi
     if git_has_commits; then
       git_stash || return $?
+      git branch --contains $(master_last_change) | grep "$GF_DEV" >/dev/null \
+        || { merge_branches $(master_last_change) "$GF_DEV" || return $?; }
     else
       initial_commit || return $?
     fi
