@@ -18,7 +18,7 @@ function main {
   function msg_start {
     echo -n "[ "
     save_cursor_position
-    echo -n "...    ] $1"
+    echo " ....  ] $1"
   }
 
   function msg_end {
@@ -200,6 +200,7 @@ function main {
   }
 
   function set_cursor_position {
+    [[ $pos_x == $LINES ]] && : $(( pos_x-- ))
     tput cup $(( pos_x-1 )) $(( pos_y-1 ))
   }
 
@@ -211,11 +212,7 @@ function main {
     [[ $yes == 1 ]] && echo "yes" && return 0
     clear_stdin
     read -r
-    if [[ -z "$REPLY" ]]; then
-      set_cursor_position
-      [[ $pos_x == $LINES ]] && tput cuu1
-      echo "yes"
-    fi
+    [[ -z "$REPLY" ]] && set_cursor_position && echo "yes"
     stdout_silent
     [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] && return 0
     [[ "$REPLY" =~ ^[nN]o?$ ]] && return 1
