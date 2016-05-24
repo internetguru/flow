@@ -263,19 +263,26 @@ function main {
     msg_end "$DONE"
   }
 
-  function gf_checkout {
+  function gf_prepare {
     # checkout to given branch or create feature
     if git_branch_exists "$origbranch"; then
       gf_checkout "$origbranch" || return $?
     else
       # predefined checkout kws
       case "$origbranch" in
+        $prefix+([0-9]).+([0-9]))
+          git_branch_exists "$origbranch.0" \
+            || err "Stable branch '$origbranch' does not exist" \
+            || return 1
+          git_checkout "$origbranch.0" || return $?
+          ;&
         hotfix)
-          # already on hotfix
+          # already on hotfix?
           load_version || return $?
           [[ "$(git_current_branch)" == "hotfix-$major.$minor.$patch" ]] \
             && origbranch="hotfix-$major.$minor.$patch" \
             && return 0
+          # get appropriate stable branch or 'master'
           local to
           to="$( git tag | grep -e ^$master. | sort -V | tail -n1 )"
           [ -z "$to" ] && to="master"
@@ -386,8 +393,11 @@ function main {
   function gf_hotfixable {
     git_commit_diff $master.$patch HEAD \
       && { err "Required tag $master.$patch not detected on current HEAD" || return 1; }
-    git_tag_exists "$master.$((patch+1))" || return 0
-    err "Current branch is already hotfixed"
+    git_tag_exists "$master.$((patch+1))" \
+      && { err "Current branch is already hotfixed" || return 1; }
+    git_branch_exists "hotfix-$major.$minor.$((patch+1))" \
+      && { err "Current branch is being hotfixed" || return 1; }
+    return 0
   }
 
   # Origbranch:
@@ -423,11 +433,11 @@ function main {
   function gf_run {
     local tag
     tag=""
-    case ${origbranch%-*} in
-      HEAD|master|v+([0-9]).+([0-9]))
+    case $origbranch in
+      HEAD|master|$prefix+([0-9]).+([0-9]))
         gf_hotfixable || return 1
-        confirm "* Create hotfix?" || return 0
-        [[ $origbranch == HEAD ]] && {
+        confirm "* Create hotfix $master.$((patch+1))?" || return 0
+        [[ $origbranch != master ]] && {
           create_stable_branch || return $?
           origbranch=$(git_current_branch)
         }
@@ -439,16 +449,17 @@ function main {
         ((minor++))
         create_branch release
         ;;
-      hotfix)
-        confirm "* Merge hotfix into stable branch (master)?" || return 0
+      hotfix-+([0-9]).+([0-9]).+([0-9]))
         # master -> merge + confirm merge to dev
         if ! git_version_diff master $major.$minor; then
+          confirm "* Merge hotfix into master and '$GF_DEV'?" || return 0
           merge_branches $origbranch master \
             && git_tag $master.$patch \
             && merge_branches $origbranch "$GF_DEV" \
             || return $?
         # not master -> merge only to stable branch
         else
+          confirm "* Merge hotfix into stable branch '$master'?" || return 0
           merge_branches $origbranch $master \
             && git_tag $master.$patch \
             || return $?
@@ -550,15 +561,21 @@ function main {
     }
     gcb=$(git_current_branch)
     echo -n "* Current branch '$gcb' is considered as "
-    case ${gcb%-*} in
-      HEAD|master|v+([0-9]).+([0-9]))
-        if gf_hotfixable 2>/dev/null; then
-          echo "stable branch."
-          echo "* - Run 'gf' to create hotfix or leave :)"
-        else
-          echo "detached."
+    case $gcb in
+      HEAD)
+        if ! git_status_empty && ! gf_hotfixable; then
+          echo "unknown HEAD; see git status:"
           echo "*"
           git status | sed "s/^/* /"
+        fi
+      ;&
+      master|$prefix+([0-9]).+([0-9]))
+        if gf_hotfixable 2>/dev/null; then
+          echo "hotfixable stable branch."
+          echo "* - Run 'gf' to create hotfix or leave :)"
+        else
+          echo "stable branch (being) hotfixed."
+          echo "* - Run 'gf hotfix' to finish current hotfix or create new one."
         fi
       ;;
       "$GF_DEV")
@@ -573,11 +590,10 @@ function main {
         echo "* - Run 'gf' to create stable branch."
         echo "* - Hit [No-Yes] to merge only into $GF_DEV."
       ;;
-      hotfix)
+      hotfix-+([0-9]).+([0-9]).+([0-9]))
         echo "hotfix branch."
         echo "* - Do some hotfixes..."
         echo "* - Run 'gf' to merge hotfix into stable branch."
-        echo "* - Hit [Yes-No] to skip merging into $GF_DEV."
       ;;
       *)
         echo "feature branch."
@@ -679,7 +695,7 @@ function main {
   [[ $init == 1 ]] && { gf_init && gf_what_now; return $?; }
 
   # run gf
-  gf_validate && gf_checkout && {
+  gf_validate && gf_prepare && {
     if [[ $newfeature == 0 ]]; then load_version && gf_run; fi
     } && git_stash_pop && gf_what_now || {
     case $? in
