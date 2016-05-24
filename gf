@@ -11,18 +11,19 @@ set -u
 : ${GF_OPTIONS:=}
 : ${GF_NOPREFIX:=}
 : ${COLUMNS:=$(tput cols)}
+: ${LINES:=$(tput lines)}
 : ${SHIFT:=}
 
 function main {
 
   function msg_start {
     echo -n "[ "
-    tput sc
+    save_cursor_position
     echo -n "...    ] $1"
   }
 
   function msg_end {
-    tput rc
+    set_cursor_position
     echo "$1"
   }
 
@@ -185,15 +186,35 @@ function main {
     while read -r -t 0; do read -r; done
   }
 
+  function save_cursor_position {
+    local curpos oldtty
+    curpos="1;1"
+    oldtty=$( stty -g )
+    stty -echo
+    echo -n $'\e[6n'
+    read -d R curpos
+    stty $oldtty
+    pos_x=$( echo "${curpos#??}" | cut -d";" -f1 )
+    pos_y=$( echo "${curpos#??}" | cut -d";" -f2 )
+  }
+
+  function set_cursor_position {
+    tput cup $(( pos_x-1 )) $(( pos_y-1 ))
+  }
+
   function confirm {
     [[ $verbose == 0 && $yes == 1 ]] && return 0
     stdout_verbose
     echo -n "${@:-"Are you sure?"} [YES/No] "
-    tput sc
+    save_cursor_position
     [[ $yes == 1 ]] && echo "yes" && return 0
     clear_stdin
     read -r
-    [[ -z "$REPLY" ]] && tput rc && tput cuu1 && echo "yes"
+    if [[ -z "$REPLY" ]]; then
+      set_cursor_position
+      [[ $pos_x == $LINES ]] && tput cuu1
+      echo "yes"
+    fi
     stdout_silent
     [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] && return 0
     [[ "$REPLY" =~ ^[nN]o?$ ]] && return 1
@@ -604,7 +625,7 @@ function main {
 
 
   # variables
-  local line script_name major minor patch master force init yes verbose dry what_now stashed color prefix
+  local line script_name major minor patch master force init yes verbose dry what_now stashed color prefix pos_x pos_y
   what_now=0
   dry=0
   verbose=0
@@ -617,6 +638,8 @@ function main {
   prefix="$([ -z $GF_NOPREFIX ] && echo v)"
   master=${prefix}0.0
   color=auto
+  pos_x=1
+  pos_y=1
 
   # constants
 
