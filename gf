@@ -422,14 +422,9 @@ function main {
   #   - delete feature branch
   #
   function gf_run {
-
-    # set variables
     local tag
     tag=""
-
-    # proceed
     case ${origbranch%-*} in
-
       HEAD|master|v+([0-9]).+([0-9]))
         gf_hotfixable || return 1
         confirm "* Create hotfix?" || return 0
@@ -439,14 +434,12 @@ function main {
         }
         create_branch "hotfix-$major.$minor.$((++patch))"
         ;;
-
       "$GF_DEV")
         confirm "* Create release branch from branch '$GF_DEV'?" || return 0
         patch=0
         ((minor++))
         create_branch release
         ;;
-
       hotfix)
         confirm "* Merge hotfix into stable branch (master)?" || return 0
         # master -> merge + confirm merge to dev
@@ -463,7 +456,6 @@ function main {
         fi
         delete_branch
         ;;
-
       release)
         if confirm "* Create stable branch from release?"; then
           git_checkout master \
@@ -479,7 +471,6 @@ function main {
             || return $?
         fi
         ;;
-
       *)
         [[ -n "$(git log "$GF_DEV"..$origbranch)" ]] \
           || err "Nothing to merge - feature branch '$origbranch' is empty" \
@@ -520,7 +511,6 @@ function main {
   # - create $GF_VERSION and $GF_CHANGELOG file
   # - create $GF_DEV branch
   function gf_init {
-    # init git repo
     msg_start "Initializing git repository"
     if git_repo_exists; then
       msg_end "$PASSED"
@@ -537,7 +527,6 @@ function main {
     fi
     [[ $force == 0 ]] \
       && { git_status_empty || return 4; }
-    # init files on master and $GF_DEV
     init_files master \
       && load_version \
       && { git_tag_exists $master.$patch || git_tag $master.$patch; } \
@@ -623,7 +612,6 @@ function main {
     cat "$version"
   }
 
-
   # variables
   local line script_name major minor patch master force init yes verbose dry what_now stashed color prefix pos_x pos_y
   what_now=0
@@ -640,8 +628,6 @@ function main {
   color=auto
   pos_x=1
   pos_y=1
-
-  # constants
 
   # process options
   if ! line=$(
@@ -673,7 +659,7 @@ function main {
     esac
   done
 
-  # status messages
+  # constants
   local -r \
     RED=1 \
     GREEN=2 \
