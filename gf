@@ -559,14 +559,14 @@ function main {
       echo "***"
       return 3
     }
+
     gcb=$(git_current_branch)
     echo -n "* Current branch '$gcb' is considered as "
     case $gcb in
       HEAD)
-        if ! git_status_empty && ! gf_hotfixable; then
-          echo "unknown HEAD; see git status:"
-          echo "*"
-          git status | sed "s/^/* /"
+        if ! gf_hotfixable; then
+          echo "unknown."
+          echo "* - Checkout to existing branch"
         fi
       ;&
       master|$prefix+([0-9]).+([0-9]))
@@ -588,7 +588,7 @@ function main {
         echo "release branch."
         echo "* - Do some bugfixes..."
         echo "* - Run 'gf' to create stable branch."
-        echo "* - Hit [No-Yes] to merge only into $GF_DEV."
+        echo "* - Hit [No-Yes] to merge only into '$GF_DEV'."
       ;;
       hotfix-+([0-9]).+([0-9]).+([0-9]))
         echo "hotfix branch."
@@ -598,8 +598,12 @@ function main {
       *)
         echo "feature branch."
         echo "* - Develop current feature..."
-        echo "* - Run 'gf' to merge it into $GF_DEV."
+        echo "* - Run 'gf' to merge it into '$GF_DEV'."
     esac
+    if ! git_status_empty 2>/dev/null; then
+      echo "*"
+      echo "* - Local changes detected; see 'git status' for more info"
+    fi
     echo "***"
     stdout_silent
   }
