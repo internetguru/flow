@@ -12,7 +12,6 @@ set -u
 : ${GF_NOPREFIX:=}
 : ${COLUMNS:=$(tput cols)}
 : ${LINES:=$(tput lines)}
-: ${SHIFT:=}
 
 function main {
 
@@ -602,15 +601,16 @@ function main {
   }
 
   function gf_usage {
-    local usage_file
+    local usage_file shift_left
     usage_file="$GF_DATAPATH/${script_name}.usage"
     [ -f "$usage_file" ] \
       || err "Usage file not found" \
       || return 1
     head -n1 "$usage_file"
     echo
-    [[ $COLUMNS -gt 1 ]] && export MANWIDTH=$((COLUMNS+5)) SHIFT=';s/^ \{5\}//'
-    echo "$(tail -n+2 "$usage_file")" | man --nj --nh -l - | sed '1,2d;/^[[:space:]]*$/d;$d'"$SHIFT"
+    shift_left=0
+    [[ $COLUMNS -gt 1 ]] && shift_left=5 && export MANWIDTH=$((COLUMNS+$shift_left))
+    echo "$(tail -n+2 "$usage_file")" | man --nj --nh -l - | sed "1,2d;/^[[:space:]]*$/d;\$d;s/^ \{$shift_left\}//"
   }
 
   function gf_version {
