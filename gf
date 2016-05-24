@@ -233,6 +233,9 @@ function main {
       || return 3
     git_stash || return $?
     git_status_empty || return 4
+    git branch --contains $(master_last_change) | grep "$GF_DEV" >/dev/null \
+      || err "Branch master is not merged with '$GF_DEV'" \
+      || return 3
     [[ -z "$origbranch" ]] && { origbranch="$(git_current_branch)"; return $?; }
     git check-ref-format "$REFSHEADS/$origbranch" \
       || err "Invalid branchname format" \
@@ -241,9 +244,6 @@ function main {
       || [[ ! "$origbranch" =~ ^(hotfix|release|master).+ ]] \
       || err "Feature branch cannot start with hotfix, release or master" \
       || return 1
-    git branch --contains $(master_last_change) | grep "$GF_DEV" >/dev/null \
-      || err "Branch master is not merged with '$GF_DEV'" \
-      || return 3
   }
 
   function gf_checkout_to {
