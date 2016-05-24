@@ -51,6 +51,9 @@ gf [-ifwynvVh] [--color[=WHEN]] [BRANCH|TAG|KEYWORD]
 
 # BASIC FLOW EXAMPLES
 
+Set global options
+: * ``export GF_OPTIONS="--verbose --what-now"``
+
 Initialize **gf**
 : * ``gf -i``
 
@@ -99,8 +102,15 @@ Hotfix master branch
 * ``git commit -am "add hotfix 1"``
 * ``gf``
 
+Restore git flow model (after pull request to master)
+: * ``git checkout dev``
+* ``git reset --hard HEAD~1``
+* ``gf`` (will result into error 3)
+* ``gf -i``
+* ``gf``
+
 Hotfix previous release
-: * ``gf v0.1.0``
+: * ``gf v0.0``
 * ``echo "hotfix old" >> myfile``
 * ``git commit -am "add old hotfix"``
 * ``gf``
@@ -112,6 +122,7 @@ Initialize **gf** on existing project with version number
 New feature from uncommitted changes
 : * ``git checkout dev``
 * ``echo "feature x" >> myfile``
+* ``gf myfeature`` (will result into error 4)
 * ``gf -f myfeature``
 * ``git commit -am "add feature x"``
 
