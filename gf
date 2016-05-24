@@ -136,7 +136,9 @@ function main {
   }
 
   function git_branch_exists {
-    git rev-parse --verify "$1" >/dev/null 2>&1
+    git rev-parse --verify "$1" >/dev/null 2>&1 && return 0
+    git rev-parse --verify "$GF_ORIGIN/$1" >/dev/null 2>&1 \
+      && git branch "$1" "$GF_ORIGIN/$1" >/dev/null 2>&1 || return 1
   }
 
   function git_tag_exists {
@@ -246,27 +248,25 @@ function main {
       || return 1
   }
 
-  function gf_checkout_to {
-    msg_start "Checkout '$1'" && {
-      [[ "$(git_current_branch)" == "$1" ]] \
-        && origbranch="$(git_current_branch)" \
-        && msg_end "$PASSED" \
-        && return 0
-      # assume checkout to tag or branch
-      git_checkout "$1" \
-        && gf_validate \
-        && load_version \
-        || return $?
-      origbranch="$(git_current_branch)"
-      msg_end "$DONE"
-    }
+  function gf_checkout {
+    msg_start "Checkout '$1'"
+    [[ "$(git_current_branch)" == "$1" ]] \
+      && origbranch="$(git_current_branch)" \
+      && msg_end "$PASSED" \
+      && return 0
+    # assume checkout to tag or branch
+    git_checkout "$1" \
+      && gf_validate \
+      && load_version \
+      || return $?
+    origbranch="$(git_current_branch)"
+    msg_end "$DONE"
   }
 
   function gf_checkout {
     # checkout to given branch or create feature
-    if git_branch_exists "$origbranch" \
-      || git_branch_exists "$GF_ORIGIN/$origbranch"; then
-      gf_checkout_to "$origbranch" || return $?
+    if git_branch_exists "$origbranch"; then
+      gf_checkout "$origbranch" || return $?
     else
       # predefined checkout kws
       case "$origbranch" in
@@ -279,17 +279,17 @@ function main {
           local to
           to="$( git tag | grep -e ^$master. | sort -V | tail -n1 )"
           [ -z "$to" ] && to="master"
-          gf_checkout_to "$to" || return $?
+          gf_checkout "$to" || return $?
           # hotfix already exists
           git_branch_exists "hotfix-$major.$minor.$((patch+1))" \
-            && { gf_checkout_to "hotfix-$major.$minor.$((patch+1))" || return $?; }
+            && { gf_checkout "hotfix-$major.$minor.$((patch+1))" || return $?; }
           return 0 ;;
-        release) gf_checkout_to dev || return $?; return 0 ;;
+        release) gf_checkout dev || return $?; return 0 ;;
       esac
       # -> or create feature branch
       newfeature=1
       confirm "* Create feature branch '$origbranch'?" || return 0
-      git_checkout $GF_DEV \
+      git_checkout "$GF_DEV" \
         && git_branch "$origbranch" \
         || return 1
     fi
@@ -380,7 +380,6 @@ function main {
       git_commit_diff $origbranch $master \
         || { git_checkout $master; return $?; }
     fi
-    confirm "* Create stable branch $master?" || return 0
     git_branch "$master" || return 1
   }
 
