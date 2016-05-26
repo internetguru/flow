@@ -498,7 +498,10 @@ function main {
         create_branch "hotfix-$major.$minor.$((++patch))"
         ;;
       "$GF_DEV")
-        git_commit_diff "$GF_DEV" master || return 0
+        if ! git_commit_diff "$GF_DEV" master; then
+          [[ $conform == 1 ]] && return 0
+          err "Branch '$GF_DEV' is same as branch 'master', nothing to do" || return 1
+        fi
         confirm "* Create release branch from branch '$GF_DEV'?" || return 0
         patch=0
         ((minor++))
