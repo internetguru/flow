@@ -4,7 +4,7 @@ gf
 
 # SYNOPSIS
 
-gf [-ifwynvVh] [--color[=WHEN]] [BRANCH|TAG|KEYWORD]
+gf [-fcwynvVh] [--color[=WHEN]] [BRANCH|TAG|KEYWORD]
 
 # DESCRIPTION
 
@@ -22,8 +22,8 @@ gf [-ifwynvVh] [--color[=WHEN]] [BRANCH|TAG|KEYWORD]
 
 # OPTIONS
 
--i, --init
-: Initialize current folder.
+-c, --conform
+: Repair project to be conform with gf.
 
 -f, --force
 : Move (stash and pop) uncommitted changes.
@@ -55,7 +55,7 @@ Set global options
 : * ``export GF_OPTIONS="--verbose --what-now"``
 
 Initialize **gf**
-: * ``gf -i``
+: * ``gf -c``
 
 Bugfixing on dev...
 : * ``echo "bugfix 1" >> myfile``
@@ -106,8 +106,7 @@ Restore git flow model (after pull request to master)
 : * ``git checkout dev``
 * ``git reset --hard HEAD~1``
 * ``gf`` (will result into error 3)
-* ``gf -i``
-* ``gf``
+* ``gf -c``
 
 Hotfix previous release
 : * ``gf v0.0``
@@ -117,7 +116,7 @@ Hotfix previous release
 
 Initialize **gf** on existing project with version number
 : * ``echo 1.12.0 > VERSION``
-* ``gf -i``
+* ``gf -c``
 
 New feature from uncommitted changes
 : * ``git checkout dev``
@@ -169,7 +168,7 @@ Actual change log
 : Parse or invalid option error.
 
 3
-: Initial check failed; initializing gf may help.
+: Initial check failed; conforming may help.
 
 4
 : Git status check failed; forcing gf may help.
