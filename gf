@@ -188,6 +188,7 @@ function main {
   }
 
   function save_cursor_position {
+    stdout_verbose
     local curpos oldtty
     curpos="1;1"
     oldtty=$( stty -g )
@@ -197,6 +198,7 @@ function main {
     stty $oldtty
     pos_x=$( echo "${curpos#??}" | cut -d";" -f1 )
     pos_y=$( echo "${curpos#??}" | cut -d";" -f2 )
+    stdout_silent
   }
 
   function set_cursor_position {
