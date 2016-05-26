@@ -210,7 +210,8 @@ function main {
     [[ $verbose == 0 && $yes == 1 ]] && return 0
     stdout_verbose
     echo -n "${@:-"Are you sure?"} [YES/No] "
-    save_cursor_position
+    save_cursor_position # silent
+    stdout_verbose
     [[ $yes == 1 ]] && echo "yes" && return 0
     clear_stdin
     read -r
@@ -226,14 +227,13 @@ function main {
   }
 
   function init_file {
-    if [[ ! -f "$1" || -z "$(cat "$1")" ]]; then
-      [[ $conform == 1 ]] \
-        || err "Missing or empty file '$1'" \
-        || return 3
-      msg_start "Initializing '$1' file on branch '$2'"
-      echo "$3" > "$1" || return 1;
-      msg_end "$DONE"
-    fi
+    [[ -f "$1" && -n "$(cat "$1")" ]] && return 0
+    [[ $conform == 1 ]] \
+      || err "Missing or empty file '$1'" \
+      || return 3
+    msg_start "Initializing '$1' file on branch '$2'"
+    echo "$3" > "$1" || return 1;
+    msg_end "$DONE"
   }
 
   function init_files {
@@ -258,8 +258,8 @@ function main {
   }
 
   function gf_validate {
-    local curbranch
-    curbranch=""
+    local startcommit
+    startcommit=""
     if ! git_repo_exists; then
       [[ $conform == 0 ]] && { err "Git repository does not exist" || return 3; }
       msg_start "Initializing git repository"
@@ -271,7 +271,10 @@ function main {
       git_branch master || return 1
     fi
     if git_has_commits; then
-      curbranch="$(git_current_branch)"
+      local cb
+      cb=$(git_current_branch)
+      startcommit="$cb"
+      [[ "$startcommit" == HEAD ]] && startcommit="$(git rev-parse HEAD)"
       local errout
       errout="$(git_status_empty 2>&1)"
       [[ $? != 0 && $force == 0 ]] \
@@ -303,9 +306,10 @@ function main {
       merge_branches $(master_last_change) "$GF_DEV" || return $?
       msg_end "$DONE"
     fi
-    git_checkout "$curbranch" || return $?
-    [[ -z "$curbranch" ]] && curbranch="$(git_current_branch)"
-    [[ -z "$origbranch" ]] && { origbranch="$curbranch"; return $?; }
+    [[ -n "$startcommit" ]] && { git_checkout "$startcommit" >/dev/null || return $?;  }
+    [[ -z "$origbranch" ]] \
+      && origbranch="$(git_current_branch)" \
+      && return 0
     git check-ref-format "$REFSHEADS/$origbranch" \
       || err "Invalid branchname format" \
       || return 1
