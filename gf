@@ -225,16 +225,22 @@ function main {
     git log master --no-merges -n1 --format="%h"
   }
 
+  function init_file {
+    if [[ ! -f "$1" || -z "$(cat "$1")" ]]; then
+      [[ $conform == 1 ]] \
+        || err "Missing or empty file '$1'" \
+        || return 3
+      msg_start "Initializing '$1' file on branch '$2'"
+      echo "$3" > "$1" || return 1;
+      msg_end "$DONE"
+    fi
+  }
+
   function init_files {
-    [[ ! -f "$GF_VERSION" || ! -f "$GF_CHANGELOG" ]] \
-      && [[ $conform == 0 ]] \
-      && { err "File '$GF_VERSION' or '$GF_CHANGELOG' not found" || return 3; }
-    msg_start "Initializing files on branch '$1'"
-    [[ ! -f "$GF_VERSION" || -z "$(cat "$GF_VERSION")" ]] \
-      && { echo 0.0.0 > "$GF_VERSION" || return 1; }
-    [[ ! -f "$GF_CHANGELOG" || -z "$(cat "$GF_CHANGELOG")" ]] \
-      && { echo "$GF_CHANGELOG created" > "$GF_CHANGELOG" || return 1; }
-    git_status_empty 2>/dev/null && msg_end "$PASSED" && return 0
+    init_file "$GF_VERSION" "$1" "0.0.0" || return $?
+    init_file "$GF_CHANGELOG" "$1" "$GF_CHANGELOG created" || return $?
+    git_status_empty 2>/dev/null && return 0
+    msg_start "Commiting new files"
     git add "$GF_VERSION" "$GF_CHANGELOG" >/dev/null \
       && git commit -m "Init gf: create required files" >/dev/null \
       || return 1
@@ -253,6 +259,8 @@ function main {
   }
 
   function gf_validate {
+    local curbranch
+    curbranch=""
     if ! git_repo_exists; then
       [[ $conform == 0 ]] && { err "Git repository does not exist" || return 3; }
       msg_start "Initializing git repository"
@@ -264,11 +272,13 @@ function main {
       git_branch master || return 1
     fi
     if git_has_commits; then
+      curbranch="$(git_current_branch)"
       local errout
       errout="$(git_status_empty 2>&1)"
       [[ $? != 0 && $force == 0 ]] \
         && { echo "$errout" >&2 && return 4; }
       git_stash || return $?
+      git_checkout master >/dev/null
     else
       [[ $conform == 0 ]] && { err "Git repository without commits" || return 3; }
       initial_commit || return $?
@@ -284,7 +294,8 @@ function main {
       [[ $conform == 0 ]] && { err "Missing branch '$GF_DEV'" || return 3; }
       git_branch dev || return 1
     fi
-    init_files dev \
+    git_checkout dev >/dev/null \
+      && init_files dev \
       && load_version \
       || return $?
     if ! git branch --contains $(master_last_change) | grep "$GF_DEV" >/dev/null; then
@@ -293,7 +304,9 @@ function main {
       merge_branches $(master_last_change) "$GF_DEV" || return $?
       msg_end "$DONE"
     fi
-    [[ -z "$origbranch" ]] && { origbranch="$(git_current_branch)"; return $?; }
+    git_checkout "$curbranch" || return $?
+    [[ -z "$curbranch" ]] && curbranch="$(git_current_branch)"
+    [[ -z "$origbranch" ]] && { origbranch="$curbranch"; return $?; }
     git check-ref-format "$REFSHEADS/$origbranch" \
       || err "Invalid branchname format" \
       || return 1
@@ -499,7 +512,6 @@ function main {
         ;;
       "$GF_DEV")
         if ! git_commit_diff "$GF_DEV" master; then
-          [[ $conform == 1 ]] && return 0
           err "Branch '$GF_DEV' is same as branch 'master', nothing to do" || return 1
         fi
         confirm "* Create release branch from branch '$GF_DEV'?" || return 0
