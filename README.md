@@ -111,6 +111,7 @@ Restore git flow model (after pull request to master)
 Hotfix previous release
 : * ``gf v0.0``
 * ``echo "hotfix old" >> myfile``
+* ``git add myfile``
 * ``git commit -am "add old hotfix"``
 * ``gf``
 
