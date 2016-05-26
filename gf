@@ -248,14 +248,13 @@ function main {
   }
 
   function initial_commit {
-    git_status_empty 2>/dev/null || {
-      msg_start "Initial commit"
-      git add -A >/dev/null \
-        && git commit -m "Commit initial files" >/dev/null \
-        || err "Unable to commit existing files" \
-        || return 1
-      msg_end "$DONE"
-    }
+    git_status_empty 2>/dev/null && return 0
+    msg_start "Initial commit"
+    git add -A >/dev/null \
+      && git commit -m "Commit initial files" >/dev/null \
+      || err "Unable to commit existing files" \
+      || return 1
+    msg_end "$DONE"
   }
 
   function gf_validate {
