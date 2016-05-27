@@ -514,9 +514,12 @@ function main {
         create_branch "hotfix-$major.$minor.$((++patch))"
         ;;
       "$GF_DEV")
-        if ! git_commit_diff "$GF_DEV" master; then
-          err "Branch '$GF_DEV' is same as branch 'master', nothing to do" || return 1
-        fi
+        # dev and master on same commit, probably after init
+        ! git_commit_diff "$GF_DEV" master && return 0
+        # dev and master has no diff, nothing to do
+        [[ -z "$(git diff "$GF_DEV" master)" ]] \
+          || err "Branch '$GF_DEV' is same as branch 'master', nothing to do" \
+          || return 1
         confirm "* Create release branch from branch '$GF_DEV'?" || return 0
         patch=0
         ((minor++))
