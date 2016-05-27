@@ -16,18 +16,18 @@ set -u
 function main {
 
   function msg_start {
-    stdoutpipe \
-      && msg="$1" \
-      && return 0
+    if stdoutpipe || [[ $COLUMNS < 41 ]]; then
+      msg="$1" && return 0
+    fi
     echo -n "[ "
     save_cursor_position
     echo " ....  ] $1"
   }
 
   function msg_end {
-    stdoutpipe \
-      && echo "[ $1 ] $msg" \
-      && return 0
+    if stdoutpipe || [[ $COLUMNS < 41 ]]; then
+      echo "[ $1 ] $msg" && return 0
+    fi
     set_cursor_position
     echo "$1"
   }
