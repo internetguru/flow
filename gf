@@ -163,7 +163,6 @@ function main {
 
   function git_stash {
     git_status_empty 2>/dev/null && return 0
-    [[ $force == 0 ]] && return 0
     msg_start "Stashing files"
     git add -A >/dev/null || return 1
     git stash >/dev/null || return 1
@@ -188,7 +187,6 @@ function main {
   }
 
   function save_cursor_position {
-    stdout_verbose
     local curpos oldtty
     curpos="1;1"
     oldtty=$( stty -g )
@@ -198,7 +196,6 @@ function main {
     stty $oldtty
     pos_x=$( echo "${curpos#??}" | cut -d";" -f1 )
     pos_y=$( echo "${curpos#??}" | cut -d";" -f2 )
-    stdout_silent
   }
 
   function set_cursor_position {
@@ -210,8 +207,7 @@ function main {
     [[ $verbose == 0 && $yes == 1 ]] && return 0
     stdout_verbose
     echo -n "${@:-"Are you sure?"} [YES/No] "
-    save_cursor_position # silent
-    stdout_verbose
+    save_cursor_position
     [[ $yes == 1 ]] && echo "yes" && return 0
     clear_stdin
     read -r
@@ -270,22 +266,19 @@ function main {
       [[ $conform == 0 ]] && { err "Missing branch 'master'" || return 3; }
       git_branch master || return 1
     fi
-    if git_has_commits; then
-      local cb
-      cb=$(git_current_branch)
-      startcommit="$cb"
-      [[ "$startcommit" == HEAD ]] && startcommit="$(git rev-parse HEAD)"
-      local errout
-      errout="$(git_status_empty 2>&1)"
-      [[ $? != 0 && $force == 0 ]] \
-        && { echo "$errout" >&2 && return 4; }
-      git_stash || return $?
-      git_checkout master >/dev/null
-    else
+    if ! git_has_commits; then
       [[ $conform == 0 ]] && { err "Git repository without commits" || return 3; }
       initial_commit || return $?
     fi
-    init_files master \
+    startcommit="$(git_current_branch)"
+    [[ "$startcommit" == HEAD ]] && startcommit="$(git rev-parse HEAD)"
+    if [[ $force == 1 ]]; then
+      git_stash || return $?
+    else
+      git_status_empty || return 4
+    fi
+    git_checkout master >/dev/null \
+      && init_files master \
       && load_version \
       || return $?
     if ! git_tag_exists $master.$patch; then
@@ -673,7 +666,7 @@ function main {
   if ! line=$(
     IFS=" " getopt -n "$0" \
            -o fcwynvVh\? \
-           -l force,conform,what-now,dry-run,yes,color::,colour::,verbose,version,help \
+           -l force,conform,init,what-now,dry-run,yes,color::,colour::,verbose,version,help \
            -- $GF_OPTIONS $*
   )
   then gf_usage; return 2; fi
@@ -685,7 +678,7 @@ function main {
   while [ $# -gt 0 ]; do
     case $1 in
      -f|--force) force=1; shift ;;
-     -c|--conform) conform=1; shift ;;
+     -c|--conform|--init) conform=1; shift ;;
      -w|--what-now) what_now=1; shift ;;
      -y|--yes) yes=1; shift ;;
      --color|--colour) shift; setcolor "$1" || { gf_usage; return 2; }; shift ;;
@@ -723,10 +716,10 @@ function main {
     if [[ $newfeature == 0 ]]; then load_version && gf_run; fi
     } && git_stash_pop && gf_what_now || {
     case $? in
-      1) err "Generic error occured (see REPORTING BUGS in man gf)"; return 1 ;;
-      3) err "Initializing gf may help (see OPTIONS in man gf)"; return 3 ;;
-      4) err "Forcing gf may help (see OPTIONS in man gf)"; return 4 ;;
-      5) err "Conflict occured (see git status)"; gf_what_now; return 5 ;;
+      1) err "Generic error occured (see REPORTING BUGS in man gf)."; return 1 ;;
+      3) err "Git model is not conform with gf (conform may help)."; return 3 ;;
+      4) err "Git status is not empty (force may help)."; return 4 ;;
+      5) err "Git conflict occured (git status may help)."; gf_what_now; return 5 ;;
     esac
   }
 
