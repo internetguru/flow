@@ -269,16 +269,17 @@ function main {
     if ! git_has_commits; then
       [[ $conform == 0 ]] && { err "Git repository without commits" || return 3; }
       initial_commit || return $?
-    fi
-    startcommit="$(git_current_branch)"
-    [[ "$startcommit" == HEAD ]] && startcommit="$(git rev-parse HEAD)"
-    if [[ $force == 1 ]]; then
-      git_stash || return $?
     else
-      git_status_empty || return 4
+      git_checkout master >/dev/null
+      startcommit="$(git_current_branch)"
+      [[ "$startcommit" == HEAD ]] && startcommit="$(git rev-parse HEAD)"
+      if [[ $force == 1 ]]; then
+        git_stash || return $?
+      else
+        git_status_empty || return 4
+      fi
     fi
-    git_checkout master >/dev/null \
-      && init_files master \
+    init_files master \
       && load_version \
       || return $?
     if ! git_tag_exists $master.$patch; then
