@@ -17,7 +17,7 @@ function main {
 
   function msg_start {
     if stdoutpipe || [[ $COLUMNS < 41 ]]; then
-      msg="$1" && return 0
+      echo "$1" && return 0
     fi
     echo -n "[ "
     save_cursor_position
@@ -26,7 +26,7 @@ function main {
 
   function msg_end {
     if stdoutpipe || [[ $COLUMNS < 41 ]]; then
-      echo "[ $1 ] $msg" && return 0
+      echo "[ $1 ]" && return 0
     fi
     set_cursor_position
     echo "$1"
@@ -649,7 +649,7 @@ function main {
   }
 
   # variables
-  local line script_name major minor patch master force conform yes verbose dry what_now stashed color prefix pos_x pos_y msg
+  local line script_name major minor patch master force conform yes verbose dry what_now stashed color prefix pos_x pos_y
   what_now=0
   dry=0
   verbose=0
@@ -664,7 +664,6 @@ function main {
   color=auto
   pos_x=1
   pos_y=1
-  msg=
 
   # process options
   if ! line=$(
