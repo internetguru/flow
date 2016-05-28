@@ -1,3 +1,4 @@
+Display status under message iff pipe or short lines
 Check and repair project to conform git flow model
 Check/init master merged into dev
 Donation link available

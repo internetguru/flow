@@ -16,12 +16,18 @@ set -u
 function main {
 
   function msg_start {
+    if stdoutpipe || [[ $COLUMNS < 41 ]]; then
+      echo "$1" && return 0
+    fi
     echo -n "[ "
     save_cursor_position
     echo " ....  ] $1"
   }
 
   function msg_end {
+    if stdoutpipe || [[ $COLUMNS < 41 ]]; then
+      echo "[ $1 ]" && return 0
+    fi
     set_cursor_position
     echo "$1"
   }
@@ -197,7 +203,7 @@ function main {
     curpos="1;1"
     oldtty=$( stty -g )
     stty -echo
-    echo -n $'\e[6n'
+    echo -en "\033[6n" > /dev/tty
     read -d R curpos
     stty $oldtty
     pos_x=$( echo "${curpos#??}" | cut -d";" -f1 )
