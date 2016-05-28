@@ -283,7 +283,7 @@ function main {
       || return $?
     local gcb
     gcb="$(git_current_branch)"
-    if ($gcb == master || $gcb == $master) && ! git_tag_here $master.$patch; then
+    if ([[ $gcb == master ]] || [[ $gcb == $master ]]) && ! git_tag_here $master.$patch; then
       [[ $conform == 0 ]] && { err "Missing tag '$master.$patch' on current HEAD" || return 3; }
       git_tag $master.$patch;
     fi
