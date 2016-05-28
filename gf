@@ -109,7 +109,7 @@ function main {
 
   function git_status_empty {
     [[ -z "$(git status --porcelain)" ]] \
-      || err "Uncommited changes"
+      || err "Uncommitted changes"
   }
 
   # make git return only error to stderr
@@ -185,7 +185,7 @@ function main {
 
   function git_stash_pop {
     [[ $stashed == 0 ]] && return 0
-    msg_start "Poping stashed files"
+    msg_start "Popping stashed files"
     git stash pop >/dev/null || { msg_end "$FAILED"; return 1; }
     msg_end "$DONE"
   }
@@ -248,9 +248,9 @@ function main {
     init_file "$GF_VERSION" "0.0.0" || return $?
     init_file "$GF_CHANGELOG" "$GF_CHANGELOG created" || return $?
     git_status_empty 2>/dev/null && return 0
-    msg_start "Commiting new files"
+    msg_start "Committing new files"
     git add "$GF_VERSION" "$GF_CHANGELOG" >/dev/null \
-      && git commit -m "Init gf: create required files" >/dev/null \
+      && git commit -m "Create required files to conform omgf" >/dev/null \
       || return 1
     msg_end "$DONE"
   }
@@ -307,7 +307,7 @@ function main {
       && origbranch=$gcb \
       && return 0
     git check-ref-format "$REFSHEADS/$origbranch" \
-      || err "Invalid branchname format" \
+      || err "Invalid branch name format" \
       || return 1
     git_branch_exists "$origbranch" \
       || [[ ! "$origbranch" =~ ^(hotfix|release|master).+ ]] \
@@ -376,11 +376,11 @@ function main {
     # updating GF_CHANGELOG and GF_VERSION files
     if [[ $origbranch == "$GF_DEV" ]]; then
       local header
-      msg_start "Updating '$GF_CHANGELOG' and '$GF_VERSION' files"
+      msg_start "Updating version number and history"
       header="$major.$minor | $(date "+%Y-%m-%d")" || return 1
       printf '\n%s\n\n%s\n' "$header" "$(<$GF_CHANGELOG)" > "$GF_CHANGELOG" || return 1
     else
-      msg_start "Updating '$GF_VERSION' file"
+      msg_start "Updating version number"
     fi
     echo $major.$minor.$patch > "$GF_VERSION" || return 1
     msg_end "$DONE"
@@ -412,7 +412,7 @@ function main {
       edit "$tmpfile"
       sed -i '/^\s*\(#\|$\)/d;/^\s+/d' "$tmpfile"
     fi
-    msg_start "Updating changelog"
+    msg_start "Updating version history"
     if [[ -n "$commits" && -n "$(cat "$tmpfile")" ]]; then
       cat "$GF_CHANGELOG" >> "$tmpfile" || return 1
       mv "$tmpfile" "$GF_CHANGELOG" || return 1
@@ -466,8 +466,7 @@ function main {
     return 0
   }
 
-  # Origbranch:
-  #
+  ###
   #  $GF_DEV
   #   - increment minor version, set patch to 0
   #   - create release branch
@@ -495,7 +494,7 @@ function main {
   #   - update version history
   #   - merge feature branch into $GF_DEV
   #   - delete feature branch
-  #
+  ###
   function gf_run {
     local tag
     tag=""
@@ -572,7 +571,7 @@ function main {
     echo "***"
     git_repo_exists || {
       echo "* Not a git repository"
-      echo "* - Run 'gf -i' to initialize gf"
+      echo "* - Run 'gf --init' to initialize omgf"
       echo "***"
       return 3
     }
@@ -719,10 +718,10 @@ function main {
     if [[ $newfeature == 0 ]]; then load_version && gf_run; fi
     } && git_stash_pop && gf_what_now || {
     case $? in
-      1) err "Generic error occured (see REPORTING BUGS in man gf)."; return 1 ;;
-      3) err "Git model is not conform with gf (conform may help)."; return 3 ;;
-      4) err "Git status is not empty (force may help)."; return 4 ;;
-      5) err "Git conflict occured (git status may help)."; gf_what_now; return 5 ;;
+      1) err "Generic error occurred (see REPORTING BUGS)."; return 1 ;;
+      3) err "Git model is not conform with omgf (see conform option)."; return 3 ;;
+      4) err "Git status is not empty (see force option)."; return 4 ;;
+      5) err "Git conflict occurred (see 'git status')."; gf_what_now; return 5 ;;
     esac
   }
 

@@ -1,6 +1,6 @@
 # NAME
 
-gf
+Oh My Git Flow
 
 # SYNOPSIS
 
@@ -8,22 +8,26 @@ gf [-fcwynvVh] [--color[=WHEN]] [BRANCH|TAG|KEYWORD]
 
 # DESCRIPTION
 
-**gf** proceeds git **flow branching model**(1) according to current or selected BRANCH, TAG or KEYWORD (such as 'hotfix'). If the BRANCH does not exist, new feature is created.
+**Oh My Git Flow** (hereinafter referred as the 'omgf') applies **git flow branching model**(1) on current or selected BRANCH, TAG or KEYWORD (such as 'release' or 'hotfix'). If BRANCH does not exist, new feature is created.
 
-**gf** is an alternative to **git-flow command**(2) with following improvements:
+It is an alternative to **git-flow cheatsheet**(2) command with following improvements:
 
 * even simpler usage (no parameters required),
+
+* check and repair project to conform **omgf**,
 
 * automatic **semantic version numbering**(3) (file VERSION),
 
 * version history update support (file CHANGELOG),
+
+* tips how to proceed with development on current state,
 
 * independent production branches support.
 
 # OPTIONS
 
 -c, --conform, --init
-: Repair (init) project to be conform with gf.
+: Repair (initialize) project to be conform with **omgf**.
 
 -f, --force
 : Move (stash and pop) uncommitted changes.
@@ -169,13 +173,13 @@ Actual change log
 : Parse or invalid option error.
 
 3
-: Git model is not conform with gf (conform may help).
+: Git model is not conform with **omgf**.
 
 4
-: Git status is not empty (force may help).
+: Git status is not empty.
 
 5
-: Git conflict occured (git status may help).
+: Git conflict occurred.
 
 # SEE ALSO
 
@@ -197,7 +201,7 @@ If you'd like to make a small donation, please visit URL below and do it through
 
 * [PayPal Donation](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=G6A49JPWQKG7A)
 
-* [GF](https://www.internetguru.cz/gf)
+* [Oh My Git Flow](https://www.internetguru.cz/omgf)
 
 We are also happy to consider making particular improvements or changes, or giving specific technical assistance, in return for a substantial donation over 100 USD. If you would like to discuss this possibility, write to us at info@internetguru.cz.
 
