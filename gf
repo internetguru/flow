@@ -248,12 +248,11 @@ function main {
   }
 
   function gf_checkout {
-    msg_start "Checkout '$1'"
     [[ "$(git_current_branch)" == "$1" ]] \
       && origbranch="$(git_current_branch)" \
-      && msg_end "$PASSED" \
       && return 0
     # assume checkout to tag or branch
+    msg_start "Checkout '$1'"
     git_checkout "$1" \
       && gf_validate \
       && load_version \
