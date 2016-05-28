@@ -106,7 +106,6 @@ function main {
       || err "Uncommited changes"
   }
 
-  # TODO checkout only to branch
   # make git return only error to stderr
   function git_checkout {
     local out
@@ -128,10 +127,17 @@ function main {
       || err "$out"
   }
 
-  function git_branch {
-    git_checkout $1 2>/dev/null && return 0
-    msg_start "Creating branch '$1'"
+  function git_checkout_branch {
+    msg_start "Creating branch '$1' on current HEAD"
     git_checkout -b $1 || return 1
+    msg_end "$DONE"
+  }
+
+  function git_branch_create {
+    local to
+    to="${2:-HEAD}"
+    msg_start "Creating branch '$1' on '$to'"
+    git branch "$1" "$to"
     msg_end "$DONE"
   }
 
@@ -141,8 +147,8 @@ function main {
       && git branch "$1" "$GF_ORIGIN/$1" >/dev/null 2>&1 || return 1
   }
 
-  function git_tag_exists {
-    git show-ref --tags | egrep -q "$REFSTAGS/$1$" >/dev/null 2>&1
+  function git_tag_here {
+    git tag --points-at HEAD | grep -q "^$1$"
   }
 
   function git_repo_exists {
@@ -163,7 +169,6 @@ function main {
 
   function git_stash {
     git_status_empty 2>/dev/null && return 0
-    [[ $force == 0 ]] && return 0
     msg_start "Stashing files"
     git add -A >/dev/null || return 1
     git stash >/dev/null || return 1
@@ -188,7 +193,6 @@ function main {
   }
 
   function save_cursor_position {
-    stdout_verbose
     local curpos oldtty
     curpos="1;1"
     oldtty=$( stty -g )
@@ -198,7 +202,6 @@ function main {
     stty $oldtty
     pos_x=$( echo "${curpos#??}" | cut -d";" -f1 )
     pos_y=$( echo "${curpos#??}" | cut -d";" -f2 )
-    stdout_silent
   }
 
   function set_cursor_position {
@@ -225,19 +228,78 @@ function main {
     git log master --no-merges -n1 --format="%h"
   }
 
+  function init_file {
+    [[ -f "$1" && -n "$(cat "$1")" ]] && return 0
+    [[ $conform == 1 ]] \
+      || err "Missing or empty file '$1'" \
+      || return 3
+    msg_start "Initializing '$1' file"
+    echo "$2" > "$1" || return 1
+    msg_end "$DONE"
+  }
+
+  function init_files {
+    init_file "$GF_VERSION" "0.0.0" || return $?
+    init_file "$GF_CHANGELOG" "$GF_CHANGELOG created" || return $?
+    git_status_empty 2>/dev/null && return 0
+    msg_start "Commiting new files"
+    git add "$GF_VERSION" "$GF_CHANGELOG" >/dev/null \
+      && git commit -m "Init gf: create required files" >/dev/null \
+      || return 1
+    msg_end "$DONE"
+  }
+
+  function initial_commit {
+    git_status_empty 2>/dev/null && return 0
+    msg_start "Initial commit"
+    git add -A >/dev/null \
+      && git commit -m "Commit initial files" >/dev/null \
+      || err "Unable to commit existing files" \
+      || return 1
+    msg_end "$DONE"
+  }
+
   function gf_validate {
-    git_repo_exists \
-      || err "Git repository does not exist" \
-      || return 3
-    { git_branch_exists "$GF_DEV" && git_branch_exists master; } \
-      || err "Missing branches '$GF_DEV' or master" \
-      || return 3
-    git_stash || return $?
-    git_status_empty || return 4
-    git branch --contains $(master_last_change) | grep "$GF_DEV" >/dev/null \
-      || err "Branch master is not merged with '$GF_DEV'" \
-      || return 3
-    [[ -z "$origbranch" ]] && { origbranch="$(git_current_branch)"; return $?; }
+    if ! git_repo_exists; then
+      [[ $conform == 0 ]] && { err "Git repository does not exist" || return 3; }
+      msg_start "Initializing git repository"
+      git init >/dev/null || return 1
+      msg_end "$DONE"
+    fi
+    if ! git_branch_exists master; then
+      [[ $conform == 0 ]] && { err "Missing branch 'master'" || return 3; }
+      git_branch_create master || return 1
+    fi
+    if ! git_has_commits; then
+      [[ $conform == 0 ]] && { err "Git repository without commits" || return 3; }
+      initial_commit || return $?
+    elif [[ $force == 1 ]]; then
+      git_stash || return $?
+    else
+      git_status_empty || return 4
+    fi
+    init_files \
+      && load_version \
+      || return $?
+    local gcb
+    gcb="$(git_current_branch)"
+    if ([[ $gcb == master ]] || [[ $gcb == $master ]]) && ! git_tag_here $master.$patch; then
+      [[ $conform == 0 ]] && { err "Missing tag '$master.$patch' on current HEAD" || return 3; }
+      git_tag $master.$patch;
+    fi
+    if ! git_branch_exists "$GF_DEV"; then
+      [[ $conform == 0 ]] && { err "Missing branch '$GF_DEV'" || return 3; }
+      git_branch_create dev master || return 1
+    fi
+    if ! git branch --contains $(master_last_change) | grep "$GF_DEV" >/dev/null; then
+      [[ $conform == 0 ]] && { err "Branch master is not merged with '$GF_DEV'" || return 3; }
+      msg_start "Merging last changes from 'master' into '$GF_DEV'"
+      merge_branches $(master_last_change) "$GF_DEV" || return $?
+      msg_end "$DONE"
+    fi
+    [[ -z "$origbranch" ]] \
+      && origbranch=$gcb \
+      && return 0
     git check-ref-format "$REFSHEADS/$origbranch" \
       || err "Invalid branchname format" \
       || return 1
@@ -294,8 +356,8 @@ function main {
       # -> or create feature branch
       newfeature=1
       confirm "* Create feature branch '$origbranch'?" || return 0
-      git_checkout "$GF_DEV" \
-        && git_branch "$origbranch" \
+      git_branch_create "$origbranch" "$GF_DEV" \
+        && git_checkout "$origbranch" \
         || return 1
     fi
   }
@@ -304,7 +366,7 @@ function main {
     # create a new branch
     git_branch_exists $1 \
       && { err "Destination branch '$1' already exists" || return 1; }
-    git_branch $1 || return 1
+    git_checkout_branch $1 || return 1
     # updating GF_CHANGELOG and GF_VERSION files
     if [[ $origbranch == "$GF_DEV" ]]; then
       local header
@@ -385,13 +447,13 @@ function main {
       git_commit_diff $origbranch $master \
         || { git_checkout $master; return $?; }
     fi
-    git_branch "$master" || return 1
+    git_checkout_branch "$master" || return 1
   }
 
   function gf_hotfixable {
     git_commit_diff $master.$patch HEAD \
       && { err "Required tag $master.$patch not detected on current HEAD" || return 1; }
-    git_tag_exists "$master.$((patch+1))" \
+    git tag | grep "^$master.$((patch+1))$" \
       && { err "Current branch is already hotfixed" || return 1; }
     git_branch_exists "hotfix-$major.$minor.$((patch+1))" \
       && { err "Current branch is being hotfixed" || return 1; }
@@ -442,6 +504,12 @@ function main {
         create_branch "hotfix-$major.$minor.$((++patch))"
         ;;
       "$GF_DEV")
+        # dev and master on same commit, probably after init
+        ! git_commit_diff "$GF_DEV" master && return 0
+        # dev and master has no diff, nothing to do
+        [[ -z "$(git diff "$GF_DEV" master)" ]] \
+          || err "Branch '$GF_DEV' is same as branch 'master', nothing to do" \
+          || return 1
         confirm "* Create release branch from branch '$GF_DEV'?" || return 0
         patch=0
         ((minor++))
@@ -489,61 +557,6 @@ function main {
          && delete_branch \
          || return $?
     esac
-  }
-
-  function init_files {
-    msg_start "Initializing files on branch '$1'"
-    [[ ! -f "$GF_VERSION" || -z "$(cat "$GF_VERSION")" ]] \
-      && { echo 0.0.0 > "$GF_VERSION" || return 1; }
-    [[ ! -f "$GF_CHANGELOG" || -z "$(cat "$GF_CHANGELOG")" ]] \
-      && { echo "$GF_CHANGELOG created" > "$GF_CHANGELOG" || return 1; }
-    git_status_empty 2>/dev/null && msg_end "$PASSED" && return 0
-    git add "$GF_VERSION" "$GF_CHANGELOG" >/dev/null \
-      && git commit -m "Init gf: create required files" >/dev/null \
-      || return 1
-    msg_end "$DONE"
-  }
-
-  function initial_commit {
-    git_status_empty 2>/dev/null || {
-      msg_start "Initial commit"
-      git add -A >/dev/null \
-        && git commit -m "Commit initial files" >/dev/null \
-        || err "Unable to commit existing files" \
-        || return 1
-      msg_end "$DONE"
-    }
-  }
-
-  # Prepare enviroment for gf:
-  # - create $GF_VERSION and $GF_CHANGELOG file
-  # - create $GF_DEV branch
-  function gf_init {
-    msg_start "Initializing git repository"
-    if git_repo_exists; then
-      msg_end "$PASSED"
-      git_branch master || return 1
-    else
-      git init >/dev/null || return 1
-      msg_end "$DONE"
-      initial_commit || return $?
-    fi
-    if git_has_commits; then
-      git_stash || return $?
-    else
-      initial_commit || return $?
-    fi
-    [[ $force == 0 ]] \
-      && { git_status_empty || return 4; }
-    init_files master \
-      && load_version \
-      && { git_tag_exists $master.$patch || git_tag $master.$patch; } \
-      && git_branch "$GF_DEV" \
-      && init_files "$GF_DEV" \
-      && load_version \
-      && git_stash_pop
-    git branch --contains $(master_last_change) | grep "$GF_DEV" >/dev/null \
-      || { merge_branches $(master_last_change) "$GF_DEV" || return $?; }
   }
 
   function gf_what_now {
@@ -630,7 +643,7 @@ function main {
   }
 
   # variables
-  local line script_name major minor patch master force init yes verbose dry what_now stashed color prefix pos_x pos_y
+  local line script_name major minor patch master force conform yes verbose dry what_now stashed color prefix pos_x pos_y
   what_now=0
   dry=0
   verbose=0
@@ -649,8 +662,8 @@ function main {
   # process options
   if ! line=$(
     IFS=" " getopt -n "$0" \
-           -o ifwynvVh\? \
-           -l force,init,what-now,dry-run,yes,color::,colour::,verbose,version,help \
+           -o fcwynvVh\? \
+           -l force,conform,init,what-now,dry-run,yes,color::,colour::,verbose,version,help \
            -- $GF_OPTIONS $*
   )
   then gf_usage; return 2; fi
@@ -658,12 +671,12 @@ function main {
 
   # load user options
   force=0
-  init=0
+  conform=0
   while [ $# -gt 0 ]; do
     case $1 in
      -f|--force) force=1; shift ;;
+     -c|--conform|--init) conform=1; shift ;;
      -w|--what-now) what_now=1; shift ;;
-     -i|--init) init=1; shift ;;
      -y|--yes) yes=1; shift ;;
      --color|--colour) shift; setcolor "$1" || { gf_usage; return 2; }; shift ;;
      -n|--dry-run) dry=1; shift ;;
@@ -684,7 +697,7 @@ function main {
   local -r \
     REFSHEADS="refs/heads" \
     REFSTAGS="refs/tags" \
-    DONE="$(colorize "  ok" $GREEN)" \
+    DONE="$(colorize "  ok  " $GREEN)" \
     FAILED="$(colorize "failed" $RED)" \
     PASSED="$(colorize "passed" $BLUE)"
 
@@ -694,17 +707,16 @@ function main {
   origbranch="${1:-}"
   stdout_silent
   [[ $dry == 1 ]] && { gf_what_now; return 0; }
-  [[ $init == 1 ]] && { gf_init && gf_what_now; return $?; }
 
   # run gf
   gf_validate && gf_prepare && {
     if [[ $newfeature == 0 ]]; then load_version && gf_run; fi
     } && git_stash_pop && gf_what_now || {
     case $? in
-      1) err "Generic error occured (see REPORTING BUGS in man gf)"; return 1 ;;
-      3) err "Initializing gf may help (see OPTIONS in man gf)"; return 3 ;;
-      4) err "Forcing gf may help (see OPTIONS in man gf)"; return 4 ;;
-      5) err "Conflict occured (see git status)"; gf_what_now; return 5 ;;
+      1) err "Generic error occured (see REPORTING BUGS in man gf)."; return 1 ;;
+      3) err "Git model is not conform with gf (conform may help)."; return 3 ;;
+      4) err "Git status is not empty (force may help)."; return 4 ;;
+      5) err "Git conflict occured (git status may help)."; gf_what_now; return 5 ;;
     esac
   }
 
