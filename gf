@@ -451,15 +451,13 @@ function main {
   }
 
   function delete_branch {
-    msg_start "Deleting remote branch '$origbranch'"
     if git_remote_branch_exists >/dev/null 2>&1; then
+      msg_start "Deleting remote branch '$origbranch'"
       local out
       out="$(git push $GF_ORIGIN :$REFSHEADS/$origbranch 2>&1)" \
         || err "$out" \
         || return 1
       msg_end "$DONE"
-    else
-      msg_end "$PASSED"
     fi
     msg_start "Deleting local branch '$origbranch'"
     git branch -d $origbranch >/dev/null || return 1
