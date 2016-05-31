@@ -321,9 +321,7 @@ function main {
     fi
     if ! git branch --contains $(master_last_change) | grep "$GF_DEV" >/dev/null; then
       [[ $conform == 0 ]] && { err "Branch master is not merged with '$GF_DEV'" || return 3; }
-      msg_start "Merging last changes from 'master' into '$GF_DEV'"
-      merge_branches $(master_last_change) "$GF_DEV" >/dev/null || return $?
-      msg_end "$DONE"
+      merge_branches $(master_last_change) "$GF_DEV" || return $?
     fi
     [[ -z "$origbranch" ]] \
       && origbranch=$gcb \
