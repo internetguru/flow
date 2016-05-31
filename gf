@@ -490,8 +490,16 @@ function main {
 
   function gf_push {
     [[ $request == 0 ]] && return 0
-    confirm "Push '$origbranch'?" || return 0
+    confirm "Push '$origbranch' to '$GF_ORIGIN'?" || return 0
     git_push "$origbranch" || return $?
+  }
+
+  function gf_requestable {
+    [[ $request == 0 ]] && return 0
+    git_remote_exists \
+      && git_remote_branch_exists "$GF_DEV" \
+      && git_remote_branch_exists master \
+      || return $?
   }
 
   ###
@@ -542,21 +550,16 @@ function main {
         ;;
       "$GF_DEV")
         # dev and master has no diff, nothing to do
-        # [[ -n "$(git diff "$GF_DEV" master)" ]] \
-        #   || err "Branch '$GF_DEV' is same as branch 'master', nothing to do" \
-        #   || return 1
+        [[ -n "$(git diff "$GF_DEV" master)" ]] \
+          || err "Branch '$GF_DEV' is same as branch 'master', nothing to do" \
+          || return 1
         confirm "* Create release branch from branch '$GF_DEV'?" || return 0
         patch=0
         ((minor++))
         create_branch release
         ;;
       hotfix-+([0-9]).+([0-9]).+([0-9]))
-        if [[ $request == 1 ]]; then
-          git_remote_exists \
-            && git_remote_branch_exists "$GF_DEV" \
-            && git_remote_branch_exists master \
-            || return $?
-        fi
+        gf_requestable || return $?
         gf_push || return $?
         [[ $request == 1 ]] && return 0
         # master -> merge + confirm merge to dev
@@ -576,12 +579,7 @@ function main {
         delete_branch
         ;;
       release)
-        if [[ $request == 1 ]]; then
-          git_remote_exists \
-            && git_remote_branch_exists "$GF_DEV" \
-            && git_remote_branch_exists master \
-            || return $?
-        fi
+        gf_requestable || return $?
         gf_push || return $?
         [[ $request == 1 ]] && return 0
         if confirm "* Create stable branch from release?"; then
@@ -599,8 +597,7 @@ function main {
         fi
         ;;
       *)
-        [[ $request == 1 ]] \
-          && { git_remote_exists || return $?; }
+        gf_requestable || return $?
         [[ -n "$(git log "$GF_DEV"..$origbranch)" ]] \
           || err "Nothing to merge - feature branch '$origbranch' is empty" \
           || return 1
@@ -613,8 +610,6 @@ function main {
           && delete_branch \
           || return $?
         fi
-        [[ $request == 1 ]] \
-          && git_remote_branch_exists "$GF_DEV" || return $?
         gf_push || return $?
     esac
   }
