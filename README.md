@@ -62,7 +62,8 @@ Initialize **gf**
 : * ``gf --init``
 
 Bugfixing on dev...
-: * ``echo "bugfix 1" >> myfile``
+: 
+* ``echo "bugfix 1" >> myfile``
 * ``git add myfile``
 * ``git commit -m "add bugfix 1"``
 
@@ -70,68 +71,80 @@ Create a feature
 : * ``gf myfeature``
 
 Developing a feature...
-: * ``echo "new feature code 1" >> myfile``
+:
+* ``echo "new feature code 1" >> myfile``
 * ``git commit -am "insert myfeature function 1"``
 * ``echo "new feature code 2" >> myfile``
 * ``git commit -am "insert myfeature function 2"``
 
 Merge feature
-: * ``gf``
+:
+* ``gf``
 * Insert myfeature description into CHANGELOG.
 
 Bugfixing on dev...
-: * ``echo "bugfix 2" >> myfile``
+:
+* ``echo "bugfix 2" >> myfile``
 * ``git commit -am "add bugfix 2"``
 
 Create release
-: * ``gf``
+:
+* ``gf``
 
 Bugfixing on release...
-: * ``echo "release bugfix 1" >> myfile``
+:
+* ``echo "release bugfix 1" >> myfile``
 * ``git commit -am "add release bugfix 1"``
 * ``gf`` (only to dev)
 * ``echo "release bugfix 2" >> myfile``
 * ``git commit -am "add release bugfix 2"``
 
 Merge release
-: * ``gf``
+:
+* ``gf``
 
 Continue with bugfixing on dev...
 
 # ADVANCED EXAMPLES
 
 Hotfix master branch
-: * ``gf master``
+:
+* ``gf master``
 * ``echo "hotfix 1" >> myfile``
 * ``git commit -am "add hotfix 1"``
 * ``gf``
 
 Restore git flow model (after pull request to master)
-: * ``git checkout dev``
+:
+* ``git checkout dev``
 * ``git reset --hard HEAD~1``
 * ``gf`` (will result into error 3)
 * ``gf -c``
 
 Hotfix previous release
-: * ``gf v0.0``
+:
+* ``gf v0.0``
 * ``echo "hotfix old" >> myfile``
 * ``git add myfile``
 * ``git commit -am "add old hotfix"``
 * ``gf``
 
 Initialize **gf** on existing project with version number
-: * ``echo 1.12.0 > VERSION``
+:
+* ``echo 1.12.0 > VERSION``
 * ``gf --init``
 
 New feature from uncommitted changes
-: * ``git checkout dev``
+:
+* ``git checkout dev``
 * ``echo "feature x" >> myfile``
 * ``gf myfeature`` (will result into error 4)
 * ``gf -f myfeature``
 * ``git commit -am "add feature x"``
 
 Merge conflicting release
-: * ``gf release``
+:
+* ``gf release``
 * Exits with standard git merge conflict message.
 * Resolve conflicts...
 * ``gf``
