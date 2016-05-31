@@ -56,10 +56,12 @@ It is an alternative to **git-flow cheatsheet**(2) command with following improv
 # BASIC FLOW EXAMPLES
 
 Set global options
-: * ``export GF_OPTIONS="--verbose --what-now"``
+:
+* ``export GF_OPTIONS="--verbose --what-now"``
 
 Initialize **gf**
-: * ``gf --init``
+:
+* ``gf --init``
 
 Bugfixing on dev...
 : 
@@ -68,7 +70,8 @@ Bugfixing on dev...
 * ``git commit -m "add bugfix 1"``
 
 Create a feature
-: * ``gf myfeature``
+:
+* ``gf myfeature``
 
 Developing a feature...
 :
