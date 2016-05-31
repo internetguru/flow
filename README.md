@@ -4,7 +4,7 @@ Oh My Git Flow
 
 # SYNOPSIS
 
-gf [-fcwynvVh] [--color[=WHEN]] [BRANCH|TAG|KEYWORD]
+gf [-fciwynvVh] [--color[=WHEN]] [BRANCH|TAG|KEYWORD]
 
 # DESCRIPTION
 
@@ -26,8 +26,11 @@ It is an alternative to **git-flow cheatsheet**(2) command with following improv
 
 # OPTIONS
 
--c, --conform, --init
+-c, --conform
 : Repair (initialize) project to be conform with **omgf**.
+
+-i, --init
+: Same as conform, additionally exit after initialize.
 
 -f, --force
 : Move (stash and pop) uncommitted changes.

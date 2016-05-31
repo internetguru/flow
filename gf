@@ -272,17 +272,19 @@ function main {
       git init >/dev/null || return 1
       msg_end "$DONE"
     fi
-    if ! git_branch_exists master; then
-      [[ $conform == 0 ]] && { err "Missing branch 'master'" || return 3; }
-      git_branch_create master || return 1
-    fi
     if ! git_has_commits; then
       [[ $conform == 0 ]] && { err "Git repository without commits" || return 3; }
       initial_commit || return $?
-    elif [[ $force == 1 ]]; then
-      git_stash || return $?
     else
-      git_status_empty || return 4
+      if ! git_branch_exists master; then
+        [[ $conform == 0 ]] && { err "Missing branch 'master'" || return 3; }
+        git_branch_create master || return 1
+      fi
+      if [[ $force == 1 ]]; then
+        git_stash || return $?
+      else
+        git_status_empty || return 4
+      fi
     fi
     init_files \
       && load_version \
@@ -498,6 +500,10 @@ function main {
   function gf_run {
     local tag
     tag=""
+    # explicit init
+    [[ $init == 1 ]] \
+      && git_checkout "$GF_DEV" \
+      && return 0
     case $origbranch in
       HEAD|master|$prefix+([0-9]).+([0-9]))
         gf_hotfixable || return 1
@@ -509,8 +515,6 @@ function main {
         create_branch "hotfix-$major.$minor.$((++patch))"
         ;;
       "$GF_DEV")
-        # dev and master on same commit, probably after init
-        ! git_commit_diff "$GF_DEV" master && return 0
         # dev and master has no diff, nothing to do
         [[ -n "$(git diff "$GF_DEV" master)" ]] \
           || err "Branch '$GF_DEV' is same as branch 'master', nothing to do" \
@@ -648,7 +652,7 @@ function main {
   }
 
   # variables
-  local line script_name major minor patch master force conform yes verbose dry what_now stashed color prefix pos_x pos_y
+  local line script_name major minor patch master force conform yes verbose dry what_now stashed color prefix pos_x pos_y init
   what_now=0
   dry=0
   verbose=0
@@ -667,7 +671,7 @@ function main {
   # process options
   if ! line=$(
     IFS=" " getopt -n "$0" \
-           -o fcwynvVh\? \
+           -o fciwynvVh\? \
            -l force,conform,init,what-now,dry-run,yes,color::,colour::,verbose,version,help \
            -- $GF_OPTIONS $*
   )
@@ -677,10 +681,12 @@ function main {
   # load user options
   force=0
   conform=0
+  init=0
   while [ $# -gt 0 ]; do
     case $1 in
      -f|--force) force=1; shift ;;
-     -c|--conform|--init) conform=1; shift ;;
+     -i|--init) init=1; ;&
+     -c|--conform) conform=1; shift ;;
      -w|--what-now) what_now=1; shift ;;
      -y|--yes) yes=1; shift ;;
      --color|--colour) shift; setcolor "$1" || { gf_usage; return 2; }; shift ;;
