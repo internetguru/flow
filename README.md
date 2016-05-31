@@ -4,7 +4,7 @@ Oh My Git Flow
 
 # SYNOPSIS
 
-gf [-fciwynvVh] [--color[=WHEN]] [BRANCH|TAG|KEYWORD]
+gf [-fciwrynvVh] [--color[=WHEN]] [BRANCH|TAG|KEYWORD]
 
 # DESCRIPTION
 
@@ -37,6 +37,9 @@ It is an alternative to **git-flow cheatsheet**(2) command with following improv
 
 -w, --what_now
 : Display what to do on current branch.
+
+-r, --request
+: Prepare current feature/release/hotfix branch for pull/merge request and push it to the origin.
 
 -y, --yes
 : Assume yes for all questions.

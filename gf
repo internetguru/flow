@@ -133,6 +133,10 @@ function main {
       || err "$out"
   }
 
+  function git_push {
+    git push "$GF_ORIGIN" "$origbranch" || return 1
+  }
+
   function git_checkout_branch {
     msg_start "Creating branch '$1' on current HEAD"
     git_checkout -b $1 || return 1
@@ -159,6 +163,22 @@ function main {
 
   function git_repo_exists {
     [[ -d .git ]]
+  }
+
+  function git_remote_exists {
+    git config remote."$GF_ORIGIN".url >/dev/null \
+      || err "Remote url for '$GF_ORIGIN' does not exist" \
+      || return 1
+  }
+
+  function git_remote_branch_exists {
+    local branch
+    branch=${1:-$origbranch}
+    msg_start "Checking if '$branch' exists on remote '$GF_ORIGIN'"
+    git ls-remote --heads "$GF_ORIGIN" | grep -q $REFSHEADS/$branch$ \
+      || err "Remote branch '$branch' does not exist" \
+      || return 1
+    msg_end "$DONE"
   }
 
   function git_commit_diff {
@@ -302,7 +322,7 @@ function main {
     if ! git branch --contains $(master_last_change) | grep "$GF_DEV" >/dev/null; then
       [[ $conform == 0 ]] && { err "Branch master is not merged with '$GF_DEV'" || return 3; }
       msg_start "Merging last changes from 'master' into '$GF_DEV'"
-      merge_branches $(master_last_change) "$GF_DEV" || return $?
+      merge_branches $(master_last_change) "$GF_DEV" >/dev/null || return $?
       msg_end "$DONE"
     fi
     [[ -z "$origbranch" ]] \
@@ -434,7 +454,7 @@ function main {
 
   function delete_branch {
     msg_start "Deleting remote branch '$origbranch'"
-    if git branch -r | grep $GF_ORIGIN/$origbranch$ >/dev/null; then
+    if git_remote_branch_exists >/dev/null 2>&1; then
       local out
       out="$(git push $GF_ORIGIN :$REFSHEADS/$origbranch 2>&1)" \
         || err "$out" \
@@ -466,6 +486,12 @@ function main {
     git_branch_exists "hotfix-$major.$minor.$((patch+1))" \
       && { err "Current branch is being hotfixed" || return 1; }
     return 0
+  }
+
+  function gf_push {
+    [[ $request == 0 ]] && return 0
+    confirm "Push '$origbranch'?" || return 0
+    git_push "$origbranch" || return $?
   }
 
   ###
@@ -516,15 +542,23 @@ function main {
         ;;
       "$GF_DEV")
         # dev and master has no diff, nothing to do
-        [[ -n "$(git diff "$GF_DEV" master)" ]] \
-          || err "Branch '$GF_DEV' is same as branch 'master', nothing to do" \
-          || return 1
+        # [[ -n "$(git diff "$GF_DEV" master)" ]] \
+        #   || err "Branch '$GF_DEV' is same as branch 'master', nothing to do" \
+        #   || return 1
         confirm "* Create release branch from branch '$GF_DEV'?" || return 0
         patch=0
         ((minor++))
         create_branch release
         ;;
       hotfix-+([0-9]).+([0-9]).+([0-9]))
+        if [[ $request == 1 ]]; then
+          git_remote_exists \
+            && git_remote_branch_exists "$GF_DEV" \
+            && git_remote_branch_exists master \
+            || return $?
+        fi
+        gf_push || return $?
+        [[ $request == 1 ]] && return 0
         # master -> merge + confirm merge to dev
         if ! git_version_diff master $major.$minor; then
           confirm "* Merge hotfix into master and '$GF_DEV'?" || return 0
@@ -542,6 +576,14 @@ function main {
         delete_branch
         ;;
       release)
+        if [[ $request == 1 ]]; then
+          git_remote_exists \
+            && git_remote_branch_exists "$GF_DEV" \
+            && git_remote_branch_exists master \
+            || return $?
+        fi
+        gf_push || return $?
+        [[ $request == 1 ]] && return 0
         if confirm "* Create stable branch from release?"; then
           git_checkout master \
             && merge_branches $origbranch master \
@@ -557,14 +599,23 @@ function main {
         fi
         ;;
       *)
+        [[ $request == 1 ]] \
+          && { git_remote_exists || return $?; }
         [[ -n "$(git log "$GF_DEV"..$origbranch)" ]] \
           || err "Nothing to merge - feature branch '$origbranch' is empty" \
           || return 1
-        confirm "* Merge feature '$origbranch' into '$GF_DEV'?" || return 0
-        merge_feature \
-         && merge_branches $origbranch "$GF_DEV" \
-         && delete_branch \
-         || return $?
+        [[ $request == 1 ]] \
+          && { confirm "Prepare '$origbranch' for merge request?" || return 0; } \
+          || { confirm "* Merge feature '$origbranch' into '$GF_DEV'?" || return 0; }
+        merge_feature || return $?
+        if [[ $request == 0 ]]; then
+        merge_branches $origbranch "$GF_DEV" \
+          && delete_branch \
+          || return $?
+        fi
+        [[ $request == 1 ]] \
+          && git_remote_branch_exists "$GF_DEV" || return $?
+        gf_push || return $?
     esac
   }
 
@@ -652,7 +703,7 @@ function main {
   }
 
   # variables
-  local line script_name major minor patch master force conform yes verbose dry what_now stashed color prefix pos_x pos_y init
+  local line script_name major minor patch master force conform yes verbose dry what_now stashed color prefix pos_x pos_y init request
   what_now=0
   dry=0
   verbose=0
@@ -671,8 +722,8 @@ function main {
   # process options
   if ! line=$(
     IFS=" " getopt -n "$0" \
-           -o fciwynvVh\? \
-           -l force,conform,init,what-now,dry-run,yes,color::,colour::,verbose,version,help \
+           -o fciwrynvVh\? \
+           -l force,conform,init,what-now,request,dry-run,yes,color::,colour::,verbose,version,help \
            -- $GF_OPTIONS $*
   )
   then gf_usage; return 2; fi
@@ -682,12 +733,14 @@ function main {
   force=0
   conform=0
   init=0
+  request=0
   while [ $# -gt 0 ]; do
     case $1 in
      -f|--force) force=1; shift ;;
      -i|--init) init=1; ;&
      -c|--conform) conform=1; shift ;;
      -w|--what-now) what_now=1; shift ;;
+     -r|--request) request=1; shift;;
      -y|--yes) yes=1; shift ;;
      --color|--colour) shift; setcolor "$1" || { gf_usage; return 2; }; shift ;;
      -n|--dry-run) dry=1; shift ;;
