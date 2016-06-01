@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Display status under message iff pipe or short lines
 Check and repair project to conform git flow model
 Check/init master merged into dev
@@ -16,3 +17,4 @@ Display command status on the start of line
 Hitting Enter confirms question by default
 Merge and rebase conflict support (exit code 4)
 Use git editor or set changelog message from command line
+CHANGELOG created
