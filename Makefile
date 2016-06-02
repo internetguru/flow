@@ -18,7 +18,6 @@ SYSTEM       ?= $(system)
 #-------------------------------------------------------------------------------
 
 DIRNAME     := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-PANDOC      := pandoc
 RST2MAN     := rst2man.py
 GF          := gf
 README      := README
