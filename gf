@@ -598,15 +598,15 @@ function main {
           || err "Nothing to merge - feature branch '$origbranch' is empty" \
           || return 1
         [[ $request == 1 ]] \
-          && { confirm "Prepare '$origbranch' for merge request?" || return 0; } \
+          && { confirm "Prepare '$origbranch' for pull request?" || return 0; } \
           || { confirm "* Merge feature '$origbranch' into '$GF_DEV'?" || return 0; }
         merge_feature || return $?
-        if [[ $request == 0 ]]; then
+        [[ $request == 1 ]] \
+          && gf_push \
+          && return $?
         merge_branches $origbranch "$GF_DEV" \
           && delete_branch \
           || return $?
-        fi
-        gf_push || return $?
     esac
   }
 

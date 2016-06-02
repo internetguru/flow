@@ -39,7 +39,7 @@ It is an alternative to **git-flow cheatsheet**(2) command with following improv
 : Display what to do on current branch.
 
 -r, --request
-: Prepare current feature/release/hotfix branch for pull/merge request and push it to the origin.
+: Instead of merging prepare current branch for pull request and push it to the origin.
 
 -y, --yes
 : Assume yes for all questions.
