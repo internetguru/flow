@@ -27,10 +27,10 @@ It is an alternative to **git-flow cheatsheet**(2) command with following improv
 # OPTIONS
 
 -c, --conform
-: Repair (initialize) project to be conform with **omgf**.
+: Repair (initialize) project to be conform with **omgf** and proceed.
 
 -i, --init
-: Same as conform, additionally exit after initialize.
+: Same as conform, but do not proceed.
 
 -f, --force
 : Move (stash and pop) uncommitted changes.
