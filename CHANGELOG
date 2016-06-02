@@ -1,7 +1,6 @@
 README in compatible format of restructured text (rst)
 Option request to prepare current branch for pull request and push it to the origin
 Option init to conform and exit
-<<<<<<< HEAD
 Display status under message iff pipe or short lines
 Check and repair project to conform git flow model
 Check/init master merged into dev
