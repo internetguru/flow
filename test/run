@@ -1,0 +1,927 @@
+#!/bin/bash
+
+function main {
+
+  function takeClean {
+    clear
+    echo "### test $1"
+    cd "$currentdir"
+    rm -rf "$1"
+    mkdir -p "$1"
+    cd "$1"
+  }
+  function ll {
+    echo "# directory listing:"
+    echo "$sep"
+    ls -lA
+    echo
+  }
+  function gla {
+    echo "# git log:"
+    echo "$sep"
+    log="$(git --no-pager log --oneline --decorate --graph --all)"
+    echo "$log"
+    IFS=$'\n' read -d '' -r -a loglines <<< "$log"
+    echo
+  }
+  function gref {
+    echo "# git show-ref:"
+    echo "$sep"
+    ref="$(git show-ref)"
+    firsthash="$(echo "$ref" | head -n1 | cut -d" " -f1)"
+    echo "$ref"
+    echo
+  }
+  function gs {
+    echo "# git status:"
+    echo "$sep"
+    git status
+    echo
+  }
+  function testHeader {
+    echo "$1"
+    echo "$sep"
+  }
+  function debug {
+    local c
+    echo "# cmd: $1"
+    eval "$1" 2>&1 | tee /tmp/gftesttmpout
+    c=${PIPESTATUS[0]}
+    output="$(cat /tmp/gftesttmpout)"
+    IFS=$'\n' read -d '' -r -a lines <<< "$output"
+    echo
+    echo "# status code:"
+    echo $sep
+    echo "$c"
+    echo
+    return $c
+  }
+  function confirm {
+    echo -n "${1:-"Are you sure?"} [YES/No] "
+    read -r
+    [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] && return 0
+    [[ "$REPLY" =~ ^[nN]o?$ ]] && return 1
+    confirm "Type"
+  }
+  function startTest {
+    [[ $((++i)) -gt $skip ]] || return 1
+    confirm "Run test '$1'?" || return 1
+    : $((runned++))
+    takeClean "$i"
+    testHeader "$1"
+  }
+  function status {
+    local s
+    s="$ok"
+    echo -n "[ "
+    [[ $1 != 0 ]] && s="$fail"
+    echo -n "$s"
+    echo -n " ] "
+    if [[ $1 != 0 ]]; then
+      tput setaf 1 \
+        && echo "${FUNCNAME[1]}:" \
+        && echo "arg1:" \
+        && echo "$2" \
+        && echo "arg2:" \
+        && echo "$3" \
+        && tput sgr0
+    else
+      echo "${FUNCNAME[1]} ..."
+    fi
+    return $1
+  }
+  function assert_equal {
+    [[ "$1" == "$2" ]]
+    status $? "$1" "$2"
+  }
+  function assert_startwith {
+    [[ "$1" == "$2"* ]]
+    status $? "$1" "$2"
+  }
+  function assert_contains {
+    echo "$1" | grep -q "$2"
+    status $? "$1" "$2"
+  }
+  function checkInitRefs {
+    assert_equal $(echo "$ref" | wc -l) 3
+    assert_equal $(echo "$ref" | grep $firsthash | wc -l) 3
+    assert_contains "$ref" "refs/heads/dev"
+    assert_contains "$ref" "refs/heads/master"
+    assert_contains "$ref" "refs/tags/v0.0.0"
+  }
+  function checkInitFiles {
+    assert_equal "$(cat VERSION)" "0.0.0"
+    assert_equal "$(cat CHANGELOG)" "CHANGELOG created"
+  }
+  function gsp {
+    git status --porcelain
+  }
+  function git_current_branch {
+    git rev-parse --abbrev-ref HEAD
+  }
+
+  local currentdir sep skip i output lines ok fail failed ref firsthash log loglines runned
+
+  currentdir="$(pwd)"
+  sep="-----------"
+  skip="${1:-0}"
+  i=0
+  runned=0
+  output=
+  lines=()
+  log=
+  loglines=()
+  failed=0
+  ok="$(tput setaf 2; echo -n "  ok  "; tput sgr0)"
+  fail="$(tput setaf 1; echo -n fail; tput sgr0)"
+
+
+
+#######################################
+## Integration
+#######################################
+  if startTest "gf help"; then
+    debug "gf --help"
+    assert_equal $? 0
+    assert_startwith "${lines[0]}" "Usage: gf [-"
+  fi
+#######################################
+  if startTest "gf version"; then
+    debug "gf --version"
+    assert_equal $? 0
+    assert_startwith "${lines[0]}" "GNU gf "
+  fi
+#######################################
+  if startTest "man gf"; then
+    debug "man gf" >/dev/null
+    assert_equal $? 0
+    assert_startwith "${lines[0]}" "GF(1)"
+  fi
+#######################################
+## Error codes
+#######################################
+  if startTest "error - invalid option"; then
+    debug "gf --invalid-option"
+    assert_equal $? 2
+    assert_startwith "${lines[0]}" "getopt: unknown"
+    assert_startwith "${lines[1]}" "Usage: gf [-"
+  fi
+#######################################
+  if startTest "error - missing git"; then
+    debug "gf"
+    assert_equal $? 3
+    assert_startwith "${lines[0]}" "gf[error]: Git repository does not exist"
+  fi
+#######################################
+  if startTest "error - missing branch dev"; then
+    { gf -i \
+      && git checkout master \
+      && git branch -d dev
+    } >/dev/null 2>&1
+    debug "gf"
+    assert_equal $? 3
+    assert_startwith "${lines[0]}" "gf[error]: Missing branch 'dev'"
+  fi
+#######################################
+  if startTest "error - missing VERSION file"; then
+    { gf -i \
+      && rm VERSION \
+      && git commit -am "delete VERSION file"
+    } >/dev/null
+    debug "gf"
+    assert_equal $? 3
+    assert_startwith "${lines[0]}" "gf[error]: Missing or empty file 'VERSION'"
+  fi
+#######################################
+  if startTest "error - dev is behind master"; then
+    { gf -i \
+      && echo a > a \
+      && git add a \
+      && git commit -am "add file a" \
+      && gf --yes \
+      && gf --yes \
+      && git reset --hard HEAD~1
+    } >/dev/null
+    debug "gf"
+    assert_equal $? 3
+    assert_startwith "${lines[0]}" "gf[error]: Branch master is not merged with 'dev'"
+  fi
+#######################################
+  if startTest "error - uncommitted changes"; then
+    { gf -i \
+      && echo a > a
+    } >/dev/null
+    debug "gf"
+    assert_equal $? 4
+    assert_startwith "${lines[0]}" "gf[error]: Uncommitted changes"
+  fi
+#######################################
+  if startTest "error - conflicting merge"; then
+    { gf -i \
+      && gf --yes hotfix \
+      && git checkout dev \
+      && echo 1.0.0 > VERSION \
+      && git commit -am "bump version"
+    } >/dev/null
+    debug "gf --yes hotfix"
+    assert_equal $? 5
+    assert_startwith "${lines[0]}" "gf[error]: Auto-merging"
+  fi
+#######################################
+## Dry run
+#######################################
+  if startTest "dry run"; then
+    debug "gf --dry-run"
+    assert_equal $? 0
+  fi
+#######################################
+  if startTest "dry run and invalid option"; then
+    debug "gf --dry-run --invalid-option"
+    assert_equal $? 2
+    assert_startwith "${lines[0]}" "getopt: unknown"
+    assert_startwith "${lines[1]}" "Usage: gf [-"
+  fi
+#######################################
+## Init
+#######################################
+  if startTest "init on empty folder"; then
+    debug "gf -v --init"
+    assert_equal $? 0
+    checkInitFiles
+    gla
+    gref
+    checkInitRefs
+    gs
+    assert_equal "$(gsp)" ""
+  fi
+#######################################
+  if startTest "init on non-empty folder"; then
+    { echo a > a \
+      && echo b > b \
+      && echo test > .gitignore
+    } >/dev/null
+    ll
+    debug "gf -v --init"
+    assert_equal $? 0
+    checkInitFiles
+    gla
+    gref
+    checkInitRefs
+    gs
+    assert_equal "$(gsp)" ""
+  fi
+#######################################
+  if startTest "init on existing repo with commits"; then
+    { git init \
+      && echo a > a \
+      && git add . \
+      && git commit -am "first commit.."
+    } >/dev/null
+    gla
+    debug "gf -v --init"
+    assert_equal $? 0
+    checkInitFiles
+    gla
+    gref
+    checkInitRefs
+    gs
+    assert_equal "$(gsp)" ""
+  fi
+#######################################
+  if startTest "init on existing repo without commits"; then
+    { git init \
+      && echo a > a
+    } >/dev/null
+    gs
+    debug "gf -v --init"
+    assert_equal $? 0
+    checkInitFiles
+    gla
+    gref
+    checkInitRefs
+    gs
+    assert_equal "$(gsp)" ""
+  fi
+#######################################
+  if startTest "init on existing repo with commits and --force"; then
+    { git init \
+      && echo a > a \
+      && git add . \
+      && git commit -am "first commit" \
+      && echo b > b
+    } >/dev/null
+    gla
+    gs
+    debug "gf -v --init --force"
+    assert_equal $? 0
+    checkInitFiles
+    gla
+    gref
+    checkInitRefs
+    gs
+    assert_equal "$(gsp | wc -l)" 1
+  fi
+#######################################
+## Conform
+#######################################
+  if startTest "conform on empty folder"; then
+    debug "gf -v --conform"
+    assert_equal $? 0
+    checkInitFiles
+    gla
+    gref
+    checkInitRefs
+    gs
+    assert_equal "$(gsp)" ""
+  fi
+#######################################
+  if startTest "conform on non-empty folder"; then
+    { echo a > a \
+      && echo b > b \
+      && echo test > .gitignore
+    } >/dev/null
+    ll
+    debug "gf -v --conform"
+    assert_equal $? 0
+    checkInitFiles
+    gla
+    gref
+    checkInitRefs
+    gs
+    assert_equal "$(gsp)" ""
+  fi
+#######################################
+  if startTest "conform on existing repo with commits"; then
+    { git init \
+      && echo a > a \
+      && git add . \
+      && git commit -am "first commit.."
+    } >/dev/null
+    gla
+    debug "gf -v --conform"
+    assert_equal $? 0
+    checkInitFiles
+    gla
+    gref
+    checkInitRefs
+    gs
+    assert_equal "$(gsp)" ""
+  fi
+#######################################
+  if startTest "conform on existing repo without commits"; then
+    { git init \
+      && echo a > a
+    } >/dev/null
+    gs
+    debug "gf -v --conform"
+    assert_equal $? 0
+    checkInitFiles
+    gla
+    gref
+    checkInitRefs
+    gs
+    assert_equal "$(gsp)" ""
+  fi
+#######################################
+  if startTest "conform on existing repo with commits and --force"; then
+    { git init \
+      && echo a > a \
+      && git add . \
+      && git commit -am "first commit" \
+      && echo b > b
+    } >/dev/null
+    gla
+    gs
+    debug "gf -v --conform --force"
+    assert_equal $? 0
+    checkInitFiles
+    gla
+    gref
+    checkconformRefs
+    gs
+    assert_equal "$(gsp | wc -l)" 1
+  fi
+#######################################
+## Feature
+#######################################
+  if startTest "feature"; then
+    { gf --init; } >/dev/null
+    gla
+    debug "gf -v --yes myfeature"
+    assert_equal $? 0
+    assert_startwith "${lines[0]}" "* Create feature branch 'myfeature'"
+    assert_startwith "${lines[1]}" "Creating branch 'myfeature'"
+    assert_startwith "${lines[2]}" "[   ok   ]"
+    gref
+    assert_contains "$ref" "refs/heads/myfeature"
+    gla
+    assert_equal "$(git_current_branch)" "myfeature"
+    gs
+  fi
+#######################################
+  if startTest "feature with uncommited changes and --force"; then
+    { gf --init \
+      && echo a > a
+    } >/dev/null
+    gla
+    debug "gf -v --yes --force myfeature"
+    assert_equal $? 0
+    assert_startwith "${lines[0]}" "Stashing files"
+    assert_startwith "${lines[1]}" "[   ok   ]"
+    gla
+    assert_equal "$(git_current_branch)" "myfeature"
+    gs
+    assert_equal "$(gsp)" "A  a"
+  fi
+#######################################
+  if startTest "merge feature"; then
+    { gf --init \
+      && gf --yes myfeature \
+      && echo a > a \
+      && git add . \
+      && git commit -am "add feature 1"
+    } >/dev/null
+    gla
+    debug "gf -v --yes"
+    assert_equal $? 0
+    gla
+    assert_contains "$log" "Version history updated"
+    assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'myfeature' into dev"
+    gref
+    assert_equal "$(echo $ref | grep /refs/heads/myfeature)" ""
+    gs
+    assert_equal "$(gsp)" ""
+  fi
+#######################################
+  if startTest "merge empty feature"; then
+    { gf --init \
+      && gf --yes myfeature
+    } >/dev/null
+    gla
+    debug "gf -v --yes"
+    assert_equal $? 1
+    assert_startwith "${lines[0]}" "gf[error]: Nothing to merge"
+  fi
+#######################################
+  if startTest "merge feature with rebase"; then
+    { gf --init \
+      && gf --yes myfeature \
+      && echo a > a \
+      && git add . \
+      && git commit -am "add feature 1" \
+      && git checkout dev \
+      && echo c > c \
+      && git add . \
+      && git commit -am "bugfix 1"
+    } >/dev/null
+    gla
+    debug "gf -v --yes myfeature"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "merge feature with conflicting rebase"; then
+    { gf --init \
+      && gf --yes myfeature \
+      && echo a > a \
+      && git add . \
+      && git commit -am "change file a" \
+      && git checkout dev \
+      && echo b > a \
+      && git add . \
+      && git commit -am "change file a"
+    } >/dev/null
+    gla
+    debug "gf -v --yes myfeature"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "merge feature with uncommited changes and --force"; then
+    { gf --init \
+      && gf --yes myfeature \
+      && echo a > a \
+      && git add . \
+      && git commit -am "add feature 1" \
+      && echo b > b
+    } >/dev/null
+    gla
+    debug "gf -v --yes --force"
+    assert_equal $? 0
+    assert_equal "${lines[0]}" "Stashing files"
+    assert_equal "${lines[1]}" "[   ok   ]"
+    gla
+    assert_contains "$log" "Version history updated"
+    assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'myfeature' into dev"
+    gref
+    assert_equal "$(echo $ref | grep /refs/heads/myfeature)" ""
+    gs
+    assert_equal "$(gsp)" "A  b"
+  fi
+#######################################
+  if startTest "merge feature with --request"; then
+    { gf --init \
+      && gf --yes myfeature \
+      && echo a > a \
+      && git add . \
+      && git commit -am "add feature 1"
+    } >/dev/null
+    gla
+    debug "gf -v --yes --request"
+  fi
+#######################################
+## RELEASE
+#######################################
+  if startTest "release"; then
+    { gf --init; } >/dev/null
+    gla
+    debug "gf -v --yes"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "try create two releases"; then
+    { gf --init \
+      && gf --yes
+    } >/dev/null
+    gla
+    debug "gf -v --yes --force dev"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "release with uncommited changes and --force"; then
+    { gf --init \
+      && echo a > a
+    } >/dev/null
+    gla
+    debug "gf -v --yes --force"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "release by kw"; then
+    { gf --init; } >/dev/null
+    gla
+    debug "gf -v --yes release"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "merge release"; then
+    { gf --init \
+      && gf --yes
+    } >/dev/null
+    gla
+    debug "gf -v --yes"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "merge release with conflict"; then
+    { gf --init \
+      && gf --yes \
+      && git checkout dev \
+      && echo 1.0.0 > VERSION \
+      && git commit -am "bump VERSION" \
+      && git checkout release
+    } >/dev/null 2>&1
+    gla
+    debug "gf -v --yes"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "merge release by kw"; then
+    { gf --init \
+      && gf --yes \
+      && git checkout master
+    } >/dev/null
+    gla
+    debug "gf -v --yes release"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "merge release with uncommited changes and --force"; then
+    { gf --init \
+      && gf --yes \
+      && echo a > a
+    } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes --force"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "merge release with --request"; then
+    { gf --init \
+      && gf --yes
+    } >/dev/null
+    gla
+    debug "gf -v --yes --request"
+    gla
+    gs
+  fi
+#######################################
+## HOTFIX
+#######################################
+#
+  if startTest "hotfix master"; then
+    { gf -c; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes master"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "hotfix master with uncommited changes"; then
+    { gf -c \
+     && echo a > a; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes master"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "hotfix master with uncommited changes (with --force)"; then
+    { gf -c \
+     && echo a > a; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes --force master"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "hotfix master with what-now"; then
+    { gf -c; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes --what-now master"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "hotfix master (from tag)"; then
+    { gf -c; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes v0.0.0"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "hotfix master from dev by kw"; then
+    { gf -c \
+      && git checkout dev; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes hotfix"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "hotfix master (from tag) with uncommited changes"; then
+    { gf -c \
+      && echo a > a; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes v0.0.0"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "hotfix master (from tag) with uncommited changes (with --force)"; then
+    { gf -c \
+      && echo a > a; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes --force v0.0.0"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "hotfix master (from tag) with what-now"; then
+    { gf -c; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes --what-now v0.0.0"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "hotfix stable"; then
+    { gf -c \
+     && gf --yes \
+     && gf --yes; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes v0.0.0"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "hotfix stable by kw"; then
+    { gf -c \
+     && gf --yes \
+     && gf --yes \
+     && git checkout v0.0.0; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes hotfix"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "hotfix stable with what-now"; then
+    { gf -c \
+     && gf --yes \
+     && gf --yes; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes --what-now v0.0.0"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "hotfix stable (from old tag)"; then
+    { gf -c \
+     && gf --yes \
+     && gf --yes \
+     && gf --yes v0.0.0 \
+     && gf --yes; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes v0.0.0"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "hotfix stable (from old tag) by kw"; then
+    { gf -c \
+     && gf --yes \
+     && gf --yes \
+     && gf --yes v0.0.0 \
+     && gf --yes \
+     && git checkout v0.0.0; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes kw"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "merge master hotfix"; then
+    { gf -c \
+     && gf --yes master; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "merge master hotfix by kw"; then
+    { gf -c \
+     && gf --yes master; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes hotfix"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "merge master hotfix with uncommited changes"; then
+    { gf -c \
+     && gf --yes master \
+     && echo a > a; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "merge master hotfix with uncommited changes (with --force)"; then
+    { gf -c \
+     && gf --yes master \
+     && echo a > a; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes --force"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "merge master hotfix with what-now"; then
+    { gf -c \
+     && gf --yes master; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes --what-now"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "merge stable hotfix"; then
+    { gf -c \
+     && gf --yes \
+     && gf --yes \
+     && gf --yes v0.0.0; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "merge stable hotfix by kw"; then
+    { gf -c \
+     && gf --yes \
+     && gf --yes \
+     && gf --yes v0.0.0; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes hotfix"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "merge stable hotfix with uncommited changes"; then
+    { gf -c \
+     && gf --yes \
+     && gf --yes \
+     && gf --yes v0.0.0 \
+     && echo a > a; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "merge stable hotfix with uncommited changes (with --force)"; then
+    { gf -c \
+     && gf --yes \
+     && gf --yes \
+     && gf --yes v0.0.0 \
+     && echo a > a; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes --force"
+    gla
+    gs
+  fi
+#######################################
+#
+  if startTest "merge stable hotfix with what-now"; then
+    { gf -c \
+     && gf --yes \
+     && gf --yes \
+     && gf --yes v0.0.0; } >/dev/null
+    gla
+    #cmd
+    debug "gf -v --yes --what-now"
+    gla
+    gs
+  fi
+#######################################
+#
+
+clear
+echo "$sep"
+echo "Total: $i"
+echo "Runned: $runned"
+echo "Failed: $failed"
+
+[[ $failed == 0 ]] && return 0
+
+}
+
+main "$@"
