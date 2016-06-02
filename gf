@@ -3,12 +3,19 @@
 shopt -s extglob
 set -u
 
+# shellcheck disable=SC2086
 : ${GF_DATAPATH:=.}
+# shellcheck disable=SC2086
 : ${GF_CHANGELOG:=CHANGELOG}
+# shellcheck disable=SC2086
 : ${GF_VERSION:=VERSION}
+# shellcheck disable=SC2086
 : ${GF_DEV:=dev}
+# shellcheck disable=SC2086
 : ${GF_ORIGIN:=origin}
+# shellcheck disable=SC2086
 : ${GF_OPTIONS:=}
+# shellcheck disable=SC2086
 : ${GF_NOPREFIX:=}
 : ${COLUMNS:=$(tput cols)}
 : ${LINES:=$(tput lines)}
@@ -16,7 +23,7 @@ set -u
 function main {
 
   function msg_start {
-    if stdoutpipe || [[ $COLUMNS < 41 ]]; then
+    if stdoutpipe || [[ $COLUMNS -lt 41 ]]; then
       echo "$1" && return 0
     fi
     echo -n "[ "
@@ -25,7 +32,7 @@ function main {
   }
 
   function msg_end {
-    if stdoutpipe || [[ $COLUMNS < 41 ]]; then
+    if stdoutpipe || [[ $COLUMNS -lt 41 ]]; then
       echo "[ $1 ]" && return 0
     fi
     set_cursor_position
@@ -43,7 +50,7 @@ function main {
   }
 
   function err {
-    echo "$(basename "${0}")[error]: $@" >&2
+    echo "$(basename "${0}")[error]: $*" >&2
     return 1
   }
 
@@ -83,7 +90,7 @@ function main {
     [[ "$(cat "$GF_VERSION")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
       || err "Invalid version file content format" \
       || return 1
-    IFS=. read major minor patch < "$GF_VERSION" \
+    IFS=. read -r major minor patch < "$GF_VERSION" \
       || err "Unable to load version" \
       || return 1
     master=$prefix$major.$minor
@@ -101,6 +108,7 @@ function main {
       echo
       echo -n "Type message or press Enter to skip: "
       clear_stdin
+      # shellcheck disable=SC2162
       read
       echo "$REPLY" > "$1"
     fi
@@ -115,21 +123,21 @@ function main {
   # make git return only error to stderr
   function git_checkout {
     local out
-    out="$(git checkout $@ 2>&1)" \
+    out="$(git checkout "$@" 2>&1)" \
       || err "$out"
   }
 
   # make git return only error to stderr
   function git_tag {
     local out
-    out="$(git tag $@ 2>&1)" \
+    out="$(git tag "$@" 2>&1)" \
       || err "$out"
   }
 
   # make git return only error to stderr
   function git_merge {
     local out
-    out="$(git merge $@ 2>&1)" \
+    out="$(git merge "$@" 2>&1)" \
       || err "$out"
   }
 
@@ -139,7 +147,7 @@ function main {
 
   function git_checkout_branch {
     msg_start "Creating branch '$1' on current HEAD"
-    git_checkout -b $1 || return 1
+    git_checkout -b "$1" || return 1
     msg_end "$DONE"
   }
 
@@ -175,18 +183,18 @@ function main {
     local branch
     branch=${1:-$origbranch}
     msg_start "Checking if '$branch' exists on remote '$GF_ORIGIN'"
-    git ls-remote --heads "$GF_ORIGIN" | grep -q $REFSHEADS/$branch$ \
+    git ls-remote --heads "$GF_ORIGIN" | grep -q "$REFSHEADS/$branch"$ \
       || err "Remote branch '$branch' does not exist" \
       || return 1
     msg_end "$DONE"
   }
 
   function git_commit_diff {
-    [[ "$( git rev-parse $1 )" != "$( git rev-parse $2 )" ]]
+    [[ "$( git rev-parse "$1" )" != "$( git rev-parse "$2" )" ]]
   }
 
   function git_version_diff {
-    [[ "$(git show $1:"$GF_VERSION" | cut -d. -f1-2)" != "$2" ]]
+    [[ "$(git show "$1":"$GF_VERSION" | cut -d. -f1-2)" != "$2" ]]
   }
 
   function git_current_branch {
@@ -198,6 +206,7 @@ function main {
     msg_start "Stashing files"
     git add -A >/dev/null || return 1
     git stash >/dev/null || return 1
+    # shellcheck disable=SC2015
     git_status_empty 2>/dev/null \
       && { stashed=1; msg_end "$DONE"; } \
       || { msg_end "$FAILED"; return 1; }
@@ -224,21 +233,22 @@ function main {
     oldtty=$( stty -g )
     stty -echo
     echo -en "\033[6n" > /dev/tty
-    read -d R curpos
-    stty $oldtty
+    # shellcheck disable=SC2162
+    read -d"R" curpos
+    stty "$oldtty"
     pos_x=$( echo "${curpos#??}" | cut -d";" -f1 )
     pos_y=$( echo "${curpos#??}" | cut -d";" -f2 )
   }
 
   function set_cursor_position {
-    [[ $pos_x == $LINES ]] && : $(( pos_x-- ))
+    [[ "$pos_x" == "$LINES" ]] && : $(( pos_x-- ))
     tput cup $(( pos_x-1 )) $(( pos_y-1 ))
   }
 
   function confirm {
     [[ $verbose == 0 && $yes == 1 ]] && return 0
     stdout_verbose
-    echo -n "${@:-"Are you sure?"} [YES/No] "
+    echo -n "${1:-"Are you sure?"} [YES/No] "
     save_cursor_position
     [[ $yes == 1 ]] && echo "yes" && return 0
     clear_stdin
@@ -311,17 +321,17 @@ function main {
       || return $?
     local gcb
     gcb="$(git_current_branch)"
-    if ([[ $gcb == master ]] || [[ $gcb == $master ]]) && ! git_tag_here $master.$patch; then
+    if ([[ $gcb == master ]] || [[ $gcb == "$master" ]]) && ! git_tag_here "$master.$patch"; then
       [[ $conform == 0 ]] && { err "Missing tag '$master.$patch' on current HEAD" || return 3; }
-      git_tag $master.$patch;
+      git_tag "$master.$patch";
     fi
     if ! git_branch_exists "$GF_DEV"; then
       [[ $conform == 0 ]] && { err "Missing branch '$GF_DEV'" || return 3; }
       git_branch_create dev master || return 1
     fi
-    if ! git branch --contains $(master_last_change) | grep "$GF_DEV" >/dev/null; then
+    if ! git branch --contains "$(master_last_change)" | grep "$GF_DEV" >/dev/null; then
       [[ $conform == 0 ]] && { err "Branch master is not merged with '$GF_DEV'" || return 3; }
-      merge_branches $(master_last_change) "$GF_DEV" || return $?
+      merge_branches "$(master_last_change)" "$GF_DEV" || return $?
     fi
     [[ -z "$origbranch" ]] \
       && origbranch=$gcb \
@@ -370,7 +380,7 @@ function main {
             && return 0
           # get appropriate stable branch or 'master'
           local to
-          to="$( git tag | grep -e ^$master. | sort -V | tail -n1 )"
+          to="$( git tag | grep -e ^"$master". | sort -V | tail -n1 )"
           [ -z "$to" ] && to="master"
           gf_checkout "$to" || return $?
           # hotfix already exists
@@ -390,35 +400,36 @@ function main {
 
   function create_branch {
     # create a new branch
-    git_branch_exists $1 \
+    git_branch_exists "$1" \
       && { err "Destination branch '$1' already exists" || return 1; }
-    git_checkout_branch $1 || return 1
+    git_checkout_branch "$1" || return 1
     # updating GF_CHANGELOG and GF_VERSION files
     if [[ $origbranch == "$GF_DEV" ]]; then
       local header
       msg_start "Updating version number and history"
       header="$major.$minor | $(date "+%Y-%m-%d")" || return 1
-      printf '\n%s\n\n%s\n' "$header" "$(<$GF_CHANGELOG)" > "$GF_CHANGELOG" || return 1
+      # shellcheck disable=SC2094
+      printf '\n%s\n\n%s\n' "$header" "$(<"$GF_CHANGELOG")" > "$GF_CHANGELOG" || return 1
     else
       msg_start "Updating version number"
     fi
-    echo $major.$minor.$patch > "$GF_VERSION" || return 1
+    echo "$major.$minor.$patch" > "$GF_VERSION" || return 1
     msg_end "$DONE"
     git commit -am "$1" >/dev/null || return 1
     if [[ $origbranch == "$GF_DEV" ]]; then
-      merge_branches $1 "$GF_DEV" \
-      && git_checkout $1 \
+      merge_branches "$1" "$GF_DEV" \
+      && git_checkout "$1" \
       || return $?
     fi
   }
 
   function merge_feature {
     local tmpfile commits
-    git_commit_diff $origbranch "$GF_DEV" \
+    git_commit_diff "$origbranch" "$GF_DEV" \
       && msg_start "Rebasing feature branch to '$GF_DEV'" \
       && { git rebase "$GF_DEV" >/dev/null || return 5; } \
       && msg_end "$DONE"
-    commits="$(git log "$GF_DEV"..$origbranch --pretty=format:"#   %s")"
+    commits="$(git log "$GF_DEV".."$origbranch" --pretty=format:"#   %s")"
     # message for $GF_CHANGELOG
     if [[ -n "$commits" ]]; then
       tmpfile="$(mktemp)"
@@ -446,7 +457,7 @@ function main {
   function merge_branches {
     msg_start "Merging '$1' into branch '$2'" \
       && git_checkout "$2" \
-      && { git_merge $1 "${3:---no-ff}" || return 5; } \
+      && { git_merge "$1" "${3:---no-ff}" || return 5; } \
       && msg_end "$DONE"
   }
 
@@ -454,28 +465,28 @@ function main {
     if git_remote_branch_exists >/dev/null 2>&1; then
       msg_start "Deleting remote branch '$origbranch'"
       local out
-      out="$(git push $GF_ORIGIN :$REFSHEADS/$origbranch 2>&1)" \
+      out="$(git push "$GF_ORIGIN" ":$REFSHEADS/$origbranch" 2>&1)" \
         || err "$out" \
         || return 1
       msg_end "$DONE"
     fi
     msg_start "Deleting local branch '$origbranch'"
-    git branch -d $origbranch >/dev/null || return 1
+    git branch -d "$origbranch" >/dev/null || return 1
     msg_end "$DONE"
   }
 
   function create_stable_branch {
-    git_commit_diff $origbranch master \
+    git_commit_diff "$origbranch" master \
       || { git_checkout master; return $?; }
-    if git_branch_exists $master; then
-      git_commit_diff $origbranch $master \
-        || { git_checkout $master; return $?; }
+    if git_branch_exists "$master"; then
+      git_commit_diff "$origbranch" "$master" \
+        || { git_checkout "$master"; return $?; }
     fi
     git_checkout_branch "$master" || return 1
   }
 
   function gf_hotfixable {
-    git_commit_diff $master.$patch HEAD \
+    git_commit_diff "$master.$patch" HEAD \
       && { err "Required tag $master.$patch not detected on current HEAD" || return 1; }
     git tag | grep "^$master.$((patch+1))$" \
       && { err "Current branch is already hotfixed" || return 1; }
@@ -528,8 +539,6 @@ function main {
   #   - delete feature branch
   ###
   function gf_run {
-    local tag
-    tag=""
     # explicit init
     [[ $init == 1 ]] \
       && git_checkout "$GF_DEV" \
@@ -559,17 +568,17 @@ function main {
         gf_push || return $?
         [[ $request == 1 ]] && return 0
         # master -> merge + confirm merge to dev
-        if ! git_version_diff master $major.$minor; then
+        if ! git_version_diff master "$major.$minor"; then
           confirm "* Merge hotfix into master and '$GF_DEV'?" || return 0
-          merge_branches $origbranch master \
-            && git_tag $master.$patch \
-            && merge_branches $origbranch "$GF_DEV" \
+          merge_branches "$origbranch" master \
+            && git_tag "$master.$patch" \
+            && merge_branches "$origbranch" "$GF_DEV" \
             || return $?
         # not master -> merge only to stable branch
         else
           confirm "* Merge hotfix into stable branch '$master'?" || return 0
-          merge_branches $origbranch $master \
-            && git_tag $master.$patch \
+          merge_branches "$origbranch" "$master" \
+            && git_tag "$master.$patch" \
             || return $?
         fi
         delete_branch
@@ -580,33 +589,34 @@ function main {
         [[ $request == 1 ]] && return 0
         if confirm "* Create stable branch from release?"; then
           git_checkout master \
-            && merge_branches $origbranch master \
-            && git_tag $master.0 \
-            && merge_branches $origbranch "$GF_DEV" \
+            && merge_branches "$origbranch" master \
+            && git_tag "$master".0 \
+            && merge_branches "$origbranch" "$GF_DEV" \
             && delete_branch \
             || return $?
         else
           confirm "* Merge release branch into '$GF_DEV'?" || return 0
-          merge_branches $origbranch "$GF_DEV" \
-            && git_checkout $origbranch \
+          merge_branches "$origbranch" "$GF_DEV" \
+            && git_checkout "$origbranch" \
             || return $?
         fi
         ;;
       *)
         gf_requestable || return $?
-        [[ -n "$(git log "$GF_DEV"..$origbranch)" ]] \
+        [[ -n "$(git log "$GF_DEV".."$origbranch")" ]] \
           || err "Nothing to merge - feature branch '$origbranch' is empty" \
           || return 1
+        # shellcheck disable=SC2015
         [[ $request == 1 ]] \
-          && { confirm "Prepare '$origbranch' for pull request?" || return 0; } \
+          && { confirm "Prepare '$origbranch' for merge request?" || return 0; } \
           || { confirm "* Merge feature '$origbranch' into '$GF_DEV'?" || return 0; }
         merge_feature || return $?
-        [[ $request == 1 ]] \
-          && gf_push \
-          && return $?
-        merge_branches $origbranch "$GF_DEV" \
+        if [[ $request == 0 ]]; then
+        merge_branches "$origbranch" "$GF_DEV" \
           && delete_branch \
           || return $?
+        fi
+        gf_push || return $?
     esac
   }
 
@@ -677,7 +687,9 @@ function main {
     head -n1 "$usage_file"
     echo
     shift_left=0
+    # shellcheck disable=SC2004
     [[ $COLUMNS -gt 1 ]] && shift_left=5 && export MANWIDTH=$((COLUMNS+$shift_left))
+    # shellcheck disable=SC2005
     echo "$(tail -n+2 "$usage_file")" | man --nj --nh -l - | sed "1,2d;/^[[:space:]]*$/d;\$d;s/^ \{$shift_left\}//"
   }
 
@@ -702,13 +714,15 @@ function main {
   major=0
   minor=0
   patch=0
-  prefix="$([ -z $GF_NOPREFIX ] && echo v)"
+  prefix="$([ -z "$GF_NOPREFIX" ] && echo v)"
   master=${prefix}0.0
   color=auto
   pos_x=1
   pos_y=1
 
   # process options
+  # shellcheck disable=SC2086
+  # shellcheck disable=SC2048
   if ! line=$(
     IFS=" " getopt -n "$0" \
            -o fciwrynvVh\? \
@@ -749,7 +763,6 @@ function main {
     BLUE=4
   local -r \
     REFSHEADS="refs/heads" \
-    REFSTAGS="refs/tags" \
     DONE="$(colorize "  ok  " $GREEN)" \
     FAILED="$(colorize "failed" $RED)" \
     PASSED="$(colorize "passed" $BLUE)"
@@ -762,6 +775,7 @@ function main {
   [[ $dry == 1 ]] && { gf_what_now; return 0; }
 
   # run gf
+  # shellcheck disable=SC2015
   gf_validate && gf_prepare && {
     if [[ $newfeature == 0 ]]; then load_version && gf_run; fi
     } && git_stash_pop && gf_what_now || {
