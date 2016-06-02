@@ -356,13 +356,13 @@ function main {
     else
       # predefined checkout kws
       case "$origbranch" in
-        $prefix+([0-9]).+([0-9]))
-          git_branch_exists "$origbranch.0" \
-            || err "Stable branch '$origbranch' does not exist" \
-            || return 1
-          git_checkout "$origbranch.0" || return $?
-          ;&
-        hotfix)
+        $prefix+([0-9]).+([0-9])|hotfix)
+          if [[ $origbranch =~ $prefix+([0-9]).+([0-9]) ]]; then
+            git_branch_exists "$origbranch.0" \
+              || err "Stable branch '$origbranch' does not exist" \
+              || return 1
+            git_checkout "$origbranch.0" || return $?
+          fi
           # already on hotfix?
           load_version || return $?
           [[ "$(git_current_branch)" == "hotfix-$major.$minor.$patch" ]] \
@@ -625,17 +625,15 @@ function main {
     gcb=$(git_current_branch)
     echo -n "* Current branch '$gcb' is considered as "
     case $gcb in
-      HEAD)
-        if ! gf_hotfixable; then
-          echo "unknown."
-          echo "* - Checkout to existing branch"
-        fi
-      ;&
-      master|$prefix+([0-9]).+([0-9]))
+      HEAD|master|$prefix+([0-9]).+([0-9]))
         if gf_hotfixable 2>/dev/null; then
           echo "hotfixable stable branch."
           echo "* - Run 'gf' to create hotfix or leave :)"
+        elif [[ $gcb == HEAD ]]; then
+          echo "unknown."
+          echo "* - Checkout to existing branch"
         else
+          #statements
           echo "stable branch (being) hotfixed."
           echo "* - Run 'gf hotfix' to finish current hotfix or create new one."
         fi
@@ -728,7 +726,7 @@ function main {
   while [ $# -gt 0 ]; do
     case $1 in
      -f|--force) force=1; shift ;;
-     -i|--init) init=1; ;&
+     -i|--init) init=1; conform=1; shift ;;
      -c|--conform) conform=1; shift ;;
      -w|--what-now) what_now=1; shift ;;
      -r|--request) request=1; shift;;
