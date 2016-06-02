@@ -19,6 +19,7 @@ SYSTEM       ?= $(system)
 
 DIRNAME     := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PANDOC      := pandoc
+RST2MAN     := rst2man.py
 GF          := gf
 README      := README
 MANFILE     := $(GF).1
@@ -59,24 +60,25 @@ all:
 
 	@ echo -n "Compiling man file ..."
 	@ { \
-	echo -n "% GF(1) User Manual | Version "; cat VERSION; \
-	echo -n "% "; sed -n '/# AUTHORS/,/# DONATION/p' $(README).md | grep "@" | tr -d '*'; \
-	echo -n "% "; stat -c %z $(README).md | cut -d" " -f1; \
+	echo -n ".TH \"GF\" \"1\" "; \
+	echo -n "\""; echo -n $$(stat -c %z $(README).rst | cut -d" " -f1); echo -n "\" "; \
+	echo -n "\"User Manual\" "; \
+	echo -n "\"Version "; echo -n $$(cat $(VERFILE)); echo -n "\" "; \
 	echo; \
-	sed -n '/# NAME/,/# INSTALL/p;/# EXIT STATUS/,/# AUTHORS/p' $(README).md | grep -v "# \(INSTALL\|AUTHORS\)"; \
-	} | $(PANDOC) -s -t man -o $(DISTNAME)/$(MANFILE)
+	} > $(DISTNAME)/$(MANFILE)
+	@ cat $(README).rst | sed -n '/^NAME/,/^INSTALL/p;/^EXIT STATUS/,//p' $(README).rst | grep -v "^INSTALL" | sed 's/`\(.*\)<\(.*\)>`__/\1\n\t\2/g' | $(RST2MAN) | tail -n+8 >> $(DISTNAME)/$(MANFILE)
 	@ echo DONE
 
 	@ echo -n "Compiling readme file ..."
-	@ $(PANDOC) -s -t rst $(README).md -o $(DISTNAME)/$(README).rst
+	@ cp $(README).rst $(DISTNAME)/$(README).rst
 	@ echo DONE
 
 	@ echo -n "Compiling usage file ..."
 	@ echo -n "$(USAGEHEADER)" > $(DISTNAME)/$(USAGEFILE)
-	@ grep "^gf \[" $(README).md >> $(DISTNAME)/$(USAGEFILE)
+	@ grep "^gf \[" $(README).rst | sed 's/\\|/|/g' >> $(DISTNAME)/$(USAGEFILE)
 	@ echo ".TH" >> $(DISTNAME)/$(USAGEFILE)
-	@ sed -n '/# OPTIONS/,/# BASIC FLOW EXAMPLES/p;' $(README).md  | grep -v "# \(BASIC FLOW EXAMPLES\|OPTIONS\)" \
-	| sed 's/^-/.TP 18\n-/' | sed 's/: //' | sed '/^$$/d' >> $(DISTNAME)/$(USAGEFILE)
+	@ sed -n '/^OPTIONS/,/^BASIC FLOW EXAMPLES/p' $(README).rst  | grep -v "^\(BASIC FLOW EXAMPLES\|OPTIONS\|======\)" \
+	| sed 's/^\\/-/;s/^-/.TP 18\n-/' | sed 's/^    //' | sed '/^$$/d' >> $(DISTNAME)/$(USAGEFILE)
 	@ echo DONE
 
 	@ echo -n "Compiling install file ..."
