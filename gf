@@ -98,18 +98,22 @@ function main {
 
   function edit {
     local editor
+    REPLY=
     editor="$(git config --get core.editor)"
     stdout_verbose
-    if type "$editor" &> /dev/null; then
+    # shellcheck disable=SC2162
+    [[ $is_stdin == 1 ]] && read
+    if [[ -z "$REPLY" ]] && type "$editor" &> /dev/null; then
       $editor "$1"
     else
       echo
       cat "$1"
       echo
       echo -n "Type message or press Enter to skip: "
-      clear_stdin
+      [[ $is_stdin == 0 ]] && clear_stdin
       # shellcheck disable=SC2162
-      read
+      [[ $is_stdin == 0 ]] && read
+      [[ $is_stdin == 1 ]] && echo "$REPLY"
       echo "$REPLY" > "$1"
     fi
     stdout_silent
@@ -228,14 +232,11 @@ function main {
   }
 
   function save_cursor_position {
-    local curpos oldtty
+    local curpos
     curpos="1;1"
-    oldtty=$( stty -g )
-    stty -echo
-    echo -en "\033[6n" > /dev/tty
+    echo -en "\033[6n" >/dev/tty
     # shellcheck disable=SC2162
-    read -d"R" curpos
-    stty "$oldtty"
+    read -d"R" curpos </dev/tty
     pos_x=$( echo "${curpos#??}" | cut -d";" -f1 )
     pos_y=$( echo "${curpos#??}" | cut -d";" -f2 )
   }
@@ -251,9 +252,10 @@ function main {
     echo -n "${1:-"Are you sure?"} [YES/No] "
     save_cursor_position
     [[ $yes == 1 ]] && echo "yes" && return 0
-    clear_stdin
+    [[ $is_stdin == 0 ]] && clear_stdin
     read -r
     [[ -z "$REPLY" ]] && set_cursor_position && echo "yes"
+    [[ $is_stdin == 1 ]] && echo "$REPLY"
     stdout_silent
     [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] && return 0
     [[ "$REPLY" =~ ^[nN]o?$ ]] && return 1
@@ -703,7 +705,7 @@ function main {
   }
 
   # variables
-  local line script_name major minor patch master force conform yes verbose dry what_now stashed color prefix pos_x pos_y init request
+  local line script_name major minor patch master force conform yes verbose dry what_now stashed color prefix pos_x pos_y init request is_stdin
   what_now=0
   dry=0
   verbose=0
@@ -718,6 +720,8 @@ function main {
   color=auto
   pos_x=1
   pos_y=1
+  [ -t 0 ]
+  is_stdin=$?
 
   # process options
   # shellcheck disable=SC2086
