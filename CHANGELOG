@@ -1,3 +1,4 @@
+Support standart input
 README in compatible format of restructured text (rst)
 Option request to prepare current branch for pull request and push it to the origin
 Option init to conform and exit
