@@ -194,7 +194,7 @@ SEE ALSO
 REPORTING BUGS
 ==============
 
-`Issue tracker <https://github.com/InternetGuru/gf/issues>`__
+`Issue tracker <https://github.com/InternetGuru/omgf/issues>`__
 
 DONATION
 ========
