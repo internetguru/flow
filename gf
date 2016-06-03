@@ -101,8 +101,12 @@ function main {
     REPLY=
     editor="$(git config --get core.editor)"
     stdout_verbose
-    # shellcheck disable=SC2162
-    [[ $is_stdin == 1 ]] && read
+    if [[ $is_stdin == 1 ]]; then
+      # shellcheck disable=SC2162
+      read
+      echo "$REPLY" > "$1"
+      return 0
+    fi
     if [[ -z "$REPLY" ]] && type "$editor" &> /dev/null; then
       $editor "$1"
     else
@@ -110,10 +114,9 @@ function main {
       cat "$1"
       echo
       echo -n "Type message or press Enter to skip: "
-      [[ $is_stdin == 0 ]] && clear_stdin
+      clear_stdin
       # shellcheck disable=SC2162
-      [[ $is_stdin == 0 ]] && read
-      [[ $is_stdin == 1 ]] && echo "$REPLY"
+      read
       echo "$REPLY" > "$1"
     fi
     stdout_silent
@@ -248,15 +251,18 @@ function main {
 
   function confirm {
     [[ $verbose == 0 && $yes == 1 ]] && return 0
-    stdout_verbose
-    echo -n "${1:-"Are you sure?"} [YES/No] "
-    save_cursor_position
-    [[ $yes == 1 ]] && echo "yes" && return 0
-    [[ $is_stdin == 0 ]] && clear_stdin
-    read -r
-    [[ -z "$REPLY" ]] && set_cursor_position && echo "yes"
-    [[ $is_stdin == 1 ]] && echo "$REPLY"
-    stdout_silent
+    if [[ $is_stdin == 0 || $yes == 1 ]]; then
+      stdout_verbose
+      echo -n "${1:-"Are you sure?"} [YES/No] "
+      save_cursor_position
+      [[ $yes == 1 ]] && echo "yes" && return 0
+      clear_stdin
+      read -r
+      [[ -z "$REPLY" ]] && set_cursor_position && echo "yes"
+      stdout_silent
+    else
+      read -r
+    fi
     [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] && return 0
     [[ "$REPLY" =~ ^[nN]o?$ ]] && return 1
     confirm "Type"
