@@ -608,15 +608,14 @@ function main {
           || return 1
         # shellcheck disable=SC2015
         [[ $request == 1 ]] \
-          && { confirm "Prepare '$origbranch' for merge request?" || return 0; } \
+          && { confirm "Prepare '$origbranch' for pull request?" || return 0; } \
           || { confirm "* Merge feature '$origbranch' into '$GF_DEV'?" || return 0; }
         merge_feature || return $?
-        if [[ $request == 0 ]]; then
+        gf_push || return $?
+        [[ $request == 1 ]] && return 0
         merge_branches "$origbranch" "$GF_DEV" \
           && delete_branch \
           || return $?
-        fi
-        gf_push || return $?
     esac
   }
 
