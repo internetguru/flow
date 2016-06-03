@@ -250,12 +250,11 @@ function main {
   }
 
   function confirm {
-    [[ $verbose == 0 && $yes == 1 ]] && return 0
-    if [[ $is_stdin == 0 || $yes == 1 ]]; then
+    [[ $yes == 1 ]] && return 0
+    if [[ $is_stdin == 0 ]]; then
       stdout_verbose
       echo -n "${1:-"Are you sure?"} [YES/No] "
       save_cursor_position
-      [[ $yes == 1 ]] && echo "yes" && return 0
       clear_stdin
       read -r
       [[ -z "$REPLY" ]] && set_cursor_position && echo "yes"
