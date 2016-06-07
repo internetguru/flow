@@ -312,16 +312,9 @@ function main {
     if ! git_has_commits; then
       [[ $conform == 0 ]] && { err "Git repository without commits" || return 3; }
       initial_commit || return $?
-    else
-      if ! git_branch_exists master; then
-        [[ $conform == 0 ]] && { err "Missing branch 'master'" || return 3; }
-        git_branch_create master || return 1
-      fi
-      if [[ $force == 1 ]]; then
-        git_stash || return $?
-      else
-        git_status_empty || return 4
-      fi
+    elif ! git_branch_exists master; then
+      [[ $conform == 0 ]] && { err "Missing branch 'master'" || return 3; }
+      git_branch_create master || return 1
     fi
     init_files \
       && load_version \
@@ -339,6 +332,11 @@ function main {
     if ! git branch --contains "$(master_last_change)" | grep "$GF_DEV" >/dev/null; then
       [[ $conform == 0 ]] && { err "Branch master is not merged with '$GF_DEV'" || return 3; }
       merge_branches "$(master_last_change)" "$GF_DEV" || return $?
+    fi
+    if [[ $force == 1 ]]; then
+      git_stash || return $?
+    else
+      git_status_empty || return 4
     fi
     [[ -z "$origbranch" ]] \
       && origbranch=$gcb \
