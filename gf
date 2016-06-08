@@ -149,7 +149,9 @@ function main {
   }
 
   function git_push {
-    git push "$GF_ORIGIN" "$origbranch" || return 1
+    local out
+    out="$(git push "$GF_ORIGIN" "$origbranch" 2>&1)" \
+      || err "$out"
   }
 
   function git_checkout_branch {
@@ -496,16 +498,47 @@ function main {
   }
 
   function gf_push {
-    [[ $request == 0 ]] && return 0
     confirm "Push '$origbranch' to '$GF_ORIGIN'?" || return 0
-    git_push "$origbranch" || return $?
+    msg_start "Push '$origbranch' into '$GF_ORIGIN'"
+    git_push "$origbranch" >/dev/null || return $?
+    msg_end "$DONE"
+  }
+
+  function gf_request_url {
+    stdout_verbose
+    local url to
+    to="${1:-$GF_DEV}"
+    url="$(git config remote."$GF_ORIGIN".url)"
+    url="${url#https://}"
+    echo "$url" | grep -q ":" \
+      && url="${url#*@}" \
+      && url="${url/://}" \
+      && url="${url/.git/}"
+    echo -n "Pull request URL: "
+    case "$url" in
+      *"$GITHUB"*)
+        echo "https://$url/compare/$to...$origbranch?expand=1" ;;
+      *"$BITBUCKET"*)
+        echo "https://$url/pull-requests/new?source=$origbranch&dest=$to&t=1" ;;
+      *)
+        echo "unknown - remote server name not recognized" ;;
+    esac
+    stdout_silent
   }
 
   function gf_requestable {
-    [[ $request == 0 ]] && return 0
     git_remote_exists \
       && git_remote_branch_exists "$GF_DEV" \
       && git_remote_branch_exists master \
+      || return $?
+  }
+
+  function gf_request {
+    local to
+    to="${1:-$GF_DEV}"
+    gf_requestable \
+      && gf_push \
+      && gf_request_url "$to" \
       || return $?
   }
 
@@ -564,9 +597,8 @@ function main {
         create_branch release
         ;;
       hotfix-+([0-9]).+([0-9]).+([0-9]))
-        gf_requestable || return $?
-        gf_push || return $?
-        [[ $request == 1 ]] && return 0
+        [[ $request == 1 ]] \
+          && { gf_request master || return $?; return 0; }
         # master -> merge + confirm merge to dev
         if ! git_version_diff master "$major.$minor"; then
           confirm "* Merge hotfix into master and '$GF_DEV'?" || return 0
@@ -584,9 +616,8 @@ function main {
         delete_branch
         ;;
       release)
-        gf_requestable || return $?
-        gf_push || return $?
-        [[ $request == 1 ]] && return 0
+        [[ $request == 1 ]] \
+          && { gf_request || return $?; return 0; }
         if confirm "* Create stable branch from release?"; then
           git_checkout master \
             && merge_branches "$origbranch" master \
@@ -602,17 +633,19 @@ function main {
         fi
         ;;
       *)
-        gf_requestable || return $?
         [[ -n "$(git log "$GF_DEV".."$origbranch")" ]] \
           || err "Nothing to merge - feature branch '$origbranch' is empty" \
           || return 1
+        local changelog
+        changelog=0
         # shellcheck disable=SC2015
         [[ $request == 1 ]] \
-          && { confirm "Prepare '$origbranch' for pull request?" || return 0; } \
-          || { confirm "* Merge feature '$origbranch' into '$GF_DEV'?" || return 0; }
-        merge_feature || return $?
-        gf_push || return $?
-        [[ $request == 1 ]] && return 0
+          && { confirm "Update '$GF_CHANGELOG' before pull request?"  && changelog=1 || :; } \
+          || { confirm "* Merge feature '$origbranch' into '$GF_DEV'?" && changelog=1 || return 0; }
+        [[ $changelog == 1 ]] \
+          && { merge_feature || return $?; }
+        [[ $request == 1 ]] \
+          && { gf_request || return $?; return 0; }
         merge_branches "$origbranch" "$GF_DEV" \
           && delete_branch \
           || return $?
@@ -761,7 +794,9 @@ function main {
   local -r \
     RED=1 \
     GREEN=2 \
-    BLUE=4
+    BLUE=4 \
+    GITHUB="github.com" \
+    BITBUCKET="bitbucket.org"
   local -r \
     REFSHEADS="refs/heads" \
     DONE="$(colorize "  ok  " $GREEN)" \
