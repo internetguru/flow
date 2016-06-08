@@ -285,11 +285,13 @@ function main {
     init_file "$GF_VERSION" "0.0.0" || return $?
     init_file "$GF_CHANGELOG" "$GF_CHANGELOG created" || return $?
     git_status_empty 2>/dev/null && return 0
-    msg_start "Committing new files"
-    git add "$GF_VERSION" "$GF_CHANGELOG" >/dev/null \
-      && git commit -m "Create required files to conform omgf" >/dev/null \
-      || return 1
-    msg_end "$DONE"
+    # shellcheck disable=SC2143
+    if git add "$GF_VERSION" "$GF_CHANGELOG" >/dev/null \
+      && { git status --porcelain | grep -q "$GF_VERSION" && git status --porcelain | grep -q "$GF_CHANGELOG"; }; then
+      msg_start "Committing new files"
+      git commit -m "Create required files to conform omgf" >/dev/null || return 1
+      msg_end "$DONE"
+    fi
   }
 
   function initial_commit {
