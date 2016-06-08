@@ -640,7 +640,7 @@ function main {
           echo "* - Run 'gf' to create hotfix or leave :)"
         elif [[ $gcb == HEAD ]]; then
           echo "unknown."
-          echo "* - Checkout to existing branch"
+          git_status_empty 2>/dev/null && echo "* - Checkout to existing branch"
         else
           #statements
           echo "stable branch (being) hotfixed."
