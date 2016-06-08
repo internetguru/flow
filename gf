@@ -657,7 +657,7 @@ function main {
         echo "release branch."
         echo "* - Do some bugfixes..."
         echo "* - Run 'gf' to create stable branch."
-        echo "* - Hit [No-Yes] to merge only into '$GF_DEV'."
+        echo "* - Hit [No], [Yes] to merge only into '$GF_DEV'."
       ;;
       hotfix-+([0-9]).+([0-9]).+([0-9]))
         echo "hotfix branch."
