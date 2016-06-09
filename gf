@@ -640,7 +640,7 @@ function main {
           echo "* - Run 'gf' to create hotfix or leave :)"
         elif [[ $gcb == HEAD ]]; then
           echo "unknown."
-          echo "* - Checkout to existing branch"
+          git_status_empty 2>/dev/null && echo "* - Checkout to existing branch"
         else
           #statements
           echo "stable branch (being) hotfixed."
@@ -657,7 +657,7 @@ function main {
         echo "release branch."
         echo "* - Do some bugfixes..."
         echo "* - Run 'gf' to create stable branch."
-        echo "* - Hit [No-Yes] to merge only into '$GF_DEV'."
+        echo "* - Hit [No], [Yes] to merge only into '$GF_DEV'."
       ;;
       hotfix-+([0-9]).+([0-9]).+([0-9]))
         echo "hotfix branch."
