@@ -272,26 +272,18 @@ function main {
   }
 
   function init_file {
-    [[ -f "$1" && -n "$(cat "$1")" ]] && return 0
+    [[ -s "$1" ]] && return 0
     [[ $conform == 1 ]] \
       || err "Missing or empty file '$1'" \
       || return 3
-    msg_start "Initializing '$1' file"
+    local message
+    message="Initializing '$1' file"
+    msg_start "$message"
     echo "$2" > "$1" || return 1
+    git add "$1" >/dev/null \
+      && git commit -m "$message" >/dev/null \
+      || return 1
     msg_end "$DONE"
-  }
-
-  function init_files {
-    init_file "$GF_VERSION" "0.0.0" || return $?
-    init_file "$GF_CHANGELOG" "$GF_CHANGELOG created" || return $?
-    git_status_empty 2>/dev/null && return 0
-    # shellcheck disable=SC2143
-    if git add "$GF_VERSION" "$GF_CHANGELOG" >/dev/null \
-      && { git status --porcelain | grep -q "$GF_VERSION" && git status --porcelain | grep -q "$GF_CHANGELOG"; }; then
-      msg_start "Committing new files"
-      git commit -m "Create required files to conform omgf" >/dev/null || return 1
-      msg_end "$DONE"
-    fi
   }
 
   function initial_commit {
@@ -318,7 +310,8 @@ function main {
       [[ $conform == 0 ]] && { err "Missing branch 'master'" || return 3; }
       git_branch_create master || return 1
     fi
-    init_files \
+    init_file "$GF_VERSION" "0.0.0" \
+      && init_file "$GF_CHANGELOG" "$GF_CHANGELOG created" \
       && load_version \
       || return $?
     local gcb
