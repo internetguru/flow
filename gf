@@ -497,15 +497,7 @@ function main {
     return 0
   }
 
-  function gf_push {
-    confirm "Push '$origbranch' to '$GF_ORIGIN'?" || return 0
-    msg_start "Push '$origbranch' into '$GF_ORIGIN'"
-    git_push "$origbranch" >/dev/null || return $?
-    msg_end "$DONE"
-  }
-
   function gf_request_url {
-    stdout_verbose
     local url to
     to="${1:-$GF_DEV}"
     url="$(git config remote."$GF_ORIGIN".url)"
@@ -514,31 +506,32 @@ function main {
       && url="${url#*@}" \
       && url="${url/://}" \
       && url="${url/.git/}"
+    stdout_verbose
     echo -n "Pull request URL: "
     case "$url" in
       *"$GITHUB"*)
-        echo "https://$url/compare/$to...$origbranch?expand=1" ;;
+        echo "https://$url/compare/$to...$origbranch?expand=1"
+        ;;
       *"$BITBUCKET"*)
-        echo "https://$url/pull-requests/new?source=$origbranch&dest=$to&t=1" ;;
+        echo "https://$url/pull-requests/new?source=$origbranch&dest=$to&t=1"
+        ;;
       *)
-        echo "unknown - remote server name not recognized" ;;
+        err "unknown - remote server name not recognized"
+        stdout_silent
+        return 1
+        ;;
     esac
     stdout_silent
   }
 
-  function gf_requestable {
-    git_remote_exists \
-      && git_remote_branch_exists "$GF_DEV" \
-      && git_remote_branch_exists master \
-      || return $?
-  }
-
   function gf_request {
-    local to
-    to="${1:-$GF_DEV}"
-    gf_requestable \
-      && gf_push \
-      && gf_request_url "$to" \
+    confirm "* Push '$origbranch' to '$GF_ORIGIN' and get pull request URL?" || return 0
+    git_remote_exists \
+      && git_remote_branch_exists "$1" \
+      && msg_start "Pushing '$origbranch'" \
+      && git_push "$origbranch" >/dev/null \
+      && msg_end "$DONE" \
+      && gf_request_url "$1" \
       || return $?
   }
 
@@ -617,7 +610,7 @@ function main {
         ;;
       release)
         [[ $request == 1 ]] \
-          && { gf_request || return $?; return 0; }
+          && { gf_request master || return $?; return 0; }
         if confirm "* Create stable branch from release?"; then
           git_checkout master \
             && merge_branches "$origbranch" master \
@@ -645,7 +638,7 @@ function main {
         [[ $changelog == 1 ]] \
           && { merge_feature || return $?; }
         [[ $request == 1 ]] \
-          && { gf_request || return $?; return 0; }
+          && { gf_request "$GF_DEV" || return $?; return 0; }
         merge_branches "$origbranch" "$GF_DEV" \
           && delete_branch \
           || return $?
