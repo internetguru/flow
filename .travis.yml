@@ -1,17 +1,22 @@
 language: bash
-
-# Use container-based infrastructure for quicker build start-up
-sudo: false
+sudo: required
 
 addons:
   apt:
     sources:
-    - debian-sid    # Grab shellcheck from the Debian repo (o_O)
-    packages:
-    - shellcheck
+    - debian-sid
+    # packages:
+    # - shellcheck
+
+before_install:
+ - sudo pip install docutils
+
+install:
+ - "sudo ./configure && sudo PREFIX=/usr make && sudo compiled/install"
 
 script:
- - bash -c 'shopt -s globstar; shellcheck gf'
+ - shellcheck gf
+ - test/run -c
 
 matrix:
   fast_finish: true
