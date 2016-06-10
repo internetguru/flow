@@ -5,8 +5,8 @@ addons:
   apt:
     sources:
     - debian-sid
-    # packages:
-    # - shellcheck
+    packages:
+    - shellcheck
 
 before_install:
  - sudo pip install docutils
@@ -16,7 +16,10 @@ install:
 
 script:
  - shellcheck gf
- - test/run -c
+ - cd test
+ - git config --global user.email "test@test.cz"
+ - git config --global user.name "test"
+ - ./run
 
 matrix:
   fast_finish: true

@@ -3,23 +3,23 @@
 function main {
 
   function takeClean {
-    [[ $compact == 0 ]] && clear
-    [[ $compact == 0 ]] && echo "### test $1"
-    [[ $compact == 1 ]] && echo -n "#$1 "
+    [[ $verbose == 1 ]] && clear
+    [[ $verbose == 1 ]] && echo "### test $1"
+    [[ $verbose == 0 ]] && echo -n "#$1 "
     cd "$currentdir"
     rm -rf "$1"
     mkdir -p "$1"
     cd "$1"
   }
   function ll {
-    [[ $compact == 1 ]] && return 0
+    [[ $verbose == 0 ]] && return 0
     echo "# directory listing:"
     echo "$sep"
     ls -lA
     echo
   }
   function gla {
-    [[ $compact == 1 ]] && return 0
+    [[ $verbose == 0 ]] && return 0
     echo "# git log:"
     echo "$sep"
     log="$(git --no-pager log --oneline --decorate --graph --all)"
@@ -28,18 +28,18 @@ function main {
     echo
   }
   function gref {
-    if [[ $compact == 0 ]]; then
+    if [[ $verbose == 1 ]]; then
       echo "# git show-ref:"
       echo "$sep"
     fi
     ref="$(git show-ref)"
     firsthash="$(echo "$ref" | head -n1 | cut -d" " -f1)"
-    [[ $compact == 1 ]] && return 0
+    [[ $verbose == 0 ]] && return 0
     echo "$ref"
     echo
   }
   function gs {
-    [[ $compact == 1 ]] && return 0
+    [[ $verbose == 0 ]] && return 0
     echo "# git status:"
     echo "$sep"
     git status
@@ -47,16 +47,17 @@ function main {
   }
   function testHeader {
     echo "$1"
-    [[ $compact == 1 ]] || echo "$sep"
+    [[ $verbose == 0 ]] || echo "$sep"
   }
   function debug {
     local c
-    [[ $compact == 0 ]] && echo "# cmd: $1"
-    eval "$1" 2>&1 | tee /tmp/gftesttmpout
-    c=${PIPESTATUS[0]}
+    [[ $verbose == 1 ]] && echo "# cmd: $1"
+    eval "$1" > /tmp/gftesttmpout 2>&1
+    c=$?
     output="$(cat /tmp/gftesttmpout)"
+    [[ $verbose == 1 ]] && echo "$output"
     IFS=$'\n' read -d '' -r -a lines <<< "$output"
-    [[ $compact == 1 ]] && return $c
+    [[ $verbose == 0 ]] && return $c
     echo
     echo "# status code:"
     echo $sep
@@ -67,7 +68,7 @@ function main {
   function confirm {
     local msg
     msg="${1:-"Are you sure?"}"
-    [[ $compact == 1 ]] && return 0
+    [[ $verbose == 0 ]] && return 0
     echo -n "$msg [YES/No] "
     read -r
     [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] && return 0
@@ -79,10 +80,10 @@ function main {
     confirm "Run test '$1'?" || return 1
     : $((runned++))
     takeClean "$i"
-    testHeader "$1"
+    testHeader "test $1"
   }
   function status {
-    if [[ $compact == 0 ]]; then
+    if [[ $verbose == 1 ]]; then
       local s
       s="$ok"
       echo -n "[ "
@@ -99,7 +100,7 @@ function main {
         && echo "arg2:" \
         && echo "$3" \
         && tput sgr0
-    elif [[ $compact == 0 ]]; then
+    elif [[ $verbose == 1 ]]; then
       echo "${FUNCNAME[1]} ..."
     fi
     return $1
@@ -134,7 +135,7 @@ function main {
     git rev-parse --abbrev-ref HEAD
   }
 
-  local currentdir sep skip i output lines ok fail failed ref firsthash log loglines runned compact verbose
+  local currentdir sep skip i output lines ok fail failed ref firsthash log loglines runned verbose
 
   currentdir="$(pwd)"
   sep="-----------"
@@ -145,24 +146,23 @@ function main {
   log=
   loglines=()
   failed=0
-  verbose="--verbose"
   ok="$(tput setaf 2; echo -n "  ok  "; tput sgr0)"
   fail="$(tput setaf 1; echo -n fail; tput sgr0)"
 
   if ! line=$(
     IFS=" " getopt -n "$0" \
-           -o c \
-           -l compact \
+           -o v \
+           -l verbose \
            -- $*
   )
   then return 2; fi
   eval set -- "$line"
 
   # load user options
-  compact=0
+  verbose=0
   while [ $# -gt 0 ]; do
     case $1 in
-     -c|--compact) compact=1; verbose=""; shift ;;
+     -v|--verbose) verbose=1; shift ;;
       --) shift; break ;;
       *-) echo "$script_name: Unrecognized option '$1'" >&2; return 2 ;;
        *) break ;;
@@ -172,64 +172,65 @@ function main {
   skip="${1:-0}"
 
   export GF_OPTIONS=""
+  export COLUMNS=30
 
 #######################################
 ## Integration
 #######################################
   if startTest "gf help"; then
-    debug "gf --help" >/dev/null
+    debug "gf --help 2>/dev/null"
     assert_equal $? 0
     assert_startwith "${lines[0]}" "Usage: gf [-"
   fi
 #######################################
   if startTest "gf version"; then
-    debug "gf --version" >/dev/null
+    debug "gf --version"
     assert_equal $? 0
     assert_startwith "${lines[0]}" "GNU gf "
   fi
 #######################################
   if startTest "man gf"; then
-    debug "man gf" >/dev/null
+    debug "man 2>/dev/null gf"
     assert_equal $? 0
     assert_startwith "${lines[0]}" "GF(1)"
   fi
 #######################################
 ## Error codes
 #######################################
-  if startTest "error - invalid option"; then
-    debug "gf --invalid-option" >/dev/null
+  if startTest "invalid option error code"; then
+    debug "gf --invalid-option"
     assert_equal $? 2
-    assert_startwith "${lines[0]}" "getopt: unknown"
+    #assert_startwith "${lines[0]}" "getopt: unknown"
     assert_startwith "${lines[1]}" "Usage: gf [-"
   fi
 #######################################
-  if startTest "error - missing git"; then
-    debug "gf" >/dev/null
+  if startTest "missing git error code"; then
+    debug "gf"
     assert_equal $? 3
     assert_startwith "${lines[0]}" "gf[error]: Git repository does not exist"
   fi
 #######################################
-  if startTest "error - missing branch dev"; then
+  if startTest "missing branch dev error code"; then
     { gf -i \
       && git checkout master \
       && git branch -d dev
     } >/dev/null 2>&1
-    debug "gf" >/dev/null
+    debug "gf"
     assert_equal $? 3
     assert_startwith "${lines[0]}" "gf[error]: Missing branch 'dev'"
   fi
 #######################################
-  if startTest "error - missing VERSION file"; then
+  if startTest "missing VERSION file error code"; then
     { gf -i \
       && rm VERSION \
       && git commit -am "delete VERSION file"
     } >/dev/null
-    debug "gf" >/dev/null
+    debug "gf"
     assert_equal $? 3
     assert_startwith "${lines[0]}" "gf[error]: Missing or empty file 'VERSION'"
   fi
 #######################################
-  if startTest "error - dev is behind master"; then
+  if startTest "dev is behind master error code"; then
     { gf -i \
       && echo a > a \
       && git add a \
@@ -238,28 +239,28 @@ function main {
       && gf --yes \
       && git reset --hard HEAD~1
     } >/dev/null
-    debug "gf" >/dev/null
+    debug "gf -v"
     assert_equal $? 3
     assert_startwith "${lines[0]}" "gf[error]: Branch master is not merged with 'dev'"
   fi
 #######################################
-  if startTest "error - uncommitted changes"; then
+  if startTest "uncommitted changes error code"; then
     { gf -i \
       && echo a > a
     } >/dev/null
-    debug "gf" >/dev/null
+    debug "gf"
     assert_equal $? 4
     assert_startwith "${lines[0]}" "gf[error]: Uncommitted changes"
   fi
 #######################################
-  if startTest "error - conflicting merge"; then
+  if startTest "conflicting merge error code"; then
     { gf -i \
       && gf --yes hotfix \
       && git checkout dev 2>&1 \
       && echo 1.0.0 > VERSION \
       && git commit -am "bump version"
     } >/dev/null
-    debug "gf --yes hotfix" >/dev/null
+    debug "gf --yes hotfix"
     assert_equal $? 5
     assert_startwith "${lines[0]}" "gf[error]: Auto-merging"
   fi
@@ -267,21 +268,21 @@ function main {
 ## Dry run
 #######################################
   if startTest "dry run"; then
-    debug "gf --dry-run" >/dev/null
+    debug "gf --dry-run"
     assert_equal $? 0
   fi
 #######################################
   if startTest "dry run and invalid option"; then
-    debug "gf --dry-run --invalid-option" >/dev/null
+    debug "gf --dry-run --invalid-option"
     assert_equal $? 2
-    assert_startwith "${lines[0]}" "getopt: unknown"
+    #assert_startwith "${lines[0]}" "getopt: unknown"
     assert_startwith "${lines[1]}" "Usage: gf [-"
   fi
 #######################################
 ## Init
 #######################################
   if startTest "init on empty folder"; then
-    debug "gf $verbose --init" >/dev/null
+    debug "gf -v --init"
     assert_equal $? 0
     checkInitFiles
     gla
@@ -297,7 +298,7 @@ function main {
       && echo test > .gitignore
     } >/dev/null
     ll
-    debug "gf $verbose --init" >/dev/null
+    debug "gf -v --init"
     assert_equal $? 0
     checkInitFiles
     gla
@@ -314,7 +315,7 @@ function main {
       && git commit -am "first commit.."
     } >/dev/null
     gla
-    debug "gf $verbose --init" >/dev/null
+    debug "gf -v --init"
     assert_equal $? 0
     checkInitFiles
     gla
@@ -329,7 +330,7 @@ function main {
       && echo a > a
     } >/dev/null
     gs
-    debug "gf $verbose --init" >/dev/null
+    debug "gf -v --init"
     assert_equal $? 0
     checkInitFiles
     gla
@@ -348,7 +349,7 @@ function main {
     } >/dev/null
     gla
     gs
-    debug "gf $verbose --init --force" >/dev/null
+    debug "gf -v --init --force"
     assert_equal $? 0
     checkInitFiles
     gla
@@ -361,7 +362,7 @@ function main {
 ## Conform
 #######################################
   if startTest "conform on empty folder"; then
-    debug "yes no | gf $verbose --conform" >/dev/null
+    debug "yes no | gf -v --conform"
     assert_equal $? 0
     checkInitFiles
     gla
@@ -377,7 +378,7 @@ function main {
       && echo test > .gitignore
     } >/dev/null
     ll
-    debug "yes no | gf $verbose --conform" >/dev/null
+    debug "yes no | gf -v --conform"
     assert_equal $? 0
     checkInitFiles
     gla
@@ -394,7 +395,7 @@ function main {
       && git commit -am "first commit.."
     } >/dev/null
     gla
-    debug "yes no | gf $verbose --conform" >/dev/null
+    debug "yes no | gf -v --conform"
     assert_equal $? 0
     checkInitFiles
     gla
@@ -409,7 +410,7 @@ function main {
       && echo a > a
     } >/dev/null
     gs
-    debug "yes no | gf $verbose --conform" >/dev/null
+    debug "yes no | gf -v --conform"
     assert_equal $? 0
     checkInitFiles
     gla
@@ -428,7 +429,7 @@ function main {
     } >/dev/null
     gla
     gs
-    debug "yes no | gf $verbose --conform --force" >/dev/null
+    debug "yes no | gf -v --conform --force"
     assert_equal $? 0
     checkInitFiles
     gla
@@ -443,7 +444,7 @@ function main {
 #   if startTest "feature"; then
 #     { gf --init; } >/dev/null
 #     gla
-#     debug "gf $verbose --yes myfeature"
+#     debug "gf -v --yes myfeature"
 #     assert_equal $? 0
 #     assert_startwith "${lines[0]}" "* Create feature branch 'myfeature'"
 #     assert_startwith "${lines[1]}" "Creating branch 'myfeature'"
@@ -460,7 +461,7 @@ function main {
 #       && echo a > a
 #     } >/dev/null
 #     gla
-#     debug "gf $verbose --yes --force myfeature"
+#     debug "gf -v --yes --force myfeature"
 #     assert_equal $? 0
 #     assert_startwith "${lines[0]}" "Stashing files"
 #     assert_startwith "${lines[1]}" "[   ok   ]"
@@ -950,7 +951,7 @@ function main {
 # #######################################
 # #
 
-[[ $compact == 0 ]] && clear
+[[ $verbose == 1 ]] && clear
 echo "$sep"
 echo "Total: $i"
 echo "Runned: $runned"
