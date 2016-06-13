@@ -493,7 +493,7 @@ function main {
   function gf_hotfixable {
     git_commit_diff "$master.$patch" HEAD \
       && { err "Required tag $master.$patch not detected on current HEAD" || return 1; }
-    git tag | grep "^$master.$((patch+1))$" \
+    git tag | grep -q "^$master.$((patch+1))$" \
       && { err "Current branch is already hotfixed" || return 1; }
     git_branch_exists "hotfix-$major.$minor.$((patch+1))" \
       && { err "Current branch is being hotfixed" || return 1; }
