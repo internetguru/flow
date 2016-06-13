@@ -589,101 +589,175 @@ function main {
 #######################################
 ## RELEASE
 #######################################
-#   if startTest "release"; then
-#     { gf --init; } >/dev/null
-#     gla
-#     debug "gf -v --yes"
-#     gla
-#     gs
-#   fi
-# #######################################
-#   if startTest "try create two releases"; then
-#     { gf --init \
-#       && gf --yes
-#     } >/dev/null
-#     gla
-#     debug "gf -v --yes --force dev"
-#     gla
-#     gs
-#   fi
-# #######################################
-#   if startTest "release with uncommited changes and --force"; then
-#     { gf --init \
-#       && echo a > a
-#     } >/dev/null
-#     gla
-#     debug "gf -v --yes --force"
-#     gla
-#     gs
-#   fi
-# #######################################
-#   if startTest "release by kw"; then
-#     { gf --init; } >/dev/null
-#     gla
-#     debug "gf -v --yes release"
-#     gla
-#     gs
-#   fi
-# #######################################
-#   if startTest "merge release"; then
-#     { gf --init \
-#       && gf --yes
-#     } >/dev/null
-#     gla
-#     debug "gf -v --yes"
-#     gla
-#     gs
-#   fi
-# #######################################
-#   if startTest "merge release with conflict"; then
-#     { gf --init \
-#       && gf --yes \
-#       && git checkout dev \
-#       && echo 1.0.0 > VERSION \
-#       && git commit -am "bump VERSION" \
-#       && git checkout release
-#     } >/dev/null 2>&1
-#     gla
-#     debug "gf -v --yes"
-#     gla
-#     gs
-#   fi
-# #######################################
-#   if startTest "merge release by kw"; then
-#     { gf --init \
-#       && gf --yes \
-#       && git checkout master
-#     } >/dev/null
-#     gla
-#     debug "gf -v --yes release"
-#     gla
-#     gs
-#   fi
-# #######################################
-#   if startTest "merge release with uncommited changes and --force"; then
-#     { gf --init \
-#       && gf --yes \
-#       && echo a > a
-#     } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes --force"
-#     gla
-#     gs
-#   fi
-# #######################################
-#   if startTest "merge release with --request"; then
-#     { gf --init \
-#       && gf --yes
-#     } >/dev/null
-#     gla
-#     debug "gf -v --yes --request"
-#     gla
-#     gs
-#   fi
-# #######################################
-# ## HOTFIX
-# #######################################
+  if startTest "create release"; then
+    { gf --init \
+      && echo a > a \
+      && git add . \
+      && git commit -m "add file a"
+    } >/dev/null
+    gla
+    debug "gf -v --yes"
+    assert_equal $? 0
+    gla
+    assert_contains "${loglines[0]}" "Merge branch 'release' into dev"
+    gref
+    assert_contains "$ref" "refs/heads/release"
+    assert_equal "$(cat VERSION)" "0.1.0"
+    gs
+    assert_equal "$(gsp)" ""
+  fi
+#######################################
+  if startTest "try create two releases"; then
+    { gf --init \
+      && echo a > a \
+      && git add . \
+      && git commit -m "add file a" \
+      && gf --yes \
+      && git checkout dev \
+      && echo b > b \
+      && git add . \
+      && git commit -m "add file b"
+    } >/dev/null 2>&1
+    gla
+    debug "gf -v --yes"
+    assert_equal $? 1
+    assert_equal "${lines[0]}" "gf[error]: Destination branch 'release' already exists"
+    gs
+    assert_equal "$(gsp)" ""
+  fi
+#######################################
+  if startTest "release with uncommited changes and --force"; then
+    { gf --init \
+      && echo a > a \
+      && git add . \
+      && git commit -m "add file a" \
+      && echo b > b
+    } >/dev/null
+    gla
+    debug "gf -v --yes --force"
+    assert_equal $? 0
+    assert_equal "${lines[0]}" "Stashing files"
+    gla
+    assert_contains "${loglines[0]}" "Merge branch 'release' into dev"
+    gref
+    assert_contains "$ref" "refs/heads/release"
+    assert_equal "$(cat VERSION)" "0.1.0"
+    gs
+    assert_equal "$(gsp)" "A  b"
+  fi
+#######################################
+  if startTest "release by kw"; then
+    { gf --init \
+      && echo a > a \
+      && git add . \
+      && git commit -m "add file a"
+    } >/dev/null
+    gla
+    debug "gf -v --yes release"
+    assert_equal $? 0
+    gla
+    assert_contains "${loglines[0]}" "Merge branch 'release' into dev"
+    gref
+    assert_contains "$ref" "refs/heads/release"
+    assert_equal "$(cat VERSION)" "0.1.0"
+    gs
+    assert_equal "$(gsp)" ""
+ fi
+#######################################
+  if startTest "merge release"; then
+    { gf --init \
+      && echo a > a \
+      && git add . \
+      && git commit -m "add file a" \
+      && gf --yes
+    } >/dev/null
+    gla
+    debug "gf -v --yes"
+    assert_equal $? 0
+    gla
+    assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'release' into dev"
+    gref
+    assert_equal "$(echo $ref | grep /refs/heads/release)" ""
+    changelog
+    assert_equal "${chgloglines[0]}" "0.1 | $(date '+%Y-%m-%d')"
+    gs
+    assert_equal "$(gsp)" ""
+  fi
+#######################################
+  if startTest "merge release with conflict"; then
+    { gf --init \
+      && echo a > a \
+      && git add . \
+      && git commit -m "add file a" \
+      && gf --yes \
+      && git checkout dev \
+      && echo 1.0.0 > VERSION \
+      && git commit -am "bump dev VERSION" \
+      && git checkout release \
+      && echo 2.0.0 > VERSION \
+      && git commit -am "bump release VERSION"
+    } >/dev/null 2>&1
+    gla
+    debug "gf -v --yes"
+    assert_equal $? 5
+    gla
+    gs
+    assert_equal "$(gsp)" "UU VERSION"
+  fi
+#######################################
+  if startTest "merge release by kw"; then
+    { gf --init \
+      && echo a > a \
+      && git add . \
+      && git commit -m "add file a" \
+      && gf --yes \
+      && git checkout master
+    } >/dev/null 2>&1
+    gla
+    debug "gf -v --yes release"
+    assert_equal $? 0
+    gla
+    assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'release' into dev"
+    gref
+    assert_equal "$(echo $ref | grep /refs/heads/release)" ""
+    changelog
+    assert_equal "${chgloglines[0]}" "0.1 | $(date '+%Y-%m-%d')"
+    gs
+    assert_equal "$(gsp)" ""
+  fi
+#######################################
+  if startTest "merge release with uncommited changes and --force"; then
+    { gf --init \
+      && echo a > a \
+      && git add . \
+      && git commit -m "add file a" \
+      && gf --yes \
+      && echo b > b
+    } >/dev/null
+    gla
+    debug "gf -v --yes --force"
+    assert_equal $? 0
+    assert_equal "${lines[0]}" "Stashing files"
+    gla
+    assert_contains "${loglines[0]}" "Merge branch 'release'"
+    gref
+    assert_equal "$(cat VERSION)" "0.1.0"
+    gs
+    assert_equal "$(gsp)" "A  b"
+  fi
+#######################################
+  # if startTest "merge release with --request"; then
+  #   { gf --init \
+  #     && gf --yes
+  #   } >/dev/null
+  #   gla
+  #   debug "gf -v --yes --request"
+  #   gla
+  #   gs
+  # fi
+#######################################
+## HOTFIX
+#######################################
 # #
 #   if startTest "hotfix master"; then
 #     { gf -c; } >/dev/null
@@ -973,9 +1047,8 @@ function main {
 
 [[ $verbose == 1 ]] && clear
 echo "$sep"
-echo "Total: $i"
-echo "Runned: $runned"
-# echo "Failed: $failed"
+echo "Runned $runned of $i"
+#echo "Failed: $failed"
 
 [[ $failed == 0 ]] && return 0
 
