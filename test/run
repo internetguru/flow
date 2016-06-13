@@ -493,7 +493,7 @@ function main {
     assert_contains "$log" "Version history updated"
     assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'myfeature' into dev"
     gref
-    assert_equal "$(echo $ref | grep /refs/heads/myfeature)" ""
+    assert_equal "$(echo "$ref" | grep /refs/heads/myfeature)" ""
     changelog
     assert_equal "${chgloglines[0]}" "feature1"
     gs
@@ -529,7 +529,7 @@ function main {
     assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'myfeature' into dev"
     assert_contains "${loglines[5]}" "bugfix 1"
     gref
-    assert_equal "$(echo $ref | grep /refs/heads/myfeature)" ""
+    assert_equal "$(echo "$ref" | grep /refs/heads/myfeature)" ""
     changelog
     assert_equal "${chgloglines[0]}" "feature1"
     gs
@@ -571,7 +571,7 @@ function main {
     assert_contains "$log" "Version history updated"
     assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'myfeature' into dev"
     gref
-    assert_equal "$(echo $ref | grep /refs/heads/myfeature)" ""
+    assert_equal "$(echo "$ref" | grep /refs/heads/myfeature)" ""
     gs
     assert_equal "$(gsp)" "A  b"
   fi
@@ -679,7 +679,7 @@ function main {
     gla
     assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'release' into dev"
     gref
-    assert_equal "$(echo $ref | grep /refs/heads/release)" ""
+    assert_equal "$(echo "$ref" | grep /refs/heads/release)" ""
     changelog
     assert_equal "${chgloglines[0]}" "0.1 | $(date '+%Y-%m-%d')"
     gs
@@ -719,9 +719,9 @@ function main {
     debug "gf -v --yes release"
     assert_equal $? 0
     gla
-    assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'release' into dev"
+    assert_contains "$log" "(HEAD, dev) Merge branch 'release' into dev"
     gref
-    assert_equal "$(echo $ref | grep /refs/heads/release)" ""
+    assert_equal "$(echo "$ref" | grep /refs/heads/release)" ""
     changelog
     assert_equal "${chgloglines[0]}" "0.1 | $(date '+%Y-%m-%d')"
     gs
@@ -766,8 +766,12 @@ function main {
     { gf -i; } >/dev/null
     gla
     debug "gf -v --yes master"
+    assert_equal $? 0
     gla
+    assert_contains "${loglines[0]}" "(HEAD, hotfix-0.0.1) hotfix-0.0.1"
+    assert_equal "$(cat VERSION)" "0.0.1"
     gs
+    assert_equal "$(gsp)" ""
   fi
 #######################################
   if startTest "hotfix stable"; then
@@ -781,8 +785,12 @@ function main {
     } >/dev/null 2>&1
     gla
     debug "gf -v --yes"
+    assert_equal $? 0
     gla
+    assert_contains "$log" "(HEAD, hotfix-0.0.1) hotfix-0.0.1"
+    assert_equal "$(cat VERSION)" "0.0.1"
     gs
+    assert_equal "$(gsp)" ""
   fi
 #######################################
   if startTest "hotfix master by kw"; then
@@ -791,16 +799,24 @@ function main {
     } >/dev/null 2>&1
     gla
     debug "gf -v --yes hotfix"
+    assert_equal $? 0
     gla
+    assert_contains "${loglines[0]}" "(HEAD, hotfix-0.0.1) hotfix-0.0.1"
+    assert_equal "$(cat VERSION)" "0.0.1"
     gs
+    assert_equal "$(gsp)" ""
   fi
 #######################################
   if startTest "hotfix master by name of stable"; then
     { gf -i; } >/dev/null
     gla
     debug "gf -v --yes v0.0"
+    assert_equal $? 0
     gla
+    assert_contains "${loglines[0]}" "(HEAD, hotfix-0.0.1) hotfix-0.0.1"
+    assert_equal "$(cat VERSION)" "0.0.1"
     gs
+    assert_equal "$(gsp)" ""
   fi
 #######################################
   if startTest "hotfix stable by name of stable"; then
@@ -810,16 +826,24 @@ function main {
     } >/dev/null 2>&1
     gla
     debug "gf -v --yes v0.0"
+    assert_equal $? 0
     gla
+    assert_contains "${loglines[0]}" "(HEAD, hotfix-0.0.1) hotfix-0.0.1"
+    assert_equal "$(cat VERSION)" "0.0.1"
     gs
+    assert_equal "$(gsp)" ""
   fi
 #######################################
   if startTest "hotfix master by tag name"; then
     { gf -i; } >/dev/null
     gla
     debug "gf -v --yes v0.0.0"
+    assert_equal $? 0
     gla
+    assert_contains "${loglines[0]}" "(HEAD, hotfix-0.0.1) hotfix-0.0.1"
+    assert_equal "$(cat VERSION)" "0.0.1"
     gs
+    assert_equal "$(gsp)" ""
   fi
 #######################################
   if startTest "hotfix stable by tag name"; then
@@ -829,8 +853,12 @@ function main {
     } >/dev/null 2>&1
     gla
     debug "gf -v --yes v0.0.0"
+    assert_equal $? 0
     gla
+    assert_contains "${loglines[0]}" "(HEAD, hotfix-0.0.1) hotfix-0.0.1"
+    assert_equal "$(cat VERSION)" "0.0.1"
     gs
+    assert_equal "$(gsp)" ""
   fi
 #######################################
   if startTest "hotfix master by old tag"; then
@@ -840,8 +868,11 @@ function main {
     } >/dev/null
     gla
     debug "gf -v --yes v0.0.0"
+    assert_equal $? 1
+    assert_equal "${lines[2]}" "gf[error]: Current branch is already hotfixed"
     gla
     gs
+    assert_equal "$(gsp)" ""
   fi
 #######################################
   if startTest "hotfix stable by old tag"; then
@@ -855,8 +886,11 @@ function main {
      && gf --yes; } >/dev/null
     gla
     debug "gf -v --yes v0.0.0"
+    assert_equal $? 1
+    assert_equal "${lines[2]}" "gf[error]: Current branch is already hotfixed"
     gla
     gs
+    assert_equal "$(gsp)" ""
   fi
 #######################################
 # TODO: 9.f – 9.g
@@ -866,8 +900,14 @@ function main {
      && gf --yes master; } >/dev/null
     gla
     debug "gf -v --yes"
+    assert_equal $? 0
     gla
+    assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'hotfix-0.0.1' into dev"
+    assert_equal "$(cat VERSION)" "0.0.1"
+    gref
+    assert_equal "$(echo "$ref" | grep /refs/heads/hotfix-0.0.1)" ""
     gs
+    assert_equal "$(gsp)" ""
   fi
 #######################################
   if startTest "merge master hotfix by kw"; then
@@ -875,8 +915,14 @@ function main {
      && gf --yes master; } >/dev/null
     gla
     debug "gf -v --yes hotfix"
+    assert_equal $? 0
     gla
+    assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'hotfix-0.0.1' into dev"
+    assert_equal "$(cat VERSION)" "0.0.1"
+    gref
+    assert_equal "$(echo "$ref" | grep /refs/heads/hotfix-0.0.1)" ""
     gs
+    assert_equal "$(gsp)" ""
   fi
 #######################################
   if startTest "merge stable hotfix"; then
@@ -889,8 +935,14 @@ function main {
      && gf --yes v0.0.0; } >/dev/null
     gla
     debug "gf -v --yes"
+    assert_equal $? 0
     gla
+    assert_contains "$log" "(HEAD, tag: v0.0.1, v0.0) Merge branch 'hotfix-0.0.1' into v0.0"
+    assert_equal "$(cat VERSION)" "0.0.1"
+    gref
+    assert_equal "$(echo "$ref" | grep /refs/heads/hotfix-0.0.1)" ""
     gs
+    assert_equal "$(gsp)" ""
   fi
 #######################################
 # TODO: 9.i – 9.m
