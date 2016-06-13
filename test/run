@@ -587,6 +587,8 @@ function main {
   #   debug "echo 'feature1' | gf -v --yes --request"
   # fi
 #######################################
+# TODO: 7.h
+#######################################
 ## RELEASE
 #######################################
   if startTest "create release"; then
@@ -656,7 +658,7 @@ function main {
     debug "gf -v --yes release"
     assert_equal $? 0
     gla
-    assert_contains "${loglines[0]}" "Merge branch 'release' into dev"
+    assert_contains "${loglines[0]}" "(dev) Merge branch 'release' into dev"
     gref
     assert_contains "$ref" "refs/heads/release"
     assert_equal "$(cat VERSION)" "0.1.0"
@@ -756,294 +758,146 @@ function main {
   #   gs
   # fi
 #######################################
+# TODO: 8.i
+#######################################
 ## HOTFIX
 #######################################
-# #
-#   if startTest "hotfix master"; then
-#     { gf -c; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes master"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "hotfix master with uncommited changes"; then
-#     { gf -c \
-#      && echo a > a; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes master"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "hotfix master with uncommited changes (with --force)"; then
-#     { gf -c \
-#      && echo a > a; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes --force master"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "hotfix master with what-now"; then
-#     { gf -c; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes --what-now master"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "hotfix master (from tag)"; then
-#     { gf -c; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes v0.0.0"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "hotfix master from dev by kw"; then
-#     { gf -c \
-#       && git checkout dev; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes hotfix"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "hotfix master (from tag) with uncommited changes"; then
-#     { gf -c \
-#       && echo a > a; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes v0.0.0"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "hotfix master (from tag) with uncommited changes (with --force)"; then
-#     { gf -c \
-#       && echo a > a; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes --force v0.0.0"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "hotfix master (from tag) with what-now"; then
-#     { gf -c; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes --what-now v0.0.0"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "hotfix stable"; then
-#     { gf -c \
-#      && gf --yes \
-#      && gf --yes; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes v0.0.0"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "hotfix stable by kw"; then
-#     { gf -c \
-#      && gf --yes \
-#      && gf --yes \
-#      && git checkout v0.0.0; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes hotfix"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "hotfix stable with what-now"; then
-#     { gf -c \
-#      && gf --yes \
-#      && gf --yes; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes --what-now v0.0.0"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "hotfix stable (from old tag)"; then
-#     { gf -c \
-#      && gf --yes \
-#      && gf --yes \
-#      && gf --yes v0.0.0 \
-#      && gf --yes; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes v0.0.0"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "hotfix stable (from old tag) by kw"; then
-#     { gf -c \
-#      && gf --yes \
-#      && gf --yes \
-#      && gf --yes v0.0.0 \
-#      && gf --yes \
-#      && git checkout v0.0.0; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes kw"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "merge master hotfix"; then
-#     { gf -c \
-#      && gf --yes master; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "merge master hotfix by kw"; then
-#     { gf -c \
-#      && gf --yes master; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes hotfix"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "merge master hotfix with uncommited changes"; then
-#     { gf -c \
-#      && gf --yes master \
-#      && echo a > a; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "merge master hotfix with uncommited changes (with --force)"; then
-#     { gf -c \
-#      && gf --yes master \
-#      && echo a > a; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes --force"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "merge master hotfix with what-now"; then
-#     { gf -c \
-#      && gf --yes master; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes --what-now"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "merge stable hotfix"; then
-#     { gf -c \
-#      && gf --yes \
-#      && gf --yes \
-#      && gf --yes v0.0.0; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "merge stable hotfix by kw"; then
-#     { gf -c \
-#      && gf --yes \
-#      && gf --yes \
-#      && gf --yes v0.0.0; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes hotfix"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "merge stable hotfix with uncommited changes"; then
-#     { gf -c \
-#      && gf --yes \
-#      && gf --yes \
-#      && gf --yes v0.0.0 \
-#      && echo a > a; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "merge stable hotfix with uncommited changes (with --force)"; then
-#     { gf -c \
-#      && gf --yes \
-#      && gf --yes \
-#      && gf --yes v0.0.0 \
-#      && echo a > a; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes --force"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
-#   if startTest "merge stable hotfix with what-now"; then
-#     { gf -c \
-#      && gf --yes \
-#      && gf --yes \
-#      && gf --yes v0.0.0; } >/dev/null
-#     gla
-#     #cmd
-#     debug "gf -v --yes --what-now"
-#     gla
-#     gs
-#   fi
-# #######################################
-# #
+  if startTest "hotfix master"; then
+    { gf -i; } >/dev/null
+    gla
+    debug "gf -v --yes master"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "hotfix stable"; then
+    { gf -i \
+     && echo a > a \
+     && git add . \
+     && git commit -m "add file a" \
+     && gf --yes \
+     && gf --yes \
+     && git checkout v0.0.0
+    } >/dev/null 2>&1
+    gla
+    debug "gf -v --yes"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "hotfix master by kw"; then
+    { gf -i \
+      && git checkout dev
+    } >/dev/null 2>&1
+    gla
+    debug "gf -v --yes hotfix"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "hotfix master by name of stable"; then
+    { gf -i; } >/dev/null
+    gla
+    debug "gf -v --yes v0.0"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "hotfix stable by name of stable"; then
+    { gf -i \
+     && gf --yes \
+     && gf --yes
+    } >/dev/null 2>&1
+    gla
+    debug "gf -v --yes v0.0"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "hotfix master by tag name"; then
+    { gf -i; } >/dev/null
+    gla
+    debug "gf -v --yes v0.0.0"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "hotfix stable by tag name"; then
+    { gf -i \
+     && gf --yes \
+     && gf --yes
+    } >/dev/null 2>&1
+    gla
+    debug "gf -v --yes v0.0.0"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "hotfix master by old tag"; then
+    { gf -i \
+     && gf --yes hotfix \
+     && gf --yes;
+    } >/dev/null
+    gla
+    debug "gf -v --yes v0.0.0"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "hotfix stable by old tag"; then
+    { gf -i \
+     && echo a > a \
+     && git add . \
+     && git commit -m "add file a" \
+     && gf --yes \
+     && gf --yes \
+     && gf --yes v0.0.0 \
+     && gf --yes; } >/dev/null
+    gla
+    debug "gf -v --yes v0.0.0"
+    gla
+    gs
+  fi
+#######################################
+# TODO: 9.f – 9.g
+#######################################
+  if startTest "merge master hotfix"; then
+    { gf -i \
+     && gf --yes master; } >/dev/null
+    gla
+    debug "gf -v --yes"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "merge master hotfix by kw"; then
+    { gf -i \
+     && gf --yes master; } >/dev/null
+    gla
+    debug "gf -v --yes hotfix"
+    gla
+    gs
+  fi
+#######################################
+  if startTest "merge stable hotfix"; then
+    { gf -i \
+     && echo a > a \
+     && git add . \
+     && git commit -m "add file a" \
+     && gf --yes \
+     && gf --yes \
+     && gf --yes v0.0.0; } >/dev/null
+    gla
+    debug "gf -v --yes"
+    gla
+    gs
+  fi
+#######################################
+# TODO: 9.i – 9.m
+#######################################
+# TODO: 10
+#######################################
+
 
 [[ $verbose == 1 ]] && clear
 echo "$sep"
