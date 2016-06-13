@@ -19,12 +19,13 @@ function main {
     echo
   }
   function gla {
-    [[ $verbose == 0 ]] && return 0
-    echo "# git log:"
-    echo "$sep"
+    [[ $verbose == 1 ]] \
+      && echo "# git log:" \
+      && echo "$sep"
     log="$(git --no-pager log --oneline --decorate --graph --all)"
-    echo "$log"
     IFS=$'\n' read -d '' -r -a loglines <<< "$log"
+    [[ $verbose == 0 ]] && return
+    echo "$log"
     echo
   }
   function gref {
@@ -134,8 +135,16 @@ function main {
   function git_current_branch {
     git rev-parse --abbrev-ref HEAD
   }
+  function changelog {
+    chglog="$(cat CHANGELOG)"
+    [[ $verbose == 1 ]] \
+      && echo "# changelog:" \
+      && echo "$sep" \
+      && echo "$chglog"
+    IFS=$'\n' read -d '' -r -a chgloglines <<< "$chglog"
+  }
 
-  local currentdir sep skip i output lines ok fail failed ref firsthash log loglines runned verbose
+  local currentdir sep skip i output lines ok fail failed ref firsthash log loglines runned verbose changelog chglines
 
   currentdir="$(pwd)"
   sep="-----------"
@@ -145,6 +154,8 @@ function main {
   lines=()
   log=
   loglines=()
+  chglog=
+  chgloglines=()
   failed=0
   ok="$(tput setaf 2; echo -n "  ok  "; tput sgr0)"
   fail="$(tput setaf 1; echo -n fail; tput sgr0)"
@@ -441,134 +452,143 @@ function main {
 #######################################
 ## Feature
 #######################################
-#   if startTest "feature"; then
-#     { gf --init; } >/dev/null
-#     gla
-#     debug "gf -v --yes myfeature"
-#     assert_equal $? 0
-#     assert_startwith "${lines[0]}" "* Create feature branch 'myfeature'"
-#     assert_startwith "${lines[1]}" "Creating branch 'myfeature'"
-#     assert_startwith "${lines[2]}" "[   ok   ]"
-#     gref
-#     assert_contains "$ref" "refs/heads/myfeature"
-#     gla
-#     assert_equal "$(git_current_branch)" "myfeature"
-#     gs
-#   fi
-# #######################################
-#   if startTest "feature with uncommited changes and --force"; then
-#     { gf --init \
-#       && echo a > a
-#     } >/dev/null
-#     gla
-#     debug "gf -v --yes --force myfeature"
-#     assert_equal $? 0
-#     assert_startwith "${lines[0]}" "Stashing files"
-#     assert_startwith "${lines[1]}" "[   ok   ]"
-#     gla
-#     assert_equal "$(git_current_branch)" "myfeature"
-#     gs
-#     assert_equal "$(gsp)" "A  a"
-#   fi
-# #######################################
-#   if startTest "merge feature"; then
-#     { gf --init \
-#       && gf --yes myfeature \
-#       && echo a > a \
-#       && git add . \
-#       && git commit -am "add feature 1"
-#     } >/dev/null
-#     gla
-#     debug "gf -v --yes"
-#     assert_equal $? 0
-#     gla
-#     assert_contains "$log" "Version history updated"
-#     assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'myfeature' into dev"
-#     gref
-#     assert_equal "$(echo $ref | grep /refs/heads/myfeature)" ""
-#     gs
-#     assert_equal "$(gsp)" ""
-#   fi
-# #######################################
-#   if startTest "merge empty feature"; then
-#     { gf --init \
-#       && gf --yes myfeature
-#     } >/dev/null
-#     gla
-#     debug "gf -v --yes"
-#     assert_equal $? 1
-#     assert_startwith "${lines[0]}" "gf[error]: Nothing to merge"
-#   fi
-# #######################################
-#   if startTest "merge feature with rebase"; then
-#     { gf --init \
-#       && gf --yes myfeature \
-#       && echo a > a \
-#       && git add . \
-#       && git commit -am "add feature 1" \
-#       && git checkout dev \
-#       && echo c > c \
-#       && git add . \
-#       && git commit -am "bugfix 1"
-#     } >/dev/null
-#     gla
-#     debug "gf -v --yes myfeature"
-#     gla
-#     gs
-#   fi
-# #######################################
-#   if startTest "merge feature with conflicting rebase"; then
-#     { gf --init \
-#       && gf --yes myfeature \
-#       && echo a > a \
-#       && git add . \
-#       && git commit -am "change file a" \
-#       && git checkout dev \
-#       && echo b > a \
-#       && git add . \
-#       && git commit -am "change file a"
-#     } >/dev/null
-#     gla
-#     debug "gf -v --yes myfeature"
-#     gla
-#     gs
-#   fi
-# #######################################
-#   if startTest "merge feature with uncommited changes and --force"; then
-#     { gf --init \
-#       && gf --yes myfeature \
-#       && echo a > a \
-#       && git add . \
-#       && git commit -am "add feature 1" \
-#       && echo b > b
-#     } >/dev/null
-#     gla
-#     debug "gf -v --yes --force"
-#     assert_equal $? 0
-#     assert_equal "${lines[0]}" "Stashing files"
-#     assert_equal "${lines[1]}" "[   ok   ]"
-#     gla
-#     assert_contains "$log" "Version history updated"
-#     assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'myfeature' into dev"
-#     gref
-#     assert_equal "$(echo $ref | grep /refs/heads/myfeature)" ""
-#     gs
-#     assert_equal "$(gsp)" "A  b"
-#   fi
-# #######################################
-#   if startTest "merge feature with --request"; then
-#     { gf --init \
-#       && gf --yes myfeature \
-#       && echo a > a \
-#       && git add . \
-#       && git commit -am "add feature 1"
-#     } >/dev/null
-#     gla
-#     debug "gf -v --yes --request"
-#   fi
-# #######################################
-# ## RELEASE
-# #######################################
+  if startTest "create feature"; then
+    { gf --init; } >/dev/null
+    gla
+    debug "gf -v --yes myfeature"
+    assert_equal $? 0
+    assert_startwith "${lines[0]}" "Creating branch 'myfeature'"
+    gref
+    assert_contains "$ref" "refs/heads/myfeature"
+    gla
+    assert_equal "$(git_current_branch)" "myfeature"
+    gs
+  fi
+#######################################
+  if startTest "create feature with uncommited changes and --force"; then
+    { gf --init \
+      && echo a > a
+    } >/dev/null
+    gla
+    debug "gf -v --yes --force myfeature"
+    assert_equal $? 0
+    assert_startwith "${lines[0]}" "Stashing files"
+    gla
+    assert_equal "$(git_current_branch)" "myfeature"
+    gs
+    assert_equal "$(gsp)" "A  a"
+  fi
+#######################################
+  if startTest "merge feature"; then
+    { gf --init \
+      && gf --yes myfeature \
+      && echo a > a \
+      && git add . \
+      && git commit -am "add feature 1"
+    } >/dev/null
+    gla
+    debug "echo 'feature1' | gf -v --yes"
+    assert_equal $? 0
+    gla
+    assert_contains "$log" "Version history updated"
+    assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'myfeature' into dev"
+    gref
+    assert_equal "$(echo $ref | grep /refs/heads/myfeature)" ""
+    changelog
+    assert_equal "${chgloglines[0]}" "feature1"
+    gs
+    assert_equal "$(gsp)" ""
+  fi
+#######################################
+  if startTest "merge empty feature"; then
+    { gf --init \
+      && gf --yes myfeature
+    } >/dev/null
+    gla
+    debug "gf -v --yes"
+    assert_equal $? 1
+    assert_startwith "${lines[0]}" "gf[error]: Nothing to merge"
+  fi
+#######################################
+  if startTest "merge feature with rebase"; then
+    { gf --init \
+      && gf --yes myfeature \
+      && echo a > a \
+      && git add . \
+      && git commit -am "add feature 1" \
+      && git checkout dev \
+      && echo c > c \
+      && git add . \
+      && git commit -am "bugfix 1"
+    } >/dev/null 2>&1
+    gla
+    debug "echo 'feature1' | gf -v --yes myfeature"
+    assert_equal $? 0
+    gla
+    assert_contains "$log" "Version history updated"
+    assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'myfeature' into dev"
+    assert_contains "${loglines[5]}" "bugfix 1"
+    gref
+    assert_equal "$(echo $ref | grep /refs/heads/myfeature)" ""
+    changelog
+    assert_equal "${chgloglines[0]}" "feature1"
+    gs
+    assert_equal "$(gsp)" ""
+  fi
+#######################################
+  if startTest "merge feature with conflicting rebase"; then
+    { gf --init \
+      && gf --yes myfeature \
+      && echo a > a \
+      && git add . \
+      && git commit -am "change file a" \
+      && git checkout dev \
+      && echo b > a \
+      && git add . \
+      && git commit -am "change file a"
+    } >/dev/null 2>&1
+    gla
+    debug "echo 'feature1' | gf -v --yes myfeature"
+    assert_equal $? 5
+    gla
+    gs
+    assert_equal "$(gsp)" "AA a"
+  fi
+#######################################
+  if startTest "merge feature with uncommited changes and --force"; then
+    { gf --init \
+      && gf --yes myfeature \
+      && echo a > a \
+      && git add . \
+      && git commit -am "add feature 1" \
+      && echo b > b
+    } >/dev/null
+    gla
+    debug "echo 'feature1' | gf -v --yes --force"
+    assert_equal $? 0
+    assert_equal "${lines[0]}" "Stashing files"
+    gla
+    assert_contains "$log" "Version history updated"
+    assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'myfeature' into dev"
+    gref
+    assert_equal "$(echo $ref | grep /refs/heads/myfeature)" ""
+    gs
+    assert_equal "$(gsp)" "A  b"
+  fi
+#######################################
+  # if startTest "merge feature with --request"; then
+  #   { gf --init \
+  #     && gf --yes myfeature \
+  #     && echo a > a \
+  #     && git add . \
+  #     && git commit -am "add feature 1"
+  #   } >/dev/null
+  #   gla
+  #   debug "echo 'feature1' | gf -v --yes --request"
+  # fi
+#######################################
+## RELEASE
+#######################################
 #   if startTest "release"; then
 #     { gf --init; } >/dev/null
 #     gla
