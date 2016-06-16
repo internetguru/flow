@@ -117,7 +117,7 @@ Hotfix master branch
 Restore git flow model (after pull request to master)
     -  ``git checkout dev``
     -  ``git reset --hard HEAD~1``
-    -  ``gf`` (will result into error 3)
+    -  ``gf`` (will exit with code 3)
     -  ``gf -c``
 
 Hotfix previous release
@@ -134,13 +134,12 @@ Initialize **gf** on existing project with version number
 New feature from uncommitted changes
     -  ``git checkout dev``
     -  ``echo "feature x" >> myfile``
-    -  ``gf myfeature`` (will result into error 4)
+    -  ``gf myfeature`` (will exit with code 4)
     -  ``gf -f myfeature``
     -  ``git commit -am "add feature x"``
 
 Merge conflicting release
-    -  ``gf release``
-    -  Exits with standard git merge conflict message.
+    -  ``gf release`` (will exit with code 5)
     -  Resolve conflicts...
     -  ``gf``
 
