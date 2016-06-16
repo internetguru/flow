@@ -86,16 +86,17 @@ all:
 	echo; \
 	echo ": \$${BINPATH:=$(BINPATH)}"; \
 	echo ": \$${SHAREPATH:=$(SHAREPATH)}"; \
-	echo ": \$${MANPATH:=\$$SHAREPATH/$(MANDIR)}"; \
+	echo ": \$${USRMANPATH:=\$$SHAREPATH/$(MANDIR)}"; \
 	echo; \
 	echo "dir=\"\$$(dirname \"\$$0\")\""; \
-	echo "mkdir -p \"\$$MANPATH\" \\"; \
-	echo "&& cp --remove-destination \"\$$dir/$(MANFILE)\" \"\$$MANPATH\" \\"; \
+	echo "mkdir -p \"\$$USRMANPATH\" \\"; \
+	echo "&& cp \"\$$dir/$(MANFILE)\" \"\$$USRMANPATH\" \\"; \
 	echo "&& mkdir -p \"\$$BINPATH\" \\"; \
-	echo "&& cp --remove-destination \"\$$dir/$(GF)\" \"\$$BINPATH\" \\"; \
+	echo "&& cp \"\$$dir/$(GF)\" \"\$$BINPATH\" \\"; \
 	echo "&& mkdir -p \"\$$SHAREPATH/$(GF)\" \\"; \
-	echo "&& cp --remove-destination \"\$$dir/$(USAGEFILE)\" \"\$$dir/$(VERFILE)\" \"\$$SHAREPATH/$(GF)\" \\"; \
-	echo "&& echo 'Installation completed.'"; \
+	echo "&& cp \"\$$dir/$(USAGEFILE)\" \"\$$dir/$(VERFILE)\" \"\$$SHAREPATH/$(GF)\" \\"; \
+	echo "&& echo 'Installation completed.' \\"; \
+	echo "|| { echo 'Installation failed.'; exit 1; }"; \
 	} > $(DISTNAME)/$(INSTFILE)
 	@ chmod +x $(DISTNAME)/$(INSTFILE)
 	@ echo DONE
@@ -106,9 +107,9 @@ all:
 	echo; \
 	echo ": \$${BINPATH:=$(BINPATH)}"; \
 	echo ": \$${SHAREPATH:=$(SHAREPATH)}"; \
-	echo ": \$${MANPATH:=\$$SHAREPATH/$(MANDIR)}"; \
+	echo ": \$${USRMANPATH:=\$$SHAREPATH/$(MANDIR)}"; \
 	echo; \
-	echo "rm \"\$$MANPATH/$(MANFILE)\""; \
+	echo "rm \"\$$USRMANPATH/$(MANFILE)\""; \
 	echo "rm \"\$$BINPATH/$(GF)\""; \
 	echo "rm -rf \"\$$SHAREPATH/$(GF)\""; \
 	echo "echo 'Uninstallation completed.'"; \

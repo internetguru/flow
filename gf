@@ -270,7 +270,8 @@ function main {
   }
 
   function master_last_change {
-    git log master --no-merges -n1 --format="%h"
+    #git log master --no-merges -n1 --format="%h"
+    git cherry -v "$GF_DEV" master | tail -n1 | cut -d" " -f2
   }
 
   function init_file {
@@ -326,9 +327,11 @@ function main {
       [[ $conform == 0 ]] && { err "Missing branch '$GF_DEV'" || return 3; }
       git_branch_create dev master || return 1
     fi
-    if ! git branch --contains "$(master_last_change)" | grep "$GF_DEV" >/dev/null; then
+    local last_change
+    last_change="$(master_last_change)"
+    if [[ -n "$last_change" ]] && ! git branch --contains "$last_change" | grep "$GF_DEV" >/dev/null; then
       [[ $conform == 0 ]] && { err "Branch master is not merged with '$GF_DEV'" || return 3; }
-      merge_branches "$(master_last_change)" "$GF_DEV" || return $?
+      merge_branches "$last_change" "$GF_DEV" || return $?
     fi
     if [[ $force == 1 ]]; then
       git_stash || return $?
@@ -490,7 +493,7 @@ function main {
   function gf_hotfixable {
     git_commit_diff "$master.$patch" HEAD \
       && { err "Required tag $master.$patch not detected on current HEAD" || return 1; }
-    git tag | grep "^$master.$((patch+1))$" \
+    git tag | grep -q "^$master.$((patch+1))$" \
       && { err "Current branch is already hotfixed" || return 1; }
     git_branch_exists "hotfix-$major.$minor.$((patch+1))" \
       && { err "Current branch is being hotfixed" || return 1; }
