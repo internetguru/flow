@@ -21,6 +21,8 @@ following improvements:
 
 -  even simpler usage (no parameters required),
 
+-  pull request support,
+
 -  check and repair project to conform **OMGF**,
 
 -  automatic **semantic version numbering**\ (4) (file VERSION),
