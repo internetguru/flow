@@ -12,9 +12,9 @@ DESCRIPTION
 ===========
 
 **Oh My Git Flow**\ (1) (hereinafter referred as the 'OMGF') applies **git
-flow branching model**\ (2) on current or selected BRANCH, TAG or
-KEYWORD (such as 'release' or 'hotfix'). If BRANCH does not exist, new
-feature is created.
+flow branching model**\ (2) (hereinafter referred as the 'model') on
+current or selected BRANCH, TAG or KEYWORD such as 'release' or 'hotfix'.
+If BRANCH does not exist, new feature is created.
 
 It is an alternative to **git-flow cheatsheet**\ (3) command with
 following improvements:
@@ -23,7 +23,7 @@ following improvements:
 
 -  pull request support,
 
--  check and repair project to conform **OMGF**,
+-  check and repair project to conform **model**,
 
 -  automatic **semantic version numbering**\ (4) (file VERSION),
 
@@ -37,7 +37,7 @@ OPTIONS
 =======
 
 \-c, --conform
-    Repair (initialize) project to be conform with **OMGF** and proceed.
+    Repair (initialize) project to be conform with **model** and proceed.
 \-i, --init
     Same as conform, but do not proceed.
 \-f, --force
@@ -187,7 +187,7 @@ EXIT STATUS
 2
     Parse or invalid option error.
 3
-    Git model is not conform with **OMGF**.
+    Git model is not conform with **model**.
 4
     Git status is not empty.
 5

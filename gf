@@ -655,7 +655,7 @@ function main {
     echo "***"
     git_repo_exists || {
       echo "* Not a git repository"
-      echo "* - Run 'gf --init' to initialize omgf"
+      echo "* - Run 'gf --init' to initialize OMGF"
       echo "***"
       return 3
     }
@@ -813,7 +813,7 @@ function main {
     } && git_stash_pop && gf_what_now || {
     case $? in
       1) err "Generic error occurred (see REPORTING BUGS)."; return 1 ;;
-      3) err "Git model is not conform with omgf (see conform option)."; return 3 ;;
+      3) err "Git model is not conform with model (see conform option)."; return 3 ;;
       4) err "Git status is not empty (see force option)."; return 4 ;;
       5) err "Git conflict occurred (see 'git status')."; gf_what_now; return 5 ;;
     esac
