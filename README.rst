@@ -11,19 +11,19 @@ gf [-fciwrynvVh] [--color[=WHEN]] [BRANCH\|TAG\|KEYWORD]
 DESCRIPTION
 ===========
 
-**Oh My Git Flow** (hereinafter referred as the 'omgf') applies **git
-flow branching model**\ (1) on current or selected BRANCH, TAG or
+**Oh My Git Flow**\ (1) (hereinafter referred as the 'OMGF') applies **git
+flow branching model**\ (2) on current or selected BRANCH, TAG or
 KEYWORD (such as 'release' or 'hotfix'). If BRANCH does not exist, new
 feature is created.
 
-It is an alternative to **git-flow cheatsheet**\ (2) command with
+It is an alternative to **git-flow cheatsheet**\ (3) command with
 following improvements:
 
 -  even simpler usage (no parameters required),
 
--  check and repair project to conform **omgf**,
+-  check and repair project to conform **OMGF**,
 
--  automatic **semantic version numbering**\ (3) (file VERSION),
+-  automatic **semantic version numbering**\ (4) (file VERSION),
 
 -  version history update support (file CHANGELOG),
 
@@ -35,7 +35,7 @@ OPTIONS
 =======
 
 \-c, --conform
-    Repair (initialize) project to be conform with **omgf** and proceed.
+    Repair (initialize) project to be conform with **OMGF** and proceed.
 \-i, --init
     Same as conform, but do not proceed.
 \-f, --force
@@ -185,7 +185,7 @@ EXIT STATUS
 2
     Parse or invalid option error.
 3
-    Git model is not conform with **omgf**.
+    Git model is not conform with **OMGF**.
 4
     Git status is not empty.
 5
@@ -194,16 +194,29 @@ EXIT STATUS
 SEE ALSO
 ========
 
-`Git flow model(1) <http://nvie.com/posts/a-successful-git-branching-model/>`__
+`OMGF on GitHub(1) <https://github.com/InternetGuru/omgf/>`__
 
-`Git-flow cheatsheet(2) <http://danielkummer.github.io/git-flow-cheatsheet/>`__
+`Git flow model(2) <http://nvie.com/posts/a-successful-git-branching-model/>`__
 
-`Semantic Versioning(3) <http://semver.org/>`__
+`Git-flow cheatsheet(3) <http://danielkummer.github.io/git-flow-cheatsheet/>`__
+
+`Semantic Versioning(4) <http://semver.org/>`__
 
 REPORTING BUGS
 ==============
 
 `Issue tracker <https://github.com/InternetGuru/omgf/issues>`__
+
+COPYRIGHT
+=========
+
+Copyright (C) 2016 `InternetGuru <https://www.internetguru.cz>`__
+
+`License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>`__
+
+This is free software: you are free to change and redistribute it.
+
+There is NO WARRANTY, to the extent permitted by law.
 
 DONATION
 ========
@@ -232,17 +245,6 @@ pay and how much maintenance we can offer in return. If you pay more
 than 50 USD, we can give you a document for your records.
 
 Thanks for your support!
-
-COPYRIGHT
-=========
-
-Copyright (C) 2016 `InternetGuru <https://www.internetguru.cz>`__
-
-`License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>`__
-
-This is free software: you are free to change and redistribute it.
-
-There is NO WARRANTY, to the extent permitted by law.
 
 AUTHORS
 =======
