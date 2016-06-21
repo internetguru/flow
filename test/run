@@ -677,7 +677,7 @@ function main {
     debug "gf -v --yes"
     assert_equal $? 0
     gla
-    assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'release' into dev"
+    assert_contains "$log" "(HEAD, dev) Merge branch 'release' into dev"
     gref
     assert_equal "$(echo "$ref" | grep /refs/heads/release)" ""
     changelog
