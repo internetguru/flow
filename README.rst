@@ -11,19 +11,20 @@ gf [-fciwrynvVh] [--color[=WHEN]] [BRANCH\|TAG\|KEYWORD]
 DESCRIPTION
 ===========
 
-**Oh My Git Flow** (hereinafter referred as the 'omgf') applies **git
-flow branching model**\ (1) on current or selected BRANCH, TAG or
-KEYWORD (such as 'release' or 'hotfix'). If BRANCH does not exist, new
-feature is created.
+**Oh My Git Flow**\ (1) (hereinafter referred as the 'OMGF') applies **git
+flow branching model**\ (2) on current or selected BRANCH, TAG or KEYWORD such
+as 'release' or 'hotfix'. If BRANCH does not exist, new feature is created.
 
-It is an alternative to **git-flow cheatsheet**\ (2) command with
-following improvements:
+It is an alternative to **git-flow cheatsheet**\ (3) command with following
+improvements:
 
 -  even simpler usage (no parameters required),
 
--  check and repair project to conform **omgf**,
+-  pull request support,
 
--  automatic **semantic version numbering**\ (3) (file VERSION),
+-  check and repair project to conform **OMGF** model,
+
+-  automatic **semantic version numbering**\ (4) (file VERSION),
 
 -  version history update support (file CHANGELOG),
 
@@ -35,7 +36,7 @@ OPTIONS
 =======
 
 \-c, --conform
-    Repair (initialize) project to be conform with **omgf** and proceed.
+    Repair (initialize) project to be conform with **OMGF** model and proceed.
 \-i, --init
     Same as conform, but do not proceed.
 \-f, --force
@@ -43,13 +44,13 @@ OPTIONS
 \-w, --what-now
     Display what to do on current branch.
 \-r, --request
-    Instead of merging prepare current branch for pull request and push
-    it to the origin.
+    Instead of merging prepare current branch for pull request and push it to
+    the origin.
 \-y, --yes
     Assume yes for all questions.
 \--color[=WHEN], --colour[=WHEN]
-    Use markers to highlight command status; WHEN is 'always', 'never',
-    or 'auto'
+    Use markers to highlight command status; WHEN is 'always', 'never', or
+    'auto'.
 \-n, --dry-run
     Do not run commands; only parse user options.
 \-v, --verbose
@@ -114,7 +115,7 @@ Hotfix master branch
     -  ``git commit -am "add hotfix 1"``
     -  ``gf``
 
-Restore git flow model (after pull request to master)
+Restore **OMGF** model (after pull request to master)
     -  ``git checkout dev``
     -  ``git reset --hard HEAD~1``
     -  ``gf`` (will exit with code 3)
@@ -185,7 +186,7 @@ EXIT STATUS
 2
     Parse or invalid option error.
 3
-    Git model is not conform with **omgf**.
+    Git is not conform with **OMGF** model.
 4
     Git status is not empty.
 5
@@ -194,44 +195,18 @@ EXIT STATUS
 SEE ALSO
 ========
 
-`Git flow model(1) <http://nvie.com/posts/a-successful-git-branching-model/>`__
+`OMGF on GitHub(1) <https://github.com/InternetGuru/omgf/>`__
 
-`Git-flow cheatsheet(2) <http://danielkummer.github.io/git-flow-cheatsheet/>`__
+`Git flow model(2) <http://nvie.com/posts/a-successful-git-branching-model/>`__
 
-`Semantic Versioning(3) <http://semver.org/>`__
+`Git-flow cheatsheet(3) <http://danielkummer.github.io/git-flow-cheatsheet/>`__
+
+`Semantic Versioning(4) <http://semver.org/>`__
 
 REPORTING BUGS
 ==============
 
 `Issue tracker <https://github.com/InternetGuru/omgf/issues>`__
-
-DONATION
-========
-
-We appreciate contributions of any size -- donations enable us to spend
-more time working on the project, and help cover our infrastructure
-expenses.
-
-If you'd like to make a small donation, please visit URL below and do it
-through PayPal. Since our project isn't a tax-exempt organization, we
-can't offer you a tax deduction, but for all donations over 50 USD, we'd
-be happy to recognize your contribution on URL below.
-
-`PayPal Donation <https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=G6A49JPWQKG7A>`__
-
-`Oh My Git Flow <https://www.internetguru.cz/omgf>`__
-
-We are also happy to consider making particular improvements or changes,
-or giving specific technical assistance, in return for a substantial
-donation over 100 USD. If you would like to discuss this possibility,
-write to us at info@internetguru.cz.
-
-Another possibility is to pay a software maintenance fee. Again, write
-to us about this at info@internetguru.cz to discuss how much you want to
-pay and how much maintenance we can offer in return. If you pay more
-than 50 USD, we can give you a document for your records.
-
-Thanks for your support!
 
 COPYRIGHT
 =========
@@ -243,6 +218,33 @@ Copyright (C) 2016 `InternetGuru <https://www.internetguru.cz>`__
 This is free software: you are free to change and redistribute it.
 
 There is NO WARRANTY, to the extent permitted by law.
+
+DONATION
+========
+
+We appreciate contributions of any size -- donations enable us to spend more
+time working on the project, and help cover our infrastructure expenses.
+
+If you'd like to make a small donation, please visit URL below and do it
+through PayPal. Since our project isn't a tax-exempt organization, we can't
+offer you a tax deduction, but for all donations over 50 USD, we'd be happy to
+recognize your contribution on URL below.
+
+`PayPal Donation <https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=G6A49JPWQKG7A>`__
+
+`Oh My Git Flow <https://www.internetguru.cz/omgf>`__
+
+We are also happy to consider making particular improvements or changes, or
+giving specific technical assistance, in return for a substantial donation
+over 100 USD. If you would like to discuss this possibility, write to us at
+info@internetguru.cz.
+
+Another possibility is to pay a software maintenance fee. Again, write to us
+about this at info@internetguru.cz to discuss how much you want to pay and how
+much maintenance we can offer in return. If you pay more than 50 USD, we can
+give you a document for your records.
+
+Thanks for your support!
 
 AUTHORS
 =======
