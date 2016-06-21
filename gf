@@ -528,7 +528,6 @@ function main {
   }
 
   function gf_request {
-    confirm "* Push '$origbranch' to '$GF_ORIGIN' and get pull request URL?" || return 0
     git_remote_exists \
       && git_remote_branch_exists "$1" \
       && msg_start "Pushing '$origbranch'" \
@@ -572,6 +571,8 @@ function main {
     [[ $init == 1 ]] \
       && git_checkout "$GF_DEV" \
       && return 0
+    local pr_msg
+    pr_msg="* Push '$origbranch' to '$GF_ORIGIN' and get pull request URL?"
     case $origbranch in
       HEAD|master|$prefix+([0-9]).+([0-9]))
         gf_hotfixable || return 1
@@ -593,8 +594,11 @@ function main {
         create_branch release
         ;;
       hotfix-+([0-9]).+([0-9]).+([0-9]))
-        [[ $request == 1 ]] \
-          && { gf_request master || return $?; return 0; }
+        if [[ $request == 1 ]]; then
+          confirm "$pr_msg" || return 0
+          gf_request master
+          return $?
+        fi
         # master -> merge + confirm merge to dev
         if ! git_version_diff master "$major.$minor"; then
           confirm "* Merge hotfix into master and '$GF_DEV'?" || return 0
@@ -612,8 +616,11 @@ function main {
         delete_branch
         ;;
       release)
-        [[ $request == 1 ]] \
-          && { gf_request master || return $?; return 0; }
+        if [[ $request == 1 ]]; then
+          confirm "$pr_msg" || return 0
+          gf_request master
+          return $?
+        fi
         if confirm "* Create stable branch from release?"; then
           git_checkout master \
             && merge_branches "$origbranch" master \
@@ -632,16 +639,13 @@ function main {
         [[ -n "$(git log "$GF_DEV".."$origbranch")" ]] \
           || err "Nothing to merge - feature branch '$origbranch' is empty" \
           || return 1
-        local changelog
-        changelog=0
         # shellcheck disable=SC2015
         [[ $request == 1 ]] \
-          && { confirm "Update '$GF_CHANGELOG' before pull request?"  && changelog=1 || :; } \
-          || { confirm "* Merge feature '$origbranch' into '$GF_DEV'?" && changelog=1 || return 0; }
-        [[ $changelog == 1 ]] \
-          && { merge_feature || return $?; }
+          && { confirm "$pr_msg" || return 0; } \
+          || { confirm "* Merge feature '$origbranch' into '$GF_DEV'?" || return 0; }
+        merge_feature || return $?
         [[ $request == 1 ]] \
-          && { gf_request "$GF_DEV" || return $?; return 0; }
+          && { gf_request "$GF_DEV"; return $?; }
         merge_branches "$origbranch" "$GF_DEV" \
           && delete_branch \
           || return $?
