@@ -6,7 +6,7 @@ Oh My Git Flow
 SYNOPSIS
 ========
 
-gf [-fciwrynvVh] [--color[=WHEN]] [BRANCH\|TAG\|KEYWORD]
+gf [-cfhinrvVwy] [--color[=WHEN]] [BRANCH\|TAG\|KEYWORD]
 
 DESCRIPTION
 ===========
@@ -37,28 +37,28 @@ OPTIONS
 
 \-c, --conform
     Repair (initialize) project to be conform with **OMGF** model and proceed.
-\-i, --init
-    Same as conform, but do not proceed.
-\-f, --force
-    Move (stash and pop) uncommitted changes.
-\-w, --what-now
-    Display what to do on current branch.
-\-r, --request
-    Instead of merging prepare current branch for pull request and push it to
-    the origin.
-\-y, --yes
-    Assume yes for all questions.
 \--color[=WHEN], --colour[=WHEN]
     Use markers to highlight command status; WHEN is 'always', 'never', or
     'auto'.
+\-f, --force
+    Move (stash and pop) uncommitted changes.
+\-h, --help
+    Print help.
+\-i, --init
+    Same as conform, but do not proceed.
 \-n, --dry-run
     Do not run commands; only parse user options.
+\-r, --request
+    Instead of merging prepare current branch for pull request and push it to
+    the origin.
 \-v, --verbose
     Verbose mode.
 \-V, --version
     Print version number.
-\-h, --help
-    Print help.
+\-w, --what-now
+    Display what to do on current branch.
+\-y, --yes
+    Assume yes for all questions.
 
 BASIC FLOW EXAMPLES
 ===================

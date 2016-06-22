@@ -752,8 +752,8 @@ function main {
   # shellcheck disable=SC2048
   if ! line=$(
     IFS=" " getopt -n "$0" \
-           -o fciwrynvVh\? \
-           -l force,conform,init,what-now,request,dry-run,yes,color::,colour::,verbose,version,help \
+           -o cfhinrvVwy\? \
+           -l conform,color::,colour::,force,help,init,dry-run,request,verbose,version,what-now,yes \
            -- $GF_OPTIONS $*
   )
   then gf_usage; return 2; fi
@@ -766,17 +766,17 @@ function main {
   request=0
   while [ $# -gt 0 ]; do
     case $1 in
-     -f|--force) force=1; shift ;;
-     -i|--init) init=1; conform=1; shift ;;
      -c|--conform) conform=1; shift ;;
-     -w|--what-now) what_now=1; shift ;;
-     -r|--request) request=1; shift;;
-     -y|--yes) yes=1; shift ;;
      --color|--colour) shift; setcolor "$1" || { gf_usage; return 2; }; shift ;;
+     -f|--force) force=1; shift ;;
+     -h|-\?|--help) gf_usage; return $? ;;
+     -i|--init) init=1; conform=1; shift ;;
      -n|--dry-run) dry=1; shift ;;
+     -r|--request) request=1; shift;;
      -v|--verbose) verbose=1; shift ;;
      -V|--version) gf_version; return $? ;;
-     -h|-\?|--help) gf_usage; return $? ;;
+     -w|--what-now) what_now=1; shift ;;
+     -y|--yes) yes=1; shift ;;
       --) shift; break ;;
       *-) echo "$script_name: Unrecognized option '$1'" >&2; gf_usage; return 2 ;;
        *) break ;;
