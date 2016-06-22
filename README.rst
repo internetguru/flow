@@ -11,11 +11,11 @@ gf [-cfhinrvVwy] [--color[=WHEN]] [BRANCH\|TAG\|KEYWORD]
 DESCRIPTION
 ===========
 
-**Oh My Git Flow**\ (1) (hereinafter referred as the 'OMGF') applies **git
-flow branching model**\ (2) on current or selected BRANCH, TAG or KEYWORD such
+**Oh My Git Flow**[1] (hereinafter referred as the 'OMGF') applies **git
+flow branching model**[2] on current or selected BRANCH, TAG or KEYWORD such
 as 'release' or 'hotfix'. If BRANCH does not exist, new feature is created.
 
-It is an alternative to **git-flow cheatsheet**\ (3) command with following
+It is an alternative to **git-flow cheatsheet**[3] command with following
 improvements:
 
 -  even simpler usage (no parameters required),
@@ -24,7 +24,7 @@ improvements:
 
 -  check and repair project to conform **OMGF** model,
 
--  automatic **semantic version numbering**\ (4) (file VERSION),
+-  automatic **semantic version numbering**[4] (file VERSION),
 
 -  version history update support (file CHANGELOG),
 
@@ -195,13 +195,13 @@ EXIT STATUS
 SEE ALSO
 ========
 
-`OMGF on GitHub(1) <https://github.com/InternetGuru/omgf/>`__
+`OMGF on GitHub[1] <https://github.com/InternetGuru/omgf/>`__
 
-`Git flow model(2) <http://nvie.com/posts/a-successful-git-branching-model/>`__
+`Git flow model[2] <http://nvie.com/posts/a-successful-git-branching-model/>`__
 
-`Git-flow cheatsheet(3) <http://danielkummer.github.io/git-flow-cheatsheet/>`__
+`Git-flow cheatsheet[3] <http://danielkummer.github.io/git-flow-cheatsheet/>`__
 
-`Semantic Versioning(4) <http://semver.org/>`__
+`Semantic Versioning[4] <http://semver.org/>`__
 
 REPORTING BUGS
 ==============
