@@ -455,7 +455,7 @@ function main {
       git commit -am "Version history updated" >/dev/null || return 1
       msg_end "$DONE"
     else
-      msg_end "$PASSED"
+      msg_end "$SKIPPED"
     fi
   }
 
@@ -794,7 +794,7 @@ function main {
     REFSHEADS="refs/heads" \
     DONE="$(colorize "  ok  " $GREEN)" \
     FAILED="$(colorize "failed" $RED)" \
-    PASSED="$(colorize "passed" $BLUE)"
+    SKIPPED="$(colorize "skipped" $BLUE)"
 
   # proceed options
   local origbranch newfeature
