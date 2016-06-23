@@ -1,6 +1,7 @@
 #!/bin/bash
 
 shopt -s extglob
+shopt -s nocasematch
 set -u
 
 # shellcheck disable=SC2086
@@ -264,8 +265,8 @@ function main {
     else
       read -r
     fi
-    [[ "$REPLY" =~ ^[yY](es)?$ || -z "$REPLY" ]] && return 0
-    [[ "$REPLY" =~ ^[nN]o?$ ]] && return 1
+    [[ "$REPLY" =~ ^y(es)?$ || -z "$REPLY" ]] && return 0
+    [[ "$REPLY" =~ ^no?$ ]] && return 1
     confirm "Type"
   }
 
