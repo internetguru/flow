@@ -6,16 +6,16 @@ Oh My Git Flow
 SYNOPSIS
 ========
 
-gf [-fciwrynvVh] [--color[=WHEN]] [BRANCH\|TAG\|KEYWORD]
+gf [-cfhinrvVwy] [--color[=WHEN]] [BRANCH\|TAG\|KEYWORD]
 
 DESCRIPTION
 ===========
 
-**Oh My Git Flow**\ (1) (hereinafter referred as the 'OMGF') applies **git
-flow branching model**\ (2) on current or selected BRANCH, TAG or KEYWORD such
+**Oh My Git Flow**\ [1] (hereinafter referred as the 'OMGF') applies **git
+flow branching model**\ [2] on current or selected BRANCH, TAG or KEYWORD such
 as 'release' or 'hotfix'. If BRANCH does not exist, new feature is created.
 
-It is an alternative to **git-flow cheatsheet**\ (3) command with following
+It is an alternative to **git-flow cheatsheet**\ [3] command with following
 improvements:
 
 -  even simpler usage (no parameters required),
@@ -24,7 +24,7 @@ improvements:
 
 -  check and repair project to conform **OMGF** model,
 
--  automatic **semantic version numbering**\ (4) (file VERSION),
+-  automatic **semantic version numbering**\ [4] (file VERSION),
 
 -  version history update support (file CHANGELOG),
 
@@ -37,28 +37,28 @@ OPTIONS
 
 \-c, --conform
     Repair (initialize) project to be conform with **OMGF** model and proceed.
-\-i, --init
-    Same as conform, but do not proceed.
-\-f, --force
-    Move (stash and pop) uncommitted changes.
-\-w, --what-now
-    Display what to do on current branch.
-\-r, --request
-    Instead of merging prepare current branch for pull request and push it to
-    the origin.
-\-y, --yes
-    Assume yes for all questions.
 \--color[=WHEN], --colour[=WHEN]
     Use markers to highlight command status; WHEN is 'always', 'never', or
     'auto'.
+\-f, --force
+    Move (stash and pop) uncommitted changes.
+\-h, --help
+    Print help.
+\-i, --init
+    Same as conform, but do not proceed.
 \-n, --dry-run
     Do not run commands; only parse user options.
+\-r, --request
+    Instead of merging prepare current branch for pull request and push it to
+    the origin.
 \-v, --verbose
     Verbose mode.
 \-V, --version
     Print version number.
-\-h, --help
-    Print help.
+\-w, --what-now
+    Display what to do on current branch.
+\-y, --yes
+    Assume yes for all questions.
 
 BASIC FLOW EXAMPLES
 ===================
@@ -66,7 +66,7 @@ BASIC FLOW EXAMPLES
 Set global options
     -  ``export GF_OPTIONS="--verbose --what-now"``
 
-Initialize **gf**
+Initialize **OMGF**
     -  ``gf --init``
 
 Bugfixing on dev...
@@ -76,6 +76,7 @@ Bugfixing on dev...
 
 Create a feature
     -  ``gf myfeature``
+    -  Confirm by typing ``YES`` (or hit Enter)
 
 Developing a feature...
     -  ``echo "new feature code 1" >> myfile``
@@ -85,6 +86,7 @@ Developing a feature...
 
 Merge feature
     -  ``gf``
+    -  Confirm by typing ``YES`` (or hit Enter)
     -  Insert myfeature description into CHANGELOG.
 
 Bugfixing on dev...
@@ -93,21 +95,34 @@ Bugfixing on dev...
 
 Create release
     -  ``gf``
+    -  Confirm by typing ``YES`` (or hit Enter)
 
 Bugfixing on release...
     -  ``echo "release bugfix 1" >> myfile``
     -  ``git commit -am "add release bugfix 1"``
-    -  ``gf`` (only to dev)
+    -  ``gf``
+    -  Type ``NO`` and then ``YES`` (or hit Enter)
     -  ``echo "release bugfix 2" >> myfile``
     -  ``git commit -am "add release bugfix 2"``
 
 Merge release
     -  ``gf``
+    -  Confirm by typing ``YES`` (or hit Enter)
 
-Continue with bugfixing on dev...
+Continue on branch dev...
 
 ADVANCED EXAMPLES
 =================
+
+Assume YES by default
+    -  ``export GF_OPTIONS="$GF_OPTIONS --yes"``
+
+New feature from uncommitted changes
+    -  ``echo "feature force" >> myfile``
+    -  ``gf myfeature``
+    -  ...will exit with code 4
+    -  ``gf --force myfeature``
+    -  ``git commit -am "add feature force"``
 
 Hotfix master branch
     -  ``gf master``
@@ -115,33 +130,31 @@ Hotfix master branch
     -  ``git commit -am "add hotfix 1"``
     -  ``gf``
 
-Restore **OMGF** model (after pull request to master)
-    -  ``git checkout dev``
-    -  ``git reset --hard HEAD~1``
-    -  ``gf`` (will exit with code 3)
-    -  ``gf -c``
+Merge conflicting feature
+    -  ``gf myfeature``
+    -  ...will exit with code 5
+    -  Resolve conflict...
+    -  ``git add -A``
+    -  ``git rebase --continue``
+    -  ``gf``
 
-Hotfix previous release
-    -  ``gf v0.0``
+Create release with new MAJOR version
+    -  ``gf``
+    -  ``echo 1.0.0 > VERSION``
+    -  ``git commit -am "increment major version"``
+
+Restore **OMGF** model (after simulated pull request to master)
+    -  ``git checkout master``
+    -  ``git merge --no-ff release``
+    -  ``gf myfeature``
+    -  ...will exit with code 3
+    -  ``gf --conform myfeature``
+
+Hotfix obsolete stable branch
+    -  ``gf v0.1``
     -  ``echo "hotfix old" >> myfile``
     -  ``git add myfile``
     -  ``git commit -am "add old hotfix"``
-    -  ``gf``
-
-Initialize **gf** on existing project with version number
-    -  ``echo 1.12.0 > VERSION``
-    -  ``gf --init``
-
-New feature from uncommitted changes
-    -  ``git checkout dev``
-    -  ``echo "feature x" >> myfile``
-    -  ``gf myfeature`` (will exit with code 4)
-    -  ``gf -f myfeature``
-    -  ``git commit -am "add feature x"``
-
-Merge conflicting release
-    -  ``gf release`` (will exit with code 5)
-    -  Resolve conflicts...
     -  ``gf``
 
 INSTALL
@@ -195,13 +208,13 @@ EXIT STATUS
 SEE ALSO
 ========
 
-`OMGF on GitHub(1) <https://github.com/InternetGuru/omgf/>`__
+`OMGF on GitHub[1] <https://github.com/InternetGuru/omgf/>`__
 
-`Git flow model(2) <http://nvie.com/posts/a-successful-git-branching-model/>`__
+`Git flow model[2] <http://nvie.com/posts/a-successful-git-branching-model/>`__
 
-`Git-flow cheatsheet(3) <http://danielkummer.github.io/git-flow-cheatsheet/>`__
+`Git-flow cheatsheet[3] <http://danielkummer.github.io/git-flow-cheatsheet/>`__
 
-`Semantic Versioning(4) <http://semver.org/>`__
+`Semantic Versioning[4] <http://semver.org/>`__
 
 REPORTING BUGS
 ==============
@@ -222,29 +235,41 @@ There is NO WARRANTY, to the extent permitted by law.
 DONATION
 ========
 
-We appreciate contributions of any size -- donations enable us to spend more
-time working on the project, and help cover our infrastructure expenses.
+If you find this program useful, please **send a donation** to its developers
+to support their work. If you use this program at your workplace, please
+suggest that the company make a donation. We appreciate contributions of any
+size. Donations enable us to spend more time working on this package, and help
+cover our infrastructure expenses.
 
-If you'd like to make a small donation, please visit URL below and do it
-through PayPal. Since our project isn't a tax-exempt organization, we can't
-offer you a tax deduction, but for all donations over 50 USD, we'd be happy to
-recognize your contribution on URL below.
+If you’d like to make a donation of any value, please send it to the following
+PayPal address:
 
 `PayPal Donation <https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=G6A49JPWQKG7A>`__
 
-`Oh My Git Flow <https://www.internetguru.cz/omgf>`__
+Since we aren’t a tax-exempt organization, we can’t offer you a tax deduction.
+But for all donations over 50 USD, we’d be happy to recognize your
+contribution on the **OMGF** page[1] and on this README file (including manual
+page) for the next release.
 
 We are also happy to consider making particular improvements or changes, or
 giving specific technical assistance, in return for a substantial donation
-over 100 USD. If you would like to discuss this possibility, write to us at
+over 100 USD. If you would like to discuss this possibility, write us at
 info@internetguru.cz.
 
-Another possibility is to pay a software maintenance fee. Again, write to us
+Another possibility is to pay a software maintenance fee. Again, write us
 about this at info@internetguru.cz to discuss how much you want to pay and how
-much maintenance we can offer in return. If you pay more than 50 USD, we can
-give you a document for your records.
+much maintenance we can offer in return.
 
 Thanks for your support!
+
+DONORS
+======
+
+`Faculty of Information Technology, CTU Prague <https://www.fit.cvut.cz/en>`__
+
+`WebExpo Conference, Prague <https://webexpo.net/>`__
+
+`DATAMOLE, data mining & machine learning <https://www.datamole.cz/>`__
 
 AUTHORS
 =======
