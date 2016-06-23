@@ -235,29 +235,41 @@ There is NO WARRANTY, to the extent permitted by law.
 DONATION
 ========
 
-We appreciate contributions of any size -- donations enable us to spend more
-time working on the project, and help cover our infrastructure expenses.
+If you find this program useful, please **send a donation** to its developers
+to support their work. If you use this program at your workplace, please
+suggest that the company make a donation. We appreciate contributions of any
+size. Donations enable us to spend more time working on this package, and help
+cover our infrastructure expenses.
 
-If you'd like to make a small donation, please visit URL below and do it
-through PayPal. Since our project isn't a tax-exempt organization, we can't
-offer you a tax deduction, but for all donations over 50 USD, we'd be happy to
-recognize your contribution on URL below.
+If you’d like to make a donation of any value, please send it to the following
+PayPal address:
 
 `PayPal Donation <https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=G6A49JPWQKG7A>`__
 
-`Oh My Git Flow <https://www.internetguru.cz/omgf>`__
+Since we aren’t a tax-exempt organization, we can’t offer you a tax deduction.
+But for all donations over 50 USD, we’d be happy to recognize your
+contribution on the **OMGF** page[1] and on this README file (including manual
+page) for the next release.
 
 We are also happy to consider making particular improvements or changes, or
 giving specific technical assistance, in return for a substantial donation
-over 100 USD. If you would like to discuss this possibility, write to us at
+over 100 USD. If you would like to discuss this possibility, write us at
 info@internetguru.cz.
 
-Another possibility is to pay a software maintenance fee. Again, write to us
+Another possibility is to pay a software maintenance fee. Again, write us
 about this at info@internetguru.cz to discuss how much you want to pay and how
-much maintenance we can offer in return. If you pay more than 50 USD, we can
-give you a document for your records.
+much maintenance we can offer in return.
 
 Thanks for your support!
+
+DONORS
+======
+
+`Faculty of Information Technology, CTU Prague <https://www.fit.cvut.cz/en>`__
+
+`WebExpo Conference, Prague <https://webexpo.net/>`__
+
+`DATAMOLE, data mining & machine learning <https://www.datamole.cz/>`__
 
 AUTHORS
 =======
