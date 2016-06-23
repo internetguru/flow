@@ -11,11 +11,11 @@ gf [-cfhinrvVwy] [--color[=WHEN]] [BRANCH\|TAG\|KEYWORD]
 DESCRIPTION
 ===========
 
-**Oh My Git Flow**[1] (hereinafter referred as the 'OMGF') applies **git
-flow branching model**[2] on current or selected BRANCH, TAG or KEYWORD such
+**Oh My Git Flow**\ [1] (hereinafter referred as the 'OMGF') applies **git
+flow branching model**\ [2] on current or selected BRANCH, TAG or KEYWORD such
 as 'release' or 'hotfix'. If BRANCH does not exist, new feature is created.
 
-It is an alternative to **git-flow cheatsheet**[3] command with following
+It is an alternative to **git-flow cheatsheet**\ [3] command with following
 improvements:
 
 -  even simpler usage (no parameters required),
@@ -24,7 +24,7 @@ improvements:
 
 -  check and repair project to conform **OMGF** model,
 
--  automatic **semantic version numbering**[4] (file VERSION),
+-  automatic **semantic version numbering**\ [4] (file VERSION),
 
 -  version history update support (file CHANGELOG),
 
@@ -66,7 +66,7 @@ BASIC FLOW EXAMPLES
 Set global options
     -  ``export GF_OPTIONS="--verbose --what-now"``
 
-Initialize **gf**
+Initialize **OMGF**
     -  ``gf --init``
 
 Bugfixing on dev...
@@ -76,6 +76,7 @@ Bugfixing on dev...
 
 Create a feature
     -  ``gf myfeature``
+    -  Confirm by typing ``YES`` (or hit Enter)
 
 Developing a feature...
     -  ``echo "new feature code 1" >> myfile``
@@ -85,6 +86,7 @@ Developing a feature...
 
 Merge feature
     -  ``gf``
+    -  Confirm by typing ``YES`` (or hit Enter)
     -  Insert myfeature description into CHANGELOG.
 
 Bugfixing on dev...
@@ -93,21 +95,34 @@ Bugfixing on dev...
 
 Create release
     -  ``gf``
+    -  Confirm by typing ``YES`` (or hit Enter)
 
 Bugfixing on release...
     -  ``echo "release bugfix 1" >> myfile``
     -  ``git commit -am "add release bugfix 1"``
-    -  ``gf`` (only to dev)
+    -  ``gf``
+    -  Type ``NO`` and then ``YES`` (or hit Enter)
     -  ``echo "release bugfix 2" >> myfile``
     -  ``git commit -am "add release bugfix 2"``
 
 Merge release
     -  ``gf``
+    -  Confirm by typing ``YES`` (or hit Enter)
 
-Continue with bugfixing on dev...
+Continue on branch dev...
 
 ADVANCED EXAMPLES
 =================
+
+Assume YES by default
+    -  ``export GF_OPTIONS="$GF_OPTIONS --yes"``
+
+New feature from uncommitted changes
+    -  ``echo "feature force" >> myfile``
+    -  ``gf myfeature``
+    -  ...will exit with code 4
+    -  ``gf --force myfeature``
+    -  ``git commit -am "add feature force"``
 
 Hotfix master branch
     -  ``gf master``
@@ -115,33 +130,31 @@ Hotfix master branch
     -  ``git commit -am "add hotfix 1"``
     -  ``gf``
 
-Restore **OMGF** model (after pull request to master)
-    -  ``git checkout dev``
-    -  ``git reset --hard HEAD~1``
-    -  ``gf`` (will exit with code 3)
-    -  ``gf -c``
+Merge conflicting feature
+    -  ``gf myfeature``
+    -  ...will exit with code 5
+    -  Resolve conflict...
+    -  ``git add -A``
+    -  ``git rebase --continue``
+    -  ``gf``
 
-Hotfix previous release
-    -  ``gf v0.0``
+Create release with new MAJOR version
+    -  ``gf``
+    -  ``echo 1.0.0 > VERSION``
+    -  ``git commit -am "increment major version"``
+
+Restore **OMGF** model (after simulated pull request to master)
+    -  ``git checkout master``
+    -  ``git merge --no-ff release``
+    -  ``gf myfeature``
+    -  ...will exit with code 3
+    -  ``gf --conform myfeature``
+
+Hotfix obsolete stable branch
+    -  ``gf v0.1``
     -  ``echo "hotfix old" >> myfile``
     -  ``git add myfile``
     -  ``git commit -am "add old hotfix"``
-    -  ``gf``
-
-Initialize **gf** on existing project with version number
-    -  ``echo 1.12.0 > VERSION``
-    -  ``gf --init``
-
-New feature from uncommitted changes
-    -  ``git checkout dev``
-    -  ``echo "feature x" >> myfile``
-    -  ``gf myfeature`` (will exit with code 4)
-    -  ``gf -f myfeature``
-    -  ``git commit -am "add feature x"``
-
-Merge conflicting release
-    -  ``gf release`` (will exit with code 5)
-    -  Resolve conflicts...
     -  ``gf``
 
 INSTALL
