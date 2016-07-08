@@ -24,8 +24,9 @@ set -u
 function main {
 
   function msg_start {
+    [[ $verbose -eq 0 ]] && return
     if stdoutpipe || [[ $COLUMNS -lt 41 ]]; then
-      echo "$1" && return 0
+      echo -n "$1" && return 0
     fi
     echo -n "[ "
     save_cursor_position
@@ -33,8 +34,9 @@ function main {
   }
 
   function msg_end {
+    [[ $verbose -eq 0 ]] && return
     if stdoutpipe || [[ $COLUMNS -lt 41 ]]; then
-      echo "[ $1 ]" && return 0
+      echo " [ $1 ]" && return 0
     fi
     set_cursor_position
     echo "$1"
@@ -330,7 +332,7 @@ function main {
     fi
     local last_change
     last_change="$(master_last_change)"
-    if [[ -n "$last_change" ]] && ! git branch --contains "$last_change" | grep "$GF_DEV" >/dev/null; then
+    if [[ -n "$last_change" ]] && ! git branch --contains "$last_change" | grep -q "$GF_DEV"; then
       [[ $conform == 0 ]] && { err "Branch master is not merged with '$GF_DEV'" || return 3; }
       merge_branches "$last_change" "$GF_DEV" || return $?
     fi

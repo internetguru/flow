@@ -12,14 +12,19 @@ before_install:
  - sudo pip install docutils
 
 install:
- - "sudo ./configure && sudo PREFIX=/usr make && sudo compiled/install"
+ - sudo ./configure && sudo PREFIX=/usr make && sudo compiled/install
+
+before_script:
+ - git clone https://github.com/InternetGuru/butt
+ - cd butt
+ - sudo ./configure && sudo PREFIX=/usr make && sudo compiled/install
+ - cd ..
 
 script:
  - shellcheck gf
- - cd test
  - git config --global user.email "test@test.cz"
  - git config --global user.name "test"
- - ./run
+ - butt test/test.butt
 
 matrix:
   fast_finish: true
