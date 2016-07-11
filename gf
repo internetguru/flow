@@ -240,11 +240,15 @@ function main {
   }
 
   function save_cursor_position {
-    local curpos
+    local curpos oldstty
     curpos="1;1"
+    exec < /dev/tty
+    oldstty=$(stty -g)
+    stty raw -echo min 0
     echo -en "\033[6n" >/dev/tty
     # shellcheck disable=SC2162
     read -d"R" curpos </dev/tty
+    stty "$oldstty"
     pos_x=$( echo "${curpos#??}" | cut -d";" -f1 )
     pos_y=$( echo "${curpos#??}" | cut -d";" -f2 )
   }
