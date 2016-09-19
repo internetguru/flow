@@ -282,7 +282,7 @@ function main {
   }
 
   function init_file {
-    [[ -s "$1" ]] && return 0
+    [[ -s "$1" ]] && return 0 # file exists and is not empty
     [[ $conform == 1 ]] \
       || err "Missing or empty file '$1'" \
       || return 3
@@ -306,7 +306,11 @@ function main {
     msg_end "$DONE"
   }
 
-  function gf_validate {
+  # 1) validate repository existence
+  # 2) validate repository consistency:
+  # - at least one commit
+  # - master branch
+  function validate_git_repository {
     if ! git_repo_exists; then
       [[ $conform == 0 ]] && { err "Git repository does not exist" || return 3; }
       msg_start "Initializing git repository"
@@ -320,16 +324,27 @@ function main {
       [[ $conform == 0 ]] && { err "Missing branch 'master'" || return 3; }
       git_branch_create master || return 1
     fi
+  }
+
+  # validate $GF_VERSION and $GF_HANGELOG files
+  function validate_gf_files {
     init_file "$GF_VERSION" "0.0.0" \
       && init_file "$GF_CHANGELOG" "$GF_CHANGELOG created" \
       && load_version \
       || return $?
-    local gcb
-    gcb="$(git_current_branch)"
-    if ([[ $gcb == master ]] || [[ $gcb == "$master" ]]) && ! git_tag_here "$master.$patch"; then
+  }
+
+  # validate tag on ($)master
+  function validate_master_tag {
+    if ([[ $1 == master ]] || [[ $1 == "$master" ]]) && ! git_tag_here "$master.$patch"; then
       [[ $conform == 0 ]] && { err "Missing tag '$master.$patch' on current HEAD" || return 3; }
       git_tag "$master.$patch";
     fi
+  }
+
+  # 1) validate $GF_DEV branch
+  # 2) validate $GF_DEV is up to date with master
+  function validate_dev {
     if ! git_branch_exists "$GF_DEV"; then
       [[ $conform == 0 ]] && { err "Missing branch '$GF_DEV'" || return 3; }
       git_branch_create dev master || return 1
@@ -340,11 +355,25 @@ function main {
       [[ $conform == 0 ]] && { err "Branch master is not merged with '$GF_DEV'" || return 3; }
       merge_branches "$last_change" "$GF_DEV" || return $?
     fi
+  }
+
+  # validate git status
+  function validate_status_empty {
     if [[ $force == 1 ]]; then
       git_stash || return $?
     else
       git_status_empty || return 4
     fi
+  }
+
+  function gf_validate {
+    validate_git_repository
+    validate_gf_files
+    local gcb
+    gcb="$(git_current_branch)"
+    validate_master_tag "$gcb"
+    validate_dev
+    validate_status_empty
     [[ -z "$origbranch" ]] \
       && origbranch=$gcb \
       && return 0

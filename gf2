@@ -1,0 +1,405 @@
+#!/bin/bash
+
+shopt -s extglob
+shopt -s nocasematch
+set -u
+
+# shellcheck disable=SC2086
+: ${GF_DATAPATH:=.}
+# shellcheck disable=SC2086
+: ${GF_CHANGELOG:=CHANGELOG}
+# shellcheck disable=SC2086
+: ${GF_VERSION:=VERSION}
+# shellcheck disable=SC2086
+: ${GF_DEV:=dev}
+# shellcheck disable=SC2086
+: ${GF_ORIGIN:=origin}
+# shellcheck disable=SC2086
+: ${GF_OPTIONS:=}
+# shellcheck disable=SC2086
+: ${GF_NOPREFIX:=}
+: ${COLUMNS:=$(tput cols)}
+: ${LINES:=$(tput lines)}
+
+function main {
+
+  function msg_start {
+    [[ $verbose -eq 0 ]] && return
+    if stdoutpipe || [[ $COLUMNS -lt 41 ]]; then
+      echo -n "$1" && return 0
+    fi
+    echo -n "[ "
+    save_cursor_position
+    echo " ....  ] $1"
+  }
+
+  function msg_end {
+    [[ $verbose -eq 0 ]] && return
+    if stdoutpipe || [[ $COLUMNS -lt 41 ]]; then
+      echo " [ $1 ]" && return 0
+    fi
+    set_cursor_position
+    echo "$1"
+  }
+
+  function stdout_silent {
+    [[ $verbose == 0 ]] && exec 5<&1 && exec 1>/dev/null
+    return 0
+  }
+
+  function stdout_verbose {
+    [[ $verbose == 0 ]] && exec 1<&5
+    return 0
+  }
+
+  function err {
+    echo "$(basename "${0}")[error]: $*" >&2
+    return 1
+  }
+
+  function setcolor {
+    local c
+    c=${1:-always}
+    case $c in
+      always|never|auto)
+        color=$c
+        return 0
+      ;;
+    esac
+    return 2
+  }
+
+  function stdoutpipe {
+    readlink /proc/$$/fd/1 | grep -q "^pipe:"
+  }
+
+  function colorize {
+    [[ $color == never ]] && echo -n "$1" && return
+    [[ $color == auto ]] && stdoutpipe && echo -n "$1" && return
+    local c
+    c="${2:-$GREEN}"
+    tput setaf "$c"
+    echo -n "$1"
+    tput sgr0
+  }
+
+  function clear_stdin {
+    while read -r -t 0; do read -r; done
+  }
+
+  function save_cursor_position {
+    local curpos oldstty
+    curpos="1;1"
+    exec < /dev/tty
+    oldstty=$(stty -g)
+    stty raw -echo min 0
+    echo -en "\033[6n" >/dev/tty
+    # shellcheck disable=SC2162
+    read -d"R" curpos </dev/tty
+    stty "$oldstty"
+    pos_x=$( echo "${curpos#??}" | cut -d";" -f1 )
+    pos_y=$( echo "${curpos#??}" | cut -d";" -f2 )
+  }
+
+  function set_cursor_position {
+    [[ "$pos_x" == "$LINES" ]] && : $(( pos_x-- ))
+    tput cup $(( pos_x-1 )) $(( pos_y-1 ))
+  }
+
+  function confirm {
+    [[ $yes == 1 ]] && return 0
+    if [[ $is_stdin == 0 ]]; then
+      stdout_verbose
+      echo -n "${1:-"Are you sure?"} [YES/No] "
+      save_cursor_position
+      clear_stdin
+      read -r
+      [[ -z "$REPLY" ]] && set_cursor_position && echo "yes"
+      stdout_silent
+    else
+      read -r
+    fi
+    [[ "$REPLY" =~ ^y(es)?$ || -z "$REPLY" ]] && return 0
+    [[ "$REPLY" =~ ^no?$ ]] && return 1
+    confirm "Type"
+  }
+
+  function git_status_empty {
+    [[ -z "$(git status --porcelain)" ]] \
+      || err "Uncommitted changes"
+  }
+
+  # make git return only error to stderr
+  function git_checkout {
+    local out
+    out="$(git checkout "$@" 2>&1)" \
+      || err "$out"
+  }
+
+  # make git return only error to stderr
+  function git_tag {
+    local out
+    out="$(git tag "$@" 2>&1)" \
+      || err "$out"
+  }
+
+  # make git return only error to stderr
+  function git_merge {
+    local out
+    out="$(git merge "$@" 2>&1)" \
+      || err "$out"
+  }
+
+  function git_push {
+    local out
+    out="$(git push "$GF_ORIGIN" "$origbranch" 2>&1)" \
+      || err "$out"
+  }
+
+  function git_checkout_branch {
+    msg_start "Creating branch '$1' on current HEAD"
+    git_checkout -b "$1" || return 1
+    msg_end "$DONE"
+  }
+
+  function git_branch_create {
+    local to
+    to="${2:-HEAD}"
+    msg_start "Creating branch '$1' on '$to'"
+    git branch "$1" "$to"
+    msg_end "$DONE"
+  }
+
+  function git_branch_exists {
+    git rev-parse --verify "$1" >/dev/null 2>&1 && return 0
+    git rev-parse --verify "$GF_ORIGIN/$1" >/dev/null 2>&1 \
+      && git branch "$1" "$GF_ORIGIN/$1" >/dev/null 2>&1 || return 1
+  }
+
+  function git_tag_here {
+    git tag --points-at HEAD | grep -q "^$1$"
+  }
+
+  function git_repo_exists {
+    [[ -d .git ]]
+  }
+
+  function git_remote_exists {
+    git config remote."$GF_ORIGIN".url >/dev/null \
+      || err "Remote url for '$GF_ORIGIN' does not exist" \
+      || return 1
+  }
+
+  function git_remote_branch_exists {
+    local branch
+    branch=${1:-$origbranch}
+    msg_start "Checking if '$branch' exists on remote '$GF_ORIGIN'"
+    git ls-remote --heads "$GF_ORIGIN" | grep -q "$REFSHEADS/$branch"$ \
+      || err "Remote branch '$branch' does not exist" \
+      || return 1
+    msg_end "$DONE"
+  }
+
+  function git_commit_diff {
+    [[ "$( git rev-parse "$1" )" != "$( git rev-parse "$2" )" ]]
+  }
+
+  function git_version_diff {
+    [[ "$(git show "$1":"$GF_VERSION" | cut -d. -f1-2)" != "$2" ]]
+  }
+
+  function git_current_branch {
+    git rev-parse --abbrev-ref HEAD
+  }
+
+  function git_stash {
+    git_status_empty 2>/dev/null && return 0
+    msg_start "Stashing files"
+    git add -A >/dev/null || return 1
+    git stash >/dev/null || return 1
+    # shellcheck disable=SC2015
+    git_status_empty 2>/dev/null \
+      && { stashed=1; msg_end "$DONE"; } \
+      || { msg_end "$FAILED"; return 1; }
+  }
+
+  function git_stash_pop {
+    [[ $stashed == 0 ]] && return 0
+    msg_start "Popping stashed files"
+    git stash pop >/dev/null || { msg_end "$FAILED"; return 1; }
+    msg_end "$DONE"
+  }
+
+  function git_has_commits {
+    git log >/dev/null 2>&1
+  }
+
+  function is_gf_keyword {
+    [[ "$1" == "hotfix" || "$1" == "release" || "$1" == "feature" ]]
+  }
+
+  # - process user given parameters
+  # - fill par_kw and par_branch
+  function gf_process_params {
+    local gcb prefix #suffix
+    gcb="$(git_current_branch)"
+
+    if [[ -n "$par1" && -n "$par2" ]]; then
+      par_kw="$par1"
+      par_branch="$par2"
+    elif [[ -n "$par1" ]]; then
+      is_gf_keyword "$par1" \
+        && par_kw="$par1" \
+        || par_branch="$par1"
+    fi
+
+    par_branch="${gcb:-}"
+    prefix="${par_branch%%-*}"
+    # suffix="${par_branch#*-}"
+
+    case "$prefix" in
+      hotfix)
+        # shellcheck disable=SC2086
+        : ${par_kw:=$prefix}
+        # TODO get_newest_hotfix_name
+        # [[ "$prefix" != "$gcb" ]] ||
+      ;;
+      release)
+        # shellcheck disable=SC2086
+        : ${par_kw:=$prefix}
+        # TODO err ('release-*' is not allowed)
+        # [[ "$prefix" != "$gcb" ]] || err ""
+      ;;
+      feature)
+        # shellcheck disable=SC2086
+        : ${par_kw:=$prefix}
+        # TODO ask to specify feature name
+        # [[ "$prefix" != "$gcb" ]]
+      ;;
+      master)
+        # shellcheck disable=SC2086
+        : ${par_kw:=hotfix}
+      ;;
+      dev)
+        # shellcheck disable=SC2086
+        # TODO release?
+        : ${par_kw:=release}
+      ;;
+      *)
+        # TODO ask to create feature?
+      ;;
+    esac
+  }
+
+  # TODO
+  function gf_validate_params {
+    is_gf_keyword "$par_kw" \
+      || err "Parameter '$par_kw' is not a valid keyword" \
+      || return 1
+  }
+
+  # variables
+  local line script_name master force conform yes verbose dry what_now color prefix pos_x pos_y init request is_stdin
+  what_now=0
+  dry=0
+  verbose=0
+  yes=0
+  script_name="gf"
+  prefix="$([ -z "$GF_NOPREFIX" ] && echo v)"
+  master=${prefix}0.0
+  color=auto
+  pos_x=1
+  pos_y=1
+  [ -t 0 ]
+  is_stdin=$?
+  newfeature=0
+
+  # process options
+  # shellcheck disable=SC2086
+  # shellcheck disable=SC2048
+  if ! line=$(
+    IFS=" " getopt -n "$0" \
+           -o cfhinrvVwy\? \
+           -l conform,color::,colour::,force,help,init,dry-run,request,verbose,version,what-now,yes \
+           -- $GF_OPTIONS $*
+  )
+  then gf_usage; return 2; fi
+  eval set -- "$line"
+
+  # load user options
+  force=0
+  conform=0
+  init=0
+  request=0
+  while [ $# -gt 0 ]; do
+    case $1 in
+     -c|--conform) conform=1; shift ;;
+     --color|--colour) shift; setcolor "$1" || { gf_usage; return 2; }; shift ;;
+     -f|--force) force=1; shift ;;
+     -h|-\?|--help) gf_usage; return $? ;;
+     -i|--init) init=1; conform=1; shift ;;
+     -n|--dry-run) dry=1; shift ;;
+     -r|--request) request=1; shift;;
+     -v|--verbose) verbose=1; shift ;;
+     -V|--version) gf_version; return $? ;;
+     -w|--what-now) what_now=1; shift ;;
+     -y|--yes) yes=1; shift ;;
+      --) shift; break ;;
+      *-) echo "$script_name: Unrecognized option '$1'" >&2; gf_usage; return 2 ;;
+       *) break ;;
+    esac
+  done
+
+  # constants
+  local -r \
+    RED=1 \
+    GREEN=2 \
+    BLUE=4 \
+    GITHUB="github.com" \
+    BITBUCKET="bitbucket.org"
+  local -r \
+    REFSHEADS="refs/heads" \
+    DONE="$(colorize "  ok  " $GREEN)" \
+    FAILED="$(colorize "failed" $RED)" \
+    SKIPPED="$(colorize "skipped" $BLUE)"
+
+  # proceed params
+  local par1 par2 par_kw par_branch
+  par1="${1:-}"
+  par2="${2:-}"
+  par_kw=
+  par_branch=
+
+  # shellcheck disable=SC2015
+  gf_process_params && gf_validate_params || {
+    case $? in
+      1) err "Generic error occurred (see REPORTING BUGS)."; return 1 ;;
+      # 3) err "Git is not conform with OMGF model (see conform option)."; return 3 ;;
+      # 4) err "Git status is not empty (see force option)."; return 4 ;;
+      # 5) err "Git conflict occurred (see 'git status')."; gf_what_now; return 5 ;;
+    esac
+  }
+
+  # # silent output by default
+  # stdout_silent
+  # # dry run
+  # [[ $dry == 1 ]] && { gf_what_now; return 0; }
+
+  # # proceed gf
+  # # shellcheck disable=SC2015
+  # gf_validate && gf_prepare && {
+  #   if [[ $newfeature == 0 ]]; then load_version && gf_run; fi
+  #   } && git_stash_pop && gf_what_now || {
+  #   case $? in
+  #     1) err "Generic error occurred (see REPORTING BUGS)."; return 1 ;;
+  #     3) err "Git is not conform with OMGF model (see conform option)."; return 3 ;;
+  #     4) err "Git status is not empty (see force option)."; return 4 ;;
+  #     5) err "Git conflict occurred (see 'git status')."; gf_what_now; return 5 ;;
+  #   esac
+  # }
+
+
+
+}
+
+main "$@"
