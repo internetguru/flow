@@ -284,11 +284,15 @@ function main {
     msg_end "$DONE"
   }
 
+  # TODO move load params to validate
   function gf_process_params {
     # load kw and name from params
     if [[ $arg_count -gt 1 ]]; then
       par_kw="$par1"
       par_name="$par2"
+      is_gf_keyword "$par_kw" \
+        || err "Parameter '$par_kw' is not a valid keyword" \
+        || return 1
       # eg. for "gf hotfix aaa" checkout to "hotfix-aaa"
       if git_branch_exists "$par_kw-$par_name"; then
         gf_checkout "$par_kw-$par_name" || return $?
@@ -310,17 +314,16 @@ function main {
         $HOTFIX) ;; # TODO create_hotfix $par_name
         $RELEASE) ;; # TODO create or proceed release
         $FEATURE) ;; # TODO create_feature $par_name
-        *) err "Parameter '$par_kw' is not a valid keyword" ;;
       esac
       return $?
     fi
     # action according to current branch
     case "${gf_branch%%-*}" in
-      $HOTFIX) ;; # TODO merge_hotfix ($par_name is useless)
+      $HOTFIX) ;; # TODO merge_hotfix ($par_name -> ignore or error)
       master|$prefix+([0-9]).+([0-9])) ;; # TODO create_hotfix $par_name
-      $RELEASE) ;; # TODO merge_release ($par_name is useless)
+      $RELEASE) ;; # TODO merge_release ($par_name -> error)
       $GF_DEV) ;; # TODO create_release (empty $par_name) OR create_feature $par_name
-      $FEATURE) ;; # TODO merge_feature ($par_name is useless)
+      $FEATURE) ;; # TODO merge_feature ($par_name -> ignore or error)
       *) err "Current branch '$gf_branch' is not recognized" || return 1 ;;
     esac
     #par_name="$(prefix_branch "$par_kw" "$par_name")"
