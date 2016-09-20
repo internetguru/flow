@@ -152,7 +152,7 @@ function main {
 
   function git_push {
     local out
-    out="$(git push "$GF_ORIGIN" "$origbranch" 2>&1)" \
+    out="$(git push "$GF_ORIGIN" "$gf_branch" 2>&1)" \
       || err "$out"
   }
 
@@ -192,7 +192,7 @@ function main {
 
   function git_remote_branch_exists {
     local branch
-    branch=${1:-$origbranch}
+    branch=${1:-$gf_branch}
     msg_start "Checking if '$branch' exists on remote '$GF_ORIGIN'"
     git ls-remote --heads "$GF_ORIGIN" | grep -q "$REFSHEADS/$branch"$ \
       || err "Remote branch '$branch' does not exist" \
@@ -234,6 +234,141 @@ function main {
     git log >/dev/null 2>&1
   }
 
+  function load_version {
+    [[ -f "$GF_VERSION" ]] \
+      || err "Version file not found" \
+      || return 3
+    [[ -n "$(cat "$GF_VERSION")" ]] \
+      || err "Version file is empty" \
+      || return 3
+    [[ "$(cat "$GF_VERSION")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+      || err "Invalid version file content format" \
+      || return 1
+    IFS=. read -r major minor patch < "$GF_VERSION" \
+      || err "Unable to load version" \
+      || return 1
+    master=$prefix$major.$minor
+  }
+
+  function master_last_change {
+    git cherry -v "$GF_DEV" master | tail -n1 | cut -d" " -f2
+  }
+
+  function init_file {
+    [[ -s "$1" ]] && return 0 # file exists and is not empty
+    [[ $conform == 1 ]] \
+      || err "Missing or empty file '$1'" \
+      || return 3
+    local message
+    message="Initializing '$1' file"
+    msg_start "$message"
+    echo "$2" > "$1" || return 1
+    git add "$1" >/dev/null \
+      && git commit -m "$message" >/dev/null \
+      || return 1
+    msg_end "$DONE"
+  }
+
+  function initial_commit {
+    git_status_empty 2>/dev/null && return 0
+    msg_start "Initial commit"
+    git add -A >/dev/null \
+      && git commit -m "Commit initial files" >/dev/null \
+      || err "Unable to commit existing files" \
+      || return 1
+    msg_end "$DONE"
+  }
+
+  # 1) validate repository existence
+  # 2) validate repository consistency:
+  # - at least one commit
+  # - master branch
+  function validate_git_repository {
+    if ! git_repo_exists; then
+      [[ $conform == 0 ]] && { err "Git repository does not exist" || return 3; }
+      msg_start "Initializing git repository"
+      git init >/dev/null || return 1
+      msg_end "$DONE"
+    fi
+    if ! git_has_commits; then
+      [[ $conform == 0 ]] && { err "Git repository without commits" || return 3; }
+      initial_commit || return $?
+    elif ! git_branch_exists master; then
+      [[ $conform == 0 ]] && { err "Missing branch 'master'" || return 3; }
+      git_branch_create master || return 1
+    fi
+  }
+
+  # validate $GF_VERSION and $GF_HANGELOG files
+  function validate_gf_files {
+    init_file "$GF_VERSION" "0.0.0" \
+      && init_file "$GF_CHANGELOG" "$GF_CHANGELOG created" \
+      && load_version \
+      || return $?
+  }
+
+  # validate tag on ($)master
+  function validate_master_tag {
+    if ([[ $1 == master ]] || [[ $1 == "$master" ]]) && ! git_tag_here "$master.$patch"; then
+      [[ $conform == 0 ]] && { err "Missing tag '$master.$patch' on current HEAD" || return 3; }
+      git_tag "$master.$patch";
+    fi
+  }
+
+  # 1) validate $GF_DEV branch
+  # 2) validate $GF_DEV is up to date with master
+  function validate_dev {
+    if ! git_branch_exists "$GF_DEV"; then
+      [[ $conform == 0 ]] && { err "Missing branch '$GF_DEV'" || return 3; }
+      git_branch_create dev master || return 1
+    fi
+    local last_change
+    last_change="$(master_last_change)"
+    if [[ -n "$last_change" ]] && ! git branch --contains "$last_change" | grep -q "$GF_DEV"; then
+      [[ $conform == 0 ]] && { err "Branch master is not merged with '$GF_DEV'" || return 3; }
+      merge_branches "$last_change" "$GF_DEV" || return $?
+    fi
+  }
+
+  # validate git status
+  function validate_status_empty {
+    if [[ $force == 1 ]]; then
+      git_stash || return $?
+    else
+      git_status_empty || return 4
+    fi
+  }
+
+  function gf_validate {
+    validate_git_repository
+    validate_gf_files
+    local gcb
+    gcb="$(git_current_branch)"
+    validate_master_tag "$gcb"
+    validate_dev
+    validate_status_empty
+    # load and validate user params
+    if [[ $arg_count -gt 1 ]]; then
+      par_kw="$par1"
+      par_name="$par2"
+      is_gf_keyword "$par_kw" \
+        || err "Parameter '$par_kw' is not a valid keyword" \
+        || return 1
+    elif [[ $arg_count == 1 ]]; then
+      is_gf_keyword "$par1" \
+        && par_kw="$par1" \
+        || par_name="$par1"
+    fi
+    [[ -z "$par_name" ]] && return 0
+    git check-ref-format "$REFSHEADS/$par_name" \
+      || err "Invalid branch name format" \
+      || return 1
+  }
+
+  function is_gf_keyword {
+    [[ "$1" == "$HOTFIX" || "$1" == "$RELEASE" || "$1" == "$FEATURE" ]]
+  }
+
   # Get free branch name (increment suffix)
   # Eg. when branch "$HOTFIX-john" and "$HOTFIX-john-1" already exists
   # then for param "$HOTFIX-john" return "$HOTFIX-john-2"
@@ -273,47 +408,36 @@ function main {
       && gf_branch="$(git_current_branch)" \
       && return 0
     # assume checkout to tag or branch
-    msg_start "Checkout '$1'"
     git_checkout "$1" \
+      && gf_validate \
+      && load_version \
       || return $?
-    # git_checkout "$1" \
-    #   && gf_validate \
-    #   && load_version \
-    #   || return $?
     gf_branch="$(git_current_branch)"
     msg_end "$DONE"
   }
 
-  # TODO move load params to validate
   function gf_process_params {
-    # load kw and name from params
-    if [[ $arg_count -gt 1 ]]; then
-      par_kw="$par1"
-      par_name="$par2"
-      is_gf_keyword "$par_kw" \
-        || err "Parameter '$par_kw' is not a valid keyword" \
-        || return 1
-      # eg. for "gf hotfix aaa" checkout to "hotfix-aaa"
-      if git_branch_exists "$par_kw-$par_name"; then
-        gf_checkout "$par_kw-$par_name" || return $?
-        return
-      fi
-    elif [[ $arg_count == 1 ]]; then
-      is_gf_keyword "$par1" \
-        && par_kw="$par1" \
-        || par_name="$par1"
-      # eg. for "gf hotfix-aaa" checkout to "hotfix-aaa"
-      if git_branch_exists "$par_name"; then
-        gf_checkout "$par_name" || return $?
-        return
-      fi
+    # eg. for "gf hotfix aaa" checkout to "hotfix-aaa"
+    if [[ $arg_count -gt 1 ]] && git_branch_exists "$par_kw-$par_name"; then
+      gf_checkout "$par_kw-$par_name" || return $?
+      return
+    fi
+    # eg. for "gf hotfix-aaa" checkout to "hotfix-aaa"
+    if [[ $arg_count == 1 ]] && git_branch_exists "$par_name"; then
+      gf_checkout "$par_name" || return $?
+      return
     fi
     # action according to given kw
     if [[ -n "$par_kw" ]]; then
       case "$par_kw" in
-        $HOTFIX) ;; # TODO create_hotfix $par_name
-        $RELEASE) ;; # TODO create or proceed release
-        $FEATURE) ;; # TODO create_feature $par_name
+        $HOTFIX) gf_hotfix "$par_name" ;;
+        $FEATURE) gf_feature "$par_name" ;;
+        $RELEASE)
+          [[ -z "$par_name" ]] \
+            || err "Parameter '$par_name' does not make any sense with kw '$RELEASE'" \
+            || return 1
+          gf_release
+        ;;
       esac
       return $?
     fi
@@ -329,15 +453,33 @@ function main {
     #par_name="$(prefix_branch "$par_kw" "$par_name")"
   }
 
+  # TODO create or proceed feature
+  # $1 optional feature name
+  function gf_feature {
+    :
+  }
+  # TODO create or proceed hotfix
+  # $1 optional hotfix name
+  function gf_hotfix {
+    :
+  }
+  # TODO create or proceed release
+  function gf_release {
+    :
+  }
+
 
   # variables
-  local line script_name master force conform yes verbose dry what_now color prefix pos_x pos_y init request is_stdin gf_branch
+  local line script_name master force conform yes verbose dry what_now color prefix pos_x pos_y init request is_stdin gf_branch major minor patch
   what_now=0
   dry=0
   verbose=0
   yes=0
   script_name="gf"
   prefix="$([ -z "$GF_NOPREFIX" ] && echo v)"
+  major=0
+  minor=0
+  patch=0
   master=${prefix}0.0
   color=auto
   pos_x=1
