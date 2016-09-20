@@ -234,72 +234,101 @@ function main {
     git log >/dev/null 2>&1
   }
 
-  function is_gf_keyword {
-    [[ "$1" == "hotfix" || "$1" == "release" || "$1" == "feature" ]]
+  # Get free branch name (increment suffix)
+  # Eg. when branch "$HOTFIX-john" and "$HOTFIX-john-1" already exists
+  # then for param "$HOTFIX-john" return "$HOTFIX-john-2"
+  function get_branch_name {
+    local count
+    local branch
+    branch="$1"
+    count="${2:-}"
+    [[ -z "$count" ]] \
+      && ! git_branch_exists "$branch" \
+      && echo "$branch" \
+      && return
+    [[ -z "$count" ]] && count=1
+    git_branch_exists "$branch-$count" \
+      && get_branch_name "$branch" $(( ++count )) \
+      || echo "$branch-$count"
   }
 
-  # - process user given parameters
-  # - fill par_kw and par_branch
-  function gf_process_params {
-    local gcb prefix #suffix
-    gcb="$(git_current_branch)"
+  # TODO algo?
+  function prefix_branch {
+    local kw name
+    kw="${1:-}"
+    name="${2:-}"
+    [[ -n "$kw" ]] \
+      || err "prefix_branch: missing kw param" \
+      || return 1
+    [[ "$name" == "$kw-"* ]] \
+      && echo "$name" \
+      && return
+    # [[ "$name" == "$kw" ]] ?
+    [[ -z "$name" ]] && name="$(id -u -n | tr '[:upper:]' '[:lower:]')"
+    get_branch_name "$kw-$name"
+  }
 
-    if [[ -n "$par1" && -n "$par2" ]]; then
+  function gf_checkout {
+    [[ "$(git_current_branch)" == "$1" ]] \
+      && gf_branch="$(git_current_branch)" \
+      && return 0
+    # assume checkout to tag or branch
+    msg_start "Checkout '$1'"
+    git_checkout "$1" \
+      || return $?
+    # git_checkout "$1" \
+    #   && gf_validate \
+    #   && load_version \
+    #   || return $?
+    gf_branch="$(git_current_branch)"
+    msg_end "$DONE"
+  }
+
+  function gf_process_params {
+    # load kw and name from params
+    if [[ $arg_count -gt 1 ]]; then
       par_kw="$par1"
-      par_branch="$par2"
-    elif [[ -n "$par1" ]]; then
+      par_name="$par2"
+      # eg. for "gf hotfix aaa" checkout to "hotfix-aaa"
+      if git_branch_exists "$par_kw-$par_name"; then
+        gf_checkout "$par_kw-$par_name" || return $?
+        return
+      fi
+    elif [[ $arg_count == 1 ]]; then
       is_gf_keyword "$par1" \
         && par_kw="$par1" \
-        || par_branch="$par1"
+        || par_name="$par1"
+      # eg. for "gf hotfix-aaa" checkout to "hotfix-aaa"
+      if git_branch_exists "$par_name"; then
+        gf_checkout "$par_name" || return $?
+        return
+      fi
     fi
-
-    par_branch="${gcb:-}"
-    prefix="${par_branch%%-*}"
-    # suffix="${par_branch#*-}"
-
-    case "$prefix" in
-      hotfix)
-        # shellcheck disable=SC2086
-        : ${par_kw:=$prefix}
-        # TODO get_newest_hotfix_name
-        # [[ "$prefix" != "$gcb" ]] ||
-      ;;
-      release)
-        # shellcheck disable=SC2086
-        : ${par_kw:=$prefix}
-        # TODO err ('release-*' is not allowed)
-        # [[ "$prefix" != "$gcb" ]] || err ""
-      ;;
-      feature)
-        # shellcheck disable=SC2086
-        : ${par_kw:=$prefix}
-        # TODO ask to specify feature name
-        # [[ "$prefix" != "$gcb" ]]
-      ;;
-      master)
-        # shellcheck disable=SC2086
-        : ${par_kw:=hotfix}
-      ;;
-      dev)
-        # shellcheck disable=SC2086
-        # TODO release?
-        : ${par_kw:=release}
-      ;;
-      *)
-        # TODO ask to create feature?
-      ;;
+    # action according to given kw
+    if [[ -n "$par_kw" ]]; then
+      case "$par_kw" in
+        $HOTFIX) ;; # TODO create_hotfix $par_name
+        $RELEASE) ;; # TODO create or proceed release
+        $FEATURE) ;; # TODO create_feature $par_name
+        *) err "Parameter '$par_kw' is not a valid keyword" ;;
+      esac
+      return $?
+    fi
+    # action according to current branch
+    case "${gf_branch%%-*}" in
+      $HOTFIX) ;; # TODO merge_hotfix ($par_name is useless)
+      master|$prefix+([0-9]).+([0-9])) ;; # TODO create_hotfix $par_name
+      $RELEASE) ;; # TODO merge_release ($par_name is useless)
+      $GF_DEV) ;; # TODO create_release (empty $par_name) OR create_feature $par_name
+      $FEATURE) ;; # TODO merge_feature ($par_name is useless)
+      *) err "Current branch '$gf_branch' is not recognized" || return 1 ;;
     esac
+    #par_name="$(prefix_branch "$par_kw" "$par_name")"
   }
 
-  # TODO
-  function gf_validate_params {
-    is_gf_keyword "$par_kw" \
-      || err "Parameter '$par_kw' is not a valid keyword" \
-      || return 1
-  }
 
   # variables
-  local line script_name master force conform yes verbose dry what_now color prefix pos_x pos_y init request is_stdin
+  local line script_name master force conform yes verbose dry what_now color prefix pos_x pos_y init request is_stdin gf_branch
   what_now=0
   dry=0
   verbose=0
@@ -313,6 +342,7 @@ function main {
   [ -t 0 ]
   is_stdin=$?
   newfeature=0
+  gf_branch="$(git_current_branch)"
 
   # process options
   # shellcheck disable=SC2086
@@ -356,7 +386,10 @@ function main {
     GREEN=2 \
     BLUE=4 \
     GITHUB="github.com" \
-    BITBUCKET="bitbucket.org"
+    BITBUCKET="bitbucket.org" \
+    HOTFIX="hotfix" \
+    RELEASE="release" \
+    FEATURE="feature" # TODO $GF_{HOTFIX,RELEASE,FEATURE} ?
   local -r \
     REFSHEADS="refs/heads" \
     DONE="$(colorize "  ok  " $GREEN)" \
@@ -364,14 +397,21 @@ function main {
     SKIPPED="$(colorize "skipped" $BLUE)"
 
   # proceed params
-  local par1 par2 par_kw par_branch
+  local par1 par2 par_kw par_name arg_count
   par1="${1:-}"
   par2="${2:-}"
   par_kw=
-  par_branch=
+  par_name=
+  arg_count=$#
+
+  # # silent output by default
+  # stdout_silent
+  # # dry run
+  # [[ $dry == 1 ]] && { gf_what_now; return 0; }
+
 
   # shellcheck disable=SC2015
-  gf_process_params && gf_validate_params || {
+  gf_validate && gf_process_params || {
     case $? in
       1) err "Generic error occurred (see REPORTING BUGS)."; return 1 ;;
       # 3) err "Git is not conform with OMGF model (see conform option)."; return 3 ;;
@@ -380,10 +420,6 @@ function main {
     esac
   }
 
-  # # silent output by default
-  # stdout_silent
-  # # dry run
-  # [[ $dry == 1 ]] && { gf_what_now; return 0; }
 
   # # proceed gf
   # # shellcheck disable=SC2015
@@ -397,7 +433,6 @@ function main {
   #     5) err "Git conflict occurred (see 'git status')."; gf_what_now; return 5 ;;
   #   esac
   # }
-
 
 
 }
