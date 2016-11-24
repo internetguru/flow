@@ -106,6 +106,36 @@ function main {
     tput cup $(( pos_x-1 )) $(( pos_y-1 ))
   }
 
+  function strtolower {
+    echo "$1" | tr '[:upper:]' '[:lower:]'
+  }
+
+  function edit {
+    local editor
+    REPLY=
+    editor="$(git config --get core.editor)"
+    stdout_verbose
+    if [[ $is_stdin == 1 ]]; then
+      # shellcheck disable=SC2162
+      read
+      echo "$REPLY" > "$1"
+      return 0
+    fi
+    if [[ -z "$REPLY" ]] && type "$editor" &> /dev/null; then
+      $editor "$1"
+    else
+      echo
+      cat "$1"
+      echo
+      echo -n "Type message or press Enter to skip: "
+      clear_stdin
+      # shellcheck disable=SC2162
+      read
+      echo "$REPLY" > "$1"
+    fi
+    stdout_silent
+  }
+
   function confirm {
     [[ $yes == 1 ]] && return 0
     if [[ $is_stdin == 0 ]]; then
@@ -151,13 +181,15 @@ function main {
   }
 
   function git_push {
+    msg_start "Pushing '$1'"
     local out
-    out="$(git push "$GF_ORIGIN" "$gf_branch" 2>&1)" \
+    out="$(git push "$GF_ORIGIN" "$1" 2>&1)" \
       || err "$out"
+    msg_end "$DONE"
   }
 
   function git_checkout_branch {
-    msg_start "Creating branch '$1' on current HEAD"
+    msg_start "Creating branch '$1'"
     git_checkout -b "$1" || return 1
     msg_end "$DONE"
   }
@@ -174,6 +206,10 @@ function main {
     git rev-parse --verify "$1" >/dev/null 2>&1 && return 0
     git rev-parse --verify "$GF_ORIGIN/$1" >/dev/null 2>&1 \
       && git branch "$1" "$GF_ORIGIN/$1" >/dev/null 2>&1 || return 1
+  }
+
+  function git_tag_exists {
+    git tag | grep -q "^$1"
   }
 
   function git_tag_here {
@@ -220,18 +256,42 @@ function main {
     # shellcheck disable=SC2015
     git_status_empty 2>/dev/null \
       && { stashed=1; msg_end "$DONE"; } \
-      || { msg_end "$FAILED"; return 1; }
+      || { msg_end "$FAIL"; return 1; }
   }
 
   function git_stash_pop {
     [[ $stashed == 0 ]] && return 0
     msg_start "Popping stashed files"
-    git stash pop >/dev/null || { msg_end "$FAILED"; return 1; }
+    git stash pop >/dev/null || { msg_end "$FAIL"; return 1; }
     msg_end "$DONE"
   }
 
   function git_has_commits {
     git log >/dev/null 2>&1
+  }
+
+  function merge_branches {
+    local curbranch
+    curbranch="$(git_current_branch)"
+    msg_start "Merging '$1' into branch '$2'" \
+      && git_checkout "$2" \
+      && { git_merge "$1" "${3:---no-ff}" || return 5; } \
+      && git_checkout "$curbranch" \
+      && msg_end "$DONE"
+  }
+
+  function delete_branch {
+    if git_remote_branch_exists >/dev/null 2>&1; then
+      msg_start "Deleting remote branch '$gf_branch'"
+      local out
+      out="$(git push "$GF_ORIGIN" ":$REFSHEADS/$gf_branch" 2>&1)" \
+        || err "$out" \
+        || return 1
+      msg_end "$DONE"
+    fi
+    msg_start "Deleting local branch '$gf_branch'"
+    git branch -d "$gf_branch" >/dev/null || return 1
+    msg_end "$DONE"
   }
 
   function load_version {
@@ -248,6 +308,7 @@ function main {
       || err "Unable to load version" \
       || return 1
     master=$prefix$major.$minor
+    gf_branch="$(git_current_branch)"
   }
 
   function master_last_change {
@@ -340,24 +401,24 @@ function main {
   }
 
   function gf_validate {
-    validate_git_repository
-    validate_gf_files
-    local gcb
-    gcb="$(git_current_branch)"
-    validate_master_tag "$gcb"
-    validate_dev
-    validate_status_empty
+    validate_git_repository || return $?
+    validate_gf_files || return $?
+    validate_master_tag "$gf_branch" || return $?
+    validate_dev || return $?
+    validate_status_empty || return $?
     # load and validate user params
-    if [[ $arg_count -gt 1 ]]; then
+    [[ $arg_count -gt 2 ]] \
+      && { err "Wrong number of parameters" || return 1; }
+    if [[ $arg_count -eq 2 ]]; then
       par_kw="$par1"
       par_name="$par2"
       is_gf_keyword "$par_kw" \
         || err "Parameter '$par_kw' is not a valid keyword" \
         || return 1
     elif [[ $arg_count == 1 ]]; then
-      is_gf_keyword "$par1" \
-        && par_kw="$par1" \
-        || par_name="$par1"
+      if is_gf_keyword "$par1"; then par_kw="$par1"
+      elif git_tag_exists "$par1"; then par_tag="$par1"
+      else par_name="$par1"; fi
     fi
     [[ -z "$par_name" ]] && return 0
     git check-ref-format "$REFSHEADS/$par_name" \
@@ -366,7 +427,7 @@ function main {
   }
 
   function is_gf_keyword {
-    [[ "$1" == "$HOTFIX" || "$1" == "$RELEASE" || "$1" == "$FEATURE" ]]
+    [[ "$1" == "$HOTFIX" || "$1" == "$RELEASE" || "$1" == "$FEATURE" || "$1" == "$PULL" || "$1" == "$PUSH" ]]
   }
 
   # Get free branch name (increment suffix)
@@ -387,7 +448,6 @@ function main {
       || echo "$branch-$count"
   }
 
-  # TODO algo?
   function prefix_branch {
     local kw name
     kw="${1:-}"
@@ -403,74 +463,352 @@ function main {
     get_branch_name "$kw-$name"
   }
 
-  function gf_checkout {
-    [[ "$(git_current_branch)" == "$1" ]] \
-      && gf_branch="$(git_current_branch)" \
-      && return 0
-    # assume checkout to tag or branch
-    git_checkout "$1" \
-      && gf_validate \
-      && load_version \
-      || return $?
-    gf_branch="$(git_current_branch)"
-    msg_end "$DONE"
+  function create_stable_branch {
+    git_commit_diff "$gf_branch" master \
+      || { git_checkout master; return $?; }
+    if git_branch_exists "$master"; then
+      git_commit_diff "$gf_branch" "$master" \
+        || { git_checkout "$master"; return $?; }
+    fi
+    git_checkout_branch "$master" || return 1
   }
 
-  function gf_process_params {
-    # eg. for "gf hotfix aaa" checkout to "hotfix-aaa"
-    if [[ $arg_count -gt 1 ]] && git_branch_exists "$par_kw-$par_name"; then
-      gf_checkout "$par_kw-$par_name" || return $?
-      return
-    fi
-    # eg. for "gf hotfix-aaa" checkout to "hotfix-aaa"
-    if [[ $arg_count == 1 ]] && git_branch_exists "$par_name"; then
-      gf_checkout "$par_name" || return $?
-      return
-    fi
-    # action according to given kw
-    if [[ -n "$par_kw" ]]; then
-      case "$par_kw" in
-        $HOTFIX) gf_hotfix "$par_name" ;;
-        $FEATURE) gf_feature "$par_name" ;;
-        $RELEASE)
-          [[ -z "$par_name" ]] \
-            || err "Parameter '$par_name' does not make any sense with kw '$RELEASE'" \
-            || return 1
-          gf_release
+  # gf [kw] [name]
+  #   gf:
+  #     according to current branch:
+  #       stable  => create hotfix
+  #       dev     => create feature
+  #       feature => merge feature into dev
+  #       release => merge release into dev
+  #       hotfix  => merge release into stable
+  #               => stable == master ? merge release into dev
+  #   gf kw:
+  #     according to kw:
+  #       hotfix  => create "hotfix-$USER(-[0-9]+)"
+  #       release => on release branch
+  #                    ? merge release into stable and dev
+  #                    : switch on release (create if not exists)
+  #       feature => create "feature-$USER(-[0-9]+)"
+  #   gf name, gf kw name:
+  #     kw := according to current branch:
+  #       stable  => hotfix
+  #       dev     => feature
+  #       feature => feature
+  #       release => hotfix
+  #       hotfix  => hotfix
+  #     switch or create "kw-name" branch
+  function gf_process {
+    # explicit init
+    [[ $init == 1 ]] \
+      && git_checkout "$GF_DEV" \
+      && return 0
+    local branch_name
+    # action according to current branch
+    if [[ $arg_count -eq 0 ]]; then
+      case "${gf_branch%%-*}" in
+        master|$prefix+([0-9]).+([0-9]))
+          branch_name="$(prefix_branch "$HOTFIX" "$(strtolower "$(whoami)")" )"
+          gf_hotfix "$branch_name" "$gf_branch"
         ;;
+        $GF_DEV)
+          branch_name="$(prefix_branch "$FEATURE" "$(strtolower "$(whoami)")" )"
+          gf_feature "$branch_name"
+        ;;
+        $FEATURE) gf_merge_feature "$gf_branch" ;;
+        $RELEASE) gf_merge_release ;;
+        $HOTFIX) gf_merge_hotfix "$gf_branch" ;;
+        *) err "Current branch '$gf_branch' is not recognized" || return 1 ;;
       esac
       return $?
     fi
-    # action according to current branch
-    case "${gf_branch%%-*}" in
-      $HOTFIX) ;; # TODO merge_hotfix ($par_name -> ignore or error)
-      master|$prefix+([0-9]).+([0-9])) ;; # TODO create_hotfix $par_name
-      $RELEASE) ;; # TODO merge_release ($par_name -> error)
-      $GF_DEV) ;; # TODO create_release (empty $par_name) OR create_feature $par_name
-      $FEATURE) ;; # TODO merge_feature ($par_name -> ignore or error)
-      *) err "Current branch '$gf_branch' is not recognized" || return 1 ;;
+    # action according to given kw
+    if [[ $arg_count -eq 1 && -n "$par_kw" ]]; then
+      branch_name="$(prefix_branch "$par_kw" "$(strtolower "$(whoami)")" )"
+      case "$par_kw" in
+        $HOTFIX) gf_hotfix "$branch_name" ;;
+        $RELEASE)
+          if [[ "$gf_branch" == "$RELEASE" ]]; then
+            gf_release_release
+            return $?
+          fi
+          gf_release
+        ;;
+        $FEATURE) gf_feature "$branch_name";;
+        $PULL) gf_pull ;;
+        $PUSH) gf_push ;;
+      esac
+      return $?
+    fi
+    # action according to given name and kw
+    if [[ -z "$par_kw" ]]; then
+      case "${gf_branch%%-*}" in
+        master|$prefix+([0-9]).+([0-9])|$RELEASE|$HOTFIX) par_kw="$HOTFIX" ;;
+        $GF_DEV|$FEATURE) par_kw="$FEATURE" ;;
+        *) err "Current branch '$gf_branch' is not recognized" || return 1 ;;
+      esac
+    fi
+    branch_name="$par_kw-$par_name"
+    case "$par_kw" in
+      $HOTFIX) gf_hotfix "$branch_name" ;;
+      $FEATURE) gf_feature "$branch_name";;
+      *) err "'$par_kw' with second parameter is not supported" || return 1 ;;
     esac
-    #par_name="$(prefix_branch "$par_kw" "$par_name")"
+    return $?
   }
 
-  # TODO create or proceed feature
-  # $1 optional feature name
-  function gf_feature {
-    :
+  function gf_checkout {
+    local branch
+    branch="$1"
+    msg_start "Checkout '$branch'"
+    [[ "$(git_current_branch)" == "$branch" ]] && msg_end "$SKIP" && return 0
+    git_checkout "$branch" || return $?
+    msg_end "$DONE"
   }
-  # TODO create or proceed hotfix
-  # $1 optional hotfix name
-  function gf_hotfix {
-    :
-  }
-  # TODO create or proceed release
+
   function gf_release {
-    :
+    if git_branch_exists "$RELEASE"; then
+      confirm "* '$RELEASE' already exists, checkout?" || return 0
+      gf_checkout "$RELEASE"
+      return $?
+    fi
+    # dev and master has no diff, nothing to do
+    [[ -n "$(git diff "$GF_DEV" master)" ]] \
+      || err "Branch '$GF_DEV' is same as branch 'master', nothing to do" \
+      || return 1
+    confirm "* Create branch '$RELEASE' from branch '$GF_DEV'?" || return 0
+    git_checkout_branch "$RELEASE"
   }
 
+  function gf_feature {
+    local feature_name
+    feature_name="$1"
+    if git_branch_exists "$feature_name"; then
+      confirm "* '$feature_name' already exists, checkout?" || return 0
+      gf_checkout "$feature_name"
+      return $?
+    fi
+    confirm "* Create branch '$feature_name' from branch '$GF_DEV'?" || return 0
+    git_checkout_branch "$feature_name"
+  }
+
+  function gf_hotfix {
+    local hotfix_name
+    hotfix_name="$1"
+    # get appropriate stable branch or 'master' iff not specified
+    if [[ -z "${2:-}" ]]; then
+      local to
+      to="$( git tag | grep -e ^"$master". | sort -V | tail -n1 )"
+      [ -z "$to" ] && to="master"
+      confirm "* Create hotfix '$hotfix_name' on '$to' branch?" || return 0
+      gf_checkout "$to" \
+        && load_version \
+        || return $?
+    else
+      confirm "* Create hotfix '$hotfix_name' on current stable branch?" || return 0
+    fi
+    git_commit_diff "$master.$patch" HEAD \
+      && { err "Required tag $master.$patch not detected on current HEAD" || return 1; }
+    if [[ "$gf_branch" != master ]]; then
+      create_stable_branch || return $?
+    fi
+  }
+
+  function gf_merge_release {
+    confirm "* Merge '$RELEASE' branch into '$GF_DEV'?" || return 0
+    merge_branches "$gf_branch" "$GF_DEV" || return $?
+  }
+
+  function gf_release_release {
+    local confirm_suffix
+    [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
+    confirm "* Create stable branch from release$confirm_suffix?" || return 0
+    # update $GF_CHANGELOG and $GF_VERSION files
+    msg_start "Updating version number"
+    if [[ "$(git show master:"$GF_VERSION")" == "$major.$minor.$patch" ]]; then
+      ((minor++))
+      patch=0
+      echo "$major.$minor.$patch" > "$GF_VERSION"
+      git commit -am "Update $GF_VERSION" >/dev/null || return 1
+      load_version || return $?
+      msg_end "$DONE"
+    else
+      msg_end "$SKIP"
+    fi
+    msg_start "Updating version history"
+    local header tmpfile
+    header="$major.$minor | $(date "+%Y-%m-%d")"
+    tmpfile="$(mktemp)"
+    {
+      echo -e "$header"
+      echo -e "\n# Please enter header for version history - file '$GF_CHANGELOG'."
+      echo -e "# Lines starting with # and empty lines will be ignored."
+    } >> "$tmpfile"
+    edit "$tmpfile"
+    sed -i '/^\s*\(#\|$\)/d;/^\s+/d' "$tmpfile"
+    header="$(< "$tmpfile")"
+    if [[ -n "$header" ]]; then
+      printf '\n%s\n\n%s\n' "$header" "$(<"$GF_CHANGELOG")" > "$GF_CHANGELOG"
+      git commit -am "Update $GF_CHANGELOG" >/dev/null || return 1
+      msg_end "$DONE"
+    else
+      msg_end "$SKIP"
+    fi
+    [[ $request == 1 ]] && { gf_request master; return $?; }
+    git_checkout master \
+      && merge_branches "$gf_branch" "$GF_DEV" \
+      && merge_branches "$gf_branch" master \
+      && git_tag "$master".0 \
+      && delete_branch \
+      || return $?
+  }
+
+  function gf_merge_feature {
+    # check iff not empty
+    [[ -n "$(git log "$GF_DEV".."$gf_branch")" ]] \
+      || err "Nothing to merge - feature branch '$gf_branch' is empty" \
+      || return 1
+    local confirm_suffix
+    [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
+    confirm "* Merge feature '$gf_branch' into '$GF_DEV'$confirm_suffix?" || return 0
+    # message for $GF_CHANGELOG
+    local tmpfile commits
+    commits="$(git log "$GF_DEV".."$gf_branch" --pretty=format:"#   %s")"
+    if [[ -n "$commits" ]]; then
+      tmpfile="$(mktemp)"
+      {
+        echo -e "\n# Please enter the feature description for '$GF_CHANGELOG'. Lines starting"
+        echo -e "# with # and empty lines will be ignored."
+        echo -e "#\n# Commits of '$gf_branch':\n#"
+        echo -e "$commits"
+      } >> "$tmpfile"
+      edit "$tmpfile"
+      sed -i '/^\s*\(#\|$\)/d;/^\s+/d' "$tmpfile"
+    fi
+    msg_start "Updating version history"
+    if [[ -n "$commits" && -n "$(< "$tmpfile")" ]]; then
+      cat "$GF_CHANGELOG" >> "$tmpfile" || return 1
+      mv "$tmpfile" "$GF_CHANGELOG" || return 1
+      git commit -am "Version history updated" >/dev/null || return 1
+      msg_end "$DONE"
+    else
+      msg_end "$SKIP"
+    fi
+    [[ $request == 1 ]] && { gf_request "$GF_DEV"; return $?; }
+    # merge and delete
+    merge_branches "$gf_branch" "$GF_DEV" \
+      && delete_branch \
+      || return $?
+  }
+
+  function gf_merge_hotfix {
+    # TODO update version
+    echo "gf_merge_hotfix" "$@"
+  }
+
+  function gf_pull {
+    echo "gf_pull"
+  }
+
+  function gf_push {
+    echo "gf_push"
+  }
+
+  function gf_request {
+    git_remote_exists \
+      && git_push "$1" \
+      && git_push "$gf_branch" \
+      && gf_request_url "$1" \
+      || return $?
+  }
+
+  function gf_request_url {
+    local url to
+    to="${1:-$GF_DEV}"
+    url="$(git config remote."$GF_ORIGIN".url)"
+    url="${url#https://}"
+    echo "$url" | grep -q ":" \
+      && url="${url#*@}" \
+      && url="${url/://}" \
+      && url="${url/.git/}"
+    stdout_verbose
+    echo -n "Pull request URL: "
+    case "$url" in
+      *"$GITHUB"*)
+        echo "https://$url/compare/$to...$gf_branch?expand=1"
+        ;;
+      *"$BITBUCKET"*)
+        echo "https://$url/pull-requests/new?source=$gf_branch&dest=$to&t=1"
+        ;;
+      *)
+        err "unknown - remote server name not recognized"
+        stdout_silent
+        return 1
+        ;;
+    esac
+    stdout_silent
+  }
+
+  function gf_what_now {
+    echo "gf_what_now"
+    # [[ $what_now == 0 ]] && return 0
+    # stdout_verbose
+    # local gcb
+    # echo "***"
+    # git_repo_exists || {
+    #   echo "* Not a git repository"
+    #   echo "* - Run 'gf --init' to initialize OMGF"
+    #   echo "***"
+    #   return 3
+    # }
+
+    # gcb=$(git_current_branch)
+    # echo -n "* Current branch '$gcb' is considered as "
+    # case $gcb in
+    #   HEAD|master|$prefix+([0-9]).+([0-9]))
+    #     if gf_hotfixable 2>/dev/null; then
+    #       echo "hotfixable stable branch."
+    #       echo "* - Run 'gf' to create hotfix or leave :)"
+    #     elif [[ $gcb == HEAD ]]; then
+    #       echo "unknown."
+    #       git_status_empty 2>/dev/null && echo "* - Checkout to existing branch"
+    #     else
+    #       #statements
+    #       echo "stable branch (being) hotfixed."
+    #       echo "* - Run 'gf hotfix' to finish current hotfix or create new one."
+    #     fi
+    #   ;;
+    #   "$GF_DEV")
+    #     echo "developing branch."
+    #     echo "* - Do some bugfixes..."
+    #     echo "* - Run 'gf MYFEATURE' to create new feature."
+    #     echo "* - Run 'gf' to create release branch."
+    #   ;;
+    #   release)
+    #     echo "release branch."
+    #     echo "* - Do some bugfixes..."
+    #     echo "* - Run 'gf' to create stable branch."
+    #     echo "* - Hit [No], [Yes] to merge only into '$GF_DEV'."
+    #   ;;
+    #   hotfix-+([0-9]).+([0-9]).+([0-9]))
+    #     echo "hotfix branch."
+    #     echo "* - Do some hotfixes..."
+    #     echo "* - Run 'gf' to merge hotfix into stable branch."
+    #   ;;
+    #   *)
+    #     echo "feature branch."
+    #     echo "* - Develop current feature..."
+    #     echo "* - Run 'gf' to merge it into '$GF_DEV'."
+    # esac
+    # if ! git_status_empty 2>/dev/null; then
+    #   echo "*"
+    #   echo "* - Local changes detected; see 'git status' for more info"
+    # fi
+    # echo "***"
+    # stdout_silent
+  }
 
   # variables
-  local line script_name master force conform yes verbose dry what_now color prefix pos_x pos_y init request is_stdin gf_branch major minor patch
+  local line script_name master force conform yes verbose dry what_now color prefix pos_x pos_y init request is_stdin gf_branch major minor patch pr_suffix
   what_now=0
   dry=0
   verbose=0
@@ -487,7 +825,7 @@ function main {
   [ -t 0 ]
   is_stdin=$?
   newfeature=0
-  gf_branch="$(git_current_branch)"
+  pr_suffix=" (get pull request URL)"
 
   # process options
   # shellcheck disable=SC2086
@@ -526,6 +864,7 @@ function main {
   done
 
   # constants
+  # TODO $GF_{HOTFIX,RELEASE,FEATURE} ?
   local -r \
     RED=1 \
     GREEN=2 \
@@ -534,18 +873,21 @@ function main {
     BITBUCKET="bitbucket.org" \
     HOTFIX="hotfix" \
     RELEASE="release" \
-    FEATURE="feature" # TODO $GF_{HOTFIX,RELEASE,FEATURE} ?
+    FEATURE="feature" \
+    PULL="pull" \
+    PUSH="push"
   local -r \
     REFSHEADS="refs/heads" \
     DONE="$(colorize "  ok  " $GREEN)" \
-    FAILED="$(colorize "failed" $RED)" \
-    SKIPPED="$(colorize "skipped" $BLUE)"
+    FAIL="$(colorize " fail " $RED)" \
+    SKIP="$(colorize " skip " $BLUE)"
 
   # proceed params
-  local par1 par2 par_kw par_name arg_count
+  local par1 par2 par_kw par_tag par_name arg_count
   par1="${1:-}"
   par2="${2:-}"
   par_kw=
+  par_tag=
   par_name=
   arg_count=$#
 
@@ -556,12 +898,12 @@ function main {
 
 
   # shellcheck disable=SC2015
-  gf_validate && gf_process_params || {
+  gf_validate && gf_process || {
     case $? in
       1) err "Generic error occurred (see REPORTING BUGS)."; return 1 ;;
-      # 3) err "Git is not conform with OMGF model (see conform option)."; return 3 ;;
-      # 4) err "Git status is not empty (see force option)."; return 4 ;;
-      # 5) err "Git conflict occurred (see 'git status')."; gf_what_now; return 5 ;;
+      3) err "Git is not conform with OMGF model (see conform option)."; return 3 ;;
+      4) err "Git status is not empty (see force option)."; return 4 ;;
+      5) err "Git conflict occurred (see 'git status')."; gf_what_now; return 5 ;;
     esac
   }
 
