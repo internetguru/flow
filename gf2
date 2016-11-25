@@ -170,9 +170,12 @@ function main {
 
   # make git return only error to stderr
   function git_fetch {
+    msg_start "Fetching $*"
     local out
-    out="$(git fetch --update-head-ok "$GF_ORIGIN" "$@" 2>&1)" \
-      || err "$out"
+    out="$(git fetch --update-head-ok "$@" 2>&1)" \
+      || err "$out" \
+      || return 1
+    msg_end "$DONE"
   }
 
   # make git return only error to stderr
@@ -190,10 +193,11 @@ function main {
   }
 
   function git_push {
-    msg_start "Pushing '$1'"
+    msg_start "Pushing $*"
     local out
-    out="$(git push "$GF_ORIGIN" "$1" 2>&1)" \
-      || err "$out"
+    out="$(git push "$@" 2>&1)" \
+      || err "$out" \
+      || return 1
     msg_end "$DONE"
   }
 
@@ -770,30 +774,37 @@ function main {
     delete_branch
   }
 
-  # TODO pull $master(s)
   function gf_pull {
     git_remote_exists \
-      git_fetch "$GF_DEV:$GF_DEV" \
-      git_fetch master:master \
+      && git_fetch --tags \
+      && git_fetch "$GF_ORIGIN" "$GF_DEV:$GF_DEV" \
+      && git_fetch "$GF_ORIGIN" master:master \
       || return $?
     git_branch_exists "$RELEASE" \
-      && { git_fetch "$RELEASE:$RELEASE" || return $?; }
+      && { git_fetch "$GF_ORIGIN" "$RELEASE:$RELEASE" || return $?; }
+    local stable
+    for stable in $(git branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
+      git_fetch "$GF_ORIGIN" "$stable:$stable" || return $?
+    done
   }
 
-  # TODO push $master(s)
   function gf_push {
     git_remote_exists \
-      && git_push "$GF_DEV" \
-      && git_push master \
+      && git_push --tags \
+      && git_push "$GF_ORIGIN" "$GF_DEV" \
+      && git_push "$GF_ORIGIN" master \
       || return $?
     git_branch_exists "$RELEASE" \
-      && { git_push "$RELEASE" || return $?; }
+      && { git_push "$GF_ORIGIN" "$RELEASE" || return $?; }
+    for stable in $(git branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
+      git_push "$GF_ORIGIN" "$stable" || return $?
+    done
   }
 
   function gf_request {
     git_remote_exists \
-      && { [[ "$GF_ORIGIN" != "$GF_UPSTREAM" ]] || git_push "$1"; } \
-      && git_push "$gf_branch" \
+      && { [[ "$GF_ORIGIN" != "$GF_UPSTREAM" ]] || git_push "$GF_ORIGIN" "$1"; } \
+      && git_push "$GF_ORIGIN" "$gf_branch" \
       && gf_request_url "$1" \
       || return $?
   }
