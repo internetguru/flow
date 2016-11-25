@@ -169,7 +169,7 @@ function main {
   # make git return only error to stderr
   function git_fetch {
     local out
-    out="$(git fetch "$GF_ORIGIN" "$@" 2>&1)" \
+    out="$(git fetch --update-head-ok "$GF_ORIGIN" "$@" 2>&1)" \
       || err "$out"
   }
 
