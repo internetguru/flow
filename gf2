@@ -167,6 +167,13 @@ function main {
   }
 
   # make git return only error to stderr
+  function git_fetch {
+    local out
+    out="$(git fetch "$GF_ORIGIN" "$@" 2>&1)" \
+      || err "$out"
+  }
+
+  # make git return only error to stderr
   function git_tag {
     local out
     out="$(git tag "$@" 2>&1)" \
@@ -506,9 +513,9 @@ function main {
     # action according to current branch
     if [[ $arg_count -eq 0 ]]; then
       case "${gf_branch%%-*}" in
-        master|$prefix+([0-9]).+([0-9]))
+        HEAD|master|$prefix+([0-9]).+([0-9]))
           branch_name="$(prefix_branch "$HOTFIX" "$(strtolower "$(whoami)")" )"
-          gf_hotfix "$branch_name" "$gf_branch"
+          gf_hotfix "$branch_name"
         ;;
         $GF_DEV)
           branch_name="$(prefix_branch "$FEATURE" "$(strtolower "$(whoami)")" )"
@@ -542,12 +549,12 @@ function main {
     # action according to given name and kw
     if [[ -z "$par_kw" ]]; then
       case "${gf_branch%%-*}" in
-        master|$prefix+([0-9]).+([0-9])|$RELEASE|$HOTFIX) par_kw="$HOTFIX" ;;
+        HEAD|master|$prefix+([0-9]).+([0-9])|$RELEASE|$HOTFIX) par_kw="$HOTFIX" ;;
         $GF_DEV|$FEATURE) par_kw="$FEATURE" ;;
         *) err "Current branch '$gf_branch' is not recognized" || return 1 ;;
       esac
     fi
-    branch_name="$par_kw-$par_name"
+    branch_name="$(prefix_branch "$par_kw" "$par_name")"
     case "$par_kw" in
       $HOTFIX) gf_hotfix "$branch_name" ;;
       $FEATURE) gf_feature "$branch_name";;
@@ -594,23 +601,20 @@ function main {
   function gf_hotfix {
     local hotfix_name
     hotfix_name="$1"
-    # get appropriate stable branch or 'master' iff not specified
-    if [[ -z "${2:-}" ]]; then
-      local to
-      to="$( git tag | grep -e ^"$master". | sort -V | tail -n1 )"
-      [ -z "$to" ] && to="master"
-      confirm "* Create hotfix '$hotfix_name' on '$to' branch?" || return 0
-      gf_checkout "$to" \
-        && load_version \
-        || return $?
-    else
-      confirm "* Create hotfix '$hotfix_name' on current stable branch?" || return 0
-    fi
     git_commit_diff "$master.$patch" HEAD \
       && { err "Required tag $master.$patch not detected on current HEAD" || return 1; }
+    # get appropriate stable branch or master
+    local to
+    to="$( git tag | grep -e ^"$master". | sort -V | tail -n1 )"
+    [ -z "$to" ] && to="master"
+    confirm "* Create hotfix '$hotfix_name' from '$to'?" || return 0
+    gf_checkout "$to" \
+      && load_version \
+      || return $?
     if [[ "$gf_branch" != master ]]; then
       create_stable_branch || return $?
     fi
+    git_checkout_branch "$hotfix_name" || return $?
   }
 
   function gf_merge_release {
@@ -619,21 +623,15 @@ function main {
   }
 
   function gf_release_release {
-    local confirm_suffix
+    local confirm_suffix ver
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     confirm "* Create stable branch from release$confirm_suffix?" || return 0
     # update $GF_CHANGELOG and $GF_VERSION files
-    msg_start "Updating version number"
-    if [[ "$(git show master:"$GF_VERSION")" == "$major.$minor.$patch" ]]; then
-      ((minor++))
-      patch=0
-      echo "$major.$minor.$patch" > "$GF_VERSION"
-      git commit -am "Update $GF_VERSION" >/dev/null || return 1
-      load_version || return $?
-      msg_end "$DONE"
-    else
-      msg_end "$SKIP"
-    fi
+    ver="$major.$minor.$patch"
+    ((minor++))
+    patch=0
+    gf_update_version master "$ver" || return $?
+    load_version || return $?
     msg_start "Updating version history"
     local header tmpfile
     header="$major.$minor | $(date "+%Y-%m-%d")"
@@ -696,21 +694,74 @@ function main {
     [[ $request == 1 ]] && { gf_request "$GF_DEV"; return $?; }
     # merge and delete
     merge_branches "$gf_branch" "$GF_DEV" \
+      && git_checkout "$GF_DEV" \
       && delete_branch \
       || return $?
   }
 
+  function gf_update_version {
+    msg_start "Updating version number"
+    if [[ "$(git show "$1":"$GF_VERSION")" == "$2" ]]; then
+      echo "$major.$minor.$patch" > "$GF_VERSION"
+      git commit -am "Update $GF_VERSION" >/dev/null || return 1
+      load_version || return $?
+      msg_end "$DONE"
+    else
+      msg_end "$SKIP"
+    fi
+  }
+
   function gf_merge_hotfix {
-    # TODO update version
-    echo "gf_merge_hotfix" "$@"
+    local ver confirm_suffix
+    ver="$major.$minor.$patch"
+    [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
+    # master -> merge + confirm merge to dev
+    if ! git_version_diff master "$major.$minor"; then
+      confirm "* Merge hotfix into master and '$GF_DEV'$confirm_suffix?" || return 0
+      ((patch++))
+      gf_update_version master "$ver" || return $?
+      load_version || return $?
+      [[ $request == 1 ]] && { gf_request master; return $?; }
+      merge_branches "$gf_branch" master \
+        && git_checkout master \
+        && git_tag "$master.$patch" \
+        && merge_branches "$gf_branch" "$GF_DEV" \
+        && git_checkout master \
+        || return $?
+    # not master -> merge only to stable branch
+    else
+      confirm "* Merge hotfix into stable branch '$master'$confirm_suffix?" || return 0
+      ((patch++))
+      gf_update_version "$master" "$ver" || return $?
+      load_version || return $?
+      [[ $request == 1 ]] && { gf_request "$master"; return $?; }
+      merge_branches "$gf_branch" "$master" \
+        && git_checkout "$master" \
+        && git_tag "$master.$patch" \
+        && git_checkout "$master" \
+        || return $?
+    fi
+    delete_branch
   }
 
+  # TODO pull $master(s)?
   function gf_pull {
-    echo "gf_pull"
+    git_remote_exists \
+      git_fetch "$GF_DEV:$GF_DEV" \
+      git_fetch master:master \
+      || return $?
+    git_branch_exists "$RELEASE" \
+      && { git_fetch "$RELEASE:$RELEASE" || return $?; }
   }
 
+  # TODO push $master(s)?
   function gf_push {
-    echo "gf_push"
+    git_remote_exists \
+      && git_push "$GF_DEV" \
+      && git_push master \
+      || return $?
+    git_branch_exists "$RELEASE" \
+      && { git_push "$RELEASE" || return $?; }
   }
 
   function gf_request {
@@ -891,10 +942,10 @@ function main {
   par_name=
   arg_count=$#
 
-  # # silent output by default
-  # stdout_silent
-  # # dry run
-  # [[ $dry == 1 ]] && { gf_what_now; return 0; }
+  # silent output by default
+  stdout_silent
+  # dry run
+  [[ $dry == 1 ]] && { gf_what_now; return 0; }
 
 
   # shellcheck disable=SC2015
