@@ -15,6 +15,8 @@ set -u
 # shellcheck disable=SC2086
 : ${GF_ORIGIN:=origin}
 # shellcheck disable=SC2086
+: ${GF_UPSTREAM:=$GF_ORIGIN}
+# shellcheck disable=SC2086
 : ${GF_OPTIONS:=}
 # shellcheck disable=SC2086
 : ${GF_NOPREFIX:=}
@@ -767,35 +769,49 @@ function main {
 
   function gf_request {
     git_remote_exists \
-      && git_push "$1" \
+      && { [[ "$GF_ORIGIN" != "$GF_UPSTREAM" ]] || git_push "$1"; } \
       && git_push "$gf_branch" \
       && gf_request_url "$1" \
       || return $?
   }
 
-  function gf_request_url {
-    local url to
-    to="${1:-$GF_DEV}"
-    url="$(git config remote."$GF_ORIGIN".url)"
-    url="${url#https://}"
+  function trim_url {
+    local url
+    url="${1#https://}"
     echo "$url" | grep -q ":" \
       && url="${url#*@}" \
       && url="${url/://}" \
       && url="${url/.git/}"
+    echo "$url"
+  }
+
+  function gf_request_url {
+    local url upstream_url to
+    to="${1:-$GF_DEV}"
+    url="$(git config remote."$GF_ORIGIN".url)"
+    url="$(trim_url "$url")"
+    upstream_url="$(git config remote."$GF_UPSTREAM".url)"
+    upstream_url="$(trim_url "$upstream_url")"
     stdout_verbose
     echo -n "Pull request URL: "
     case "$url" in
       *"$GITHUB"*)
-        echo "https://$url/compare/$to...$gf_branch?expand=1"
-        ;;
+        # shellcheck disable=SC1003
+        [[ "$url" == "$upstream_url" ]] \
+          && echo "https://$url/compare/$to...$gf_branch?expand=1" \
+          || echo "https://$upstream_url/compare/$to...$(echo "$url" | cut -d'/' -f2)%3A$gf_branch?expand=1"
+      ;;
       *"$BITBUCKET"*)
-        echo "https://$url/pull-requests/new?source=$gf_branch&dest=$to&t=1"
-        ;;
+        # shellcheck disable=SC1003
+        [[ "$url" == "$upstream_url" ]] \
+          && echo "https://$url/compare/$gf_branch..$(echo "$url" | cut -d'/' -f2-3)%3A$to" \
+          || echo "https://$url/compare/$gf_branch..$(echo "$upstream_url" | cut -d'/' -f2-3)%3A$to"
+      ;;
       *)
         err "unknown - remote server name not recognized"
         stdout_silent
         return 1
-        ;;
+      ;;
     esac
     stdout_silent
   }
@@ -859,9 +875,10 @@ function main {
   }
 
   # variables
-  local line script_name master force conform yes verbose dry what_now color prefix pos_x pos_y init request is_stdin gf_branch major minor patch pr_suffix
+  local line script_name master force conform yes verbose dry what_now color prefix pos_x pos_y init request is_stdin gf_branch major minor patch pr_suffix stashed
   what_now=0
   dry=0
+  stashed=0
   verbose=0
   yes=0
   script_name="gf"
@@ -875,7 +892,7 @@ function main {
   pos_y=1
   [ -t 0 ]
   is_stdin=$?
-  pr_suffix=" (get pull request URL)"
+  pr_suffix=" (push and get pull request URL)"
 
   # process options
   # shellcheck disable=SC2086
