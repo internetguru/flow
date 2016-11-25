@@ -235,7 +235,7 @@ function main {
 
   function git_remote_branch_exists {
     local branch
-    branch=${1:-$gf_branch}
+    branch="$gf_branch"
     msg_start "Checking if '$branch' exists on remote '$GF_ORIGIN'"
     git ls-remote --heads "$GF_ORIGIN" | grep -q "$REFSHEADS/$branch"$ \
       || err "Remote branch '$branch' does not exist" \
@@ -424,7 +424,6 @@ function main {
         || return 1
     elif [[ $arg_count == 1 ]]; then
       if is_gf_keyword "$par1"; then par_kw="$par1"
-      elif git_tag_exists "$par1"; then par_tag="$par1"
       else par_name="$par1"; fi
     fi
     [[ -z "$par_name" ]] && return 0
@@ -635,7 +634,6 @@ function main {
     ((minor++))
     patch=0
     gf_update_version master "$ver" || return $?
-    load_version || return $?
     msg_start "Updating version history"
     local header tmpfile
     header="$major.$minor | $(date "+%Y-%m-%d")"
@@ -708,11 +706,11 @@ function main {
     if [[ "$(git show "$1":"$GF_VERSION")" == "$2" ]]; then
       echo "$major.$minor.$patch" > "$GF_VERSION"
       git commit -am "Update $GF_VERSION" >/dev/null || return 1
-      load_version || return $?
       msg_end "$DONE"
     else
       msg_end "$SKIP"
     fi
+    load_version
   }
 
   function gf_merge_hotfix {
@@ -724,7 +722,6 @@ function main {
       confirm "* Merge hotfix into master and '$GF_DEV'$confirm_suffix?" || return 0
       ((patch++))
       gf_update_version master "$ver" || return $?
-      load_version || return $?
       [[ $request == 1 ]] && { gf_request master; return $?; }
       merge_branches "$gf_branch" master \
         && git_checkout master \
@@ -936,11 +933,10 @@ function main {
     SKIP="$(colorize " skip " $BLUE)"
 
   # proceed params
-  local par1 par2 par_kw par_tag par_name arg_count
+  local par1 par2 par_kw par_name arg_count
   par1="${1:-}"
   par2="${2:-}"
   par_kw=
-  par_tag=
   par_name=
   arg_count=$#
 
