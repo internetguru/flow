@@ -554,8 +554,10 @@ function main {
         $GF_DEV|$FEATURE) par_kw="$FEATURE" ;;
         *) err "Current branch '$gf_branch' is not recognized" || return 1 ;;
       esac
+      branch_name="$par_kw-$par_name"
+    else
+      branch_name="$(prefix_branch "$par_kw" "$par_name")"
     fi
-    branch_name="$(prefix_branch "$par_kw" "$par_name")"
     case "$par_kw" in
       $HOTFIX) gf_hotfix "$branch_name" ;;
       $FEATURE) gf_feature "$branch_name";;
@@ -607,7 +609,12 @@ function main {
   function gf_hotfix {
     local hotfix_name
     hotfix_name="$1"
-    gf_hotfixable || return $?
+    # gf_hotfixable || return $?
+    if git_branch_exists "$hotfix_name"; then
+      confirm "* '$hotfix_name' already exists, checkout?" || return 0
+      gf_checkout "$hotfix_name"
+      return $?
+    fi
     # get appropriate stable branch or master
     local to
     to="$( git tag | grep -e ^"$master". | sort -V | tail -n1 )"
@@ -628,14 +635,15 @@ function main {
   }
 
   function gf_release_release {
-    local confirm_suffix ver
+    local confirm_suffix
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     confirm "* Create stable branch from release$confirm_suffix?" || return 0
-    # update $GF_CHANGELOG and $GF_VERSION files
-    ver="$major.$minor.$patch"
+    gf_prepare_to_merge master || return $?
     ((minor++))
     patch=0
-    gf_update_version master "$ver" || return $?
+    gf_commit_version \
+      && load_version \
+      || return $?
     msg_start "Updating version history"
     local header tmpfile
     header="$major.$minor | $(date "+%Y-%m-%d")"
@@ -703,51 +711,66 @@ function main {
       || return $?
   }
 
-  function gf_update_version {
-    msg_start "Updating version number"
-    if [[ "$(git show "$1":"$GF_VERSION")" == "$2" ]]; then
-      echo "$major.$minor.$patch" > "$GF_VERSION"
-      git commit -am "Update $GF_VERSION" >/dev/null || return 1
+  function gf_prepare_to_merge {
+    local ver
+    ver="$(git show "$1":"$GF_VERSION")"
+    # get and commit VERSION from master
+    msg_start "Updating version number from '$1'"
+    if [[ "$ver" != "$major.$minor.$patch" ]]; then
+      echo "$ver" > "$GF_VERSION"
+      git commit -am "Update $GF_VERSION from '$1'" >/dev/null || return 1
       msg_end "$DONE"
     else
       msg_end "$SKIP"
     fi
     load_version
+    # merge master to hotfix (resolve conflicts)
+    merge_branches "$1" "$gf_branch"
+  }
+
+  function gf_commit_version {
+    msg_start "Increment version number to '$major.$minor.$patch'"
+    echo "$major.$minor.$patch" > "$GF_VERSION"
+    git commit -am "Increment version number" >/dev/null || return 1
+    msg_end "$DONE"
   }
 
   function gf_merge_hotfix {
-    local ver confirm_suffix
-    ver="$major.$minor.$patch"
+    local confirm_suffix
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
-    # master -> merge + confirm merge to dev
+    # master -> merge hotfix into master and dev
     if ! git_version_diff master "$major.$minor"; then
       confirm "* Merge hotfix into master and '$GF_DEV'$confirm_suffix?" || return 0
+      gf_prepare_to_merge master || return $?
       ((patch++))
-      gf_update_version master "$ver" || return $?
+      gf_commit_version \
+        || return $?
       [[ $request == 1 ]] && { gf_request master; return $?; }
       merge_branches "$gf_branch" master \
         && git_checkout master \
         && git_tag "$master.$patch" \
         && merge_branches "$gf_branch" "$GF_DEV" \
-        && git_checkout master \
         || return $?
+      if git_branch_exists "$RELEASE"; then
+        merge_branches "$gf_branch" "$RELEASE" || return $?
+      fi
     # not master -> merge only to stable branch
     else
       confirm "* Merge hotfix into stable branch '$master'$confirm_suffix?" || return 0
+      gf_prepare_to_merge "$master" || return $?
       ((patch++))
-      gf_update_version "$master" "$ver" || return $?
-      load_version || return $?
+      gf_commit_version \
+        || return $?
       [[ $request == 1 ]] && { gf_request "$master"; return $?; }
       merge_branches "$gf_branch" "$master" \
         && git_checkout "$master" \
         && git_tag "$master.$patch" \
-        && git_checkout "$master" \
         || return $?
     fi
     delete_branch
   }
 
-  # TODO pull $master(s)?
+  # TODO pull $master(s)
   function gf_pull {
     git_remote_exists \
       git_fetch "$GF_DEV:$GF_DEV" \
@@ -757,7 +780,7 @@ function main {
       && { git_fetch "$RELEASE:$RELEASE" || return $?; }
   }
 
-  # TODO push $master(s)?
+  # TODO push $master(s)
   function gf_push {
     git_remote_exists \
       && git_push "$GF_DEV" \
