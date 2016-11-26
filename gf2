@@ -112,32 +112,6 @@ function main {
     echo "$1" | tr '[:upper:]' '[:lower:]'
   }
 
-  function edit {
-    local editor
-    REPLY=
-    editor="$(git config --get core.editor)"
-    stdout_verbose
-    if [[ $is_stdin == 1 ]]; then
-      # shellcheck disable=SC2162
-      read
-      echo "$REPLY" > "$1"
-      return 0
-    fi
-    if [[ -z "$REPLY" ]] && type "$editor" &> /dev/null; then
-      $editor "$1"
-    else
-      echo
-      cat "$1"
-      echo
-      echo -n "Type message or press Enter to skip: "
-      clear_stdin
-      # shellcheck disable=SC2162
-      read
-      echo "$REPLY" > "$1"
-    fi
-    stdout_silent
-  }
-
   function confirm {
     [[ $yes == 1 ]] && return 0
     if [[ $is_stdin == 0 ]]; then
@@ -649,19 +623,10 @@ function main {
       && load_version \
       || return $?
     msg_start "Updating version history"
-    local header tmpfile
-    header="$major.$minor | $(date "+%Y-%m-%d")"
-    tmpfile="$(mktemp)"
-    {
-      echo -e "$header"
-      echo -e "\n# Please enter header for version history - file '$GF_CHANGELOG'."
-      echo -e "# Lines starting with # and empty lines will be ignored."
-    } >> "$tmpfile"
-    edit "$tmpfile"
-    sed -i '/^\s*\(#\|$\)/d;/^\s+/d' "$tmpfile"
-    header="$(< "$tmpfile")"
-    if [[ -n "$header" ]]; then
-      printf '\n%s\n\n%s\n' "$header" "$(<"$GF_CHANGELOG")" > "$GF_CHANGELOG"
+    local header
+    header="## $major.$minor - $(date "+%Y-%m-%d")"
+    if ! grep -Eq "^##\s+$major\.$minor - " "$GF_CHANGELOG"; then
+      gawk -i inplace -v header="$header" '{print}/^##\s+\[?Unreleased\]?/{print "\n" header "\n"}' "$GF_CHANGELOG"
       git commit -am "Update $GF_CHANGELOG" >/dev/null || return 1
       msg_end "$DONE"
     else
@@ -676,6 +641,74 @@ function main {
       || return $?
   }
 
+  function gf_write_changelog_line {
+    local keyword next_keyword_regexp message
+    keyword="$1"
+    next_keyword_regexp="$2"
+    message="$3"
+    grep -Eq "^##\s+\[?Unreleased\]?" "$GF_CHANGELOG" \
+      || err "Heading 'Unreleased' not found in '$GF_CHANGELOG'" \
+      || return 1
+    gawk -i inplace -v keyword="$keyword" -v next_keyword_regexp="$next_keyword_regexp" -v message="$message" '
+      BEGIN {write=0;}
+      /^##\s+\[?Unreleased\]?/ {write=1;}
+      $0 ~ next_keyword_regexp {if(write==1) {print "## " keyword; print " - " message "\n"; write=0;}}
+      {print}
+      $0 ~ "^###\\s+" keyword {if(write==1) {print " - " message; write=0;}}
+    ' "$GF_CHANGELOG"
+  }
+
+  function gf_update_changelog {
+    local commits
+    commits="$(git log "$GF_DEV".."$gf_branch" --pretty=format:"*   %h %s")"
+    echo
+    echo "***"
+    echo "* Please enter the $gf_branch description for $GF_CHANGELOG."
+    echo "*"
+    echo "* Keywords:"
+    echo "*   ${CHANGELOG_KEYWORDS[*]}"
+    echo "*"
+    echo "* Commits of '$gf_branch':"
+    echo "$commits"
+    echo "*"
+    REPLY=
+    stdout_verbose
+    if [[ $is_stdin == 0 ]]; then
+      echo "Type \"Keyword: Message\" or press Enter to skip: "
+      clear_stdin
+    fi
+    local message keyword selected_keyword next_keyword_regexp i sep
+    while read -r message; do
+      [[ -z "$message" ]] && break
+      keyword="$(echo "$message" | cut -sd':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+      [[ -z "$keyword" ]] && keyword="${CHANGELOG_KEYWORDS[0]}"
+      selected_keyword="${CHANGELOG_KEYWORDS[0]}"
+      next_keyword_regexp=
+      sep=
+      i=
+      for i in "${!CHANGELOG_KEYWORDS[@]}"; do
+        [[ "${CHANGELOG_KEYWORDS[i]}" != "$keyword"* ]] && continue
+        selected_keyword="${CHANGELOG_KEYWORDS[i]}"
+        for ((index="$i+1"; index < ${#CHANGELOG_KEYWORDS[@]}; index++)); do
+          [[ -n "$next_keyword_regexp" ]] && sep="|"
+          next_keyword_regexp="$next_keyword_regexp$sep${CHANGELOG_KEYWORDS[index]}"
+        done
+        next_keyword_regexp="$next_keyword_regexp$sep^##\\\s+\\\[?[0-9]+"
+        break
+      done
+      message="$(echo "$message" | cut -d':' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+      gf_write_changelog_line "$selected_keyword" "$next_keyword_regexp" "$message"
+    done
+    stdout_silent
+    msg_start "Updating version history"
+    if ! git_status_empty 2>/dev/null; then
+      git commit -am "Version history updated" >/dev/null || return 1
+      msg_end "$DONE"
+    else
+      msg_end "$SKIP"
+    fi
+  }
+
   function gf_merge_feature {
     # check iff not empty
     [[ -n "$(git log "$GF_DEV".."$gf_branch")" ]] \
@@ -684,30 +717,9 @@ function main {
     local confirm_suffix
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     confirm "* Merge feature '$gf_branch' into '$GF_DEV'$confirm_suffix?" || return 0
-    # message for $GF_CHANGELOG
-    local tmpfile commits
-    commits="$(git log "$GF_DEV".."$gf_branch" --pretty=format:"#   %s")"
-    if [[ -n "$commits" ]]; then
-      tmpfile="$(mktemp)"
-      {
-        echo -e "\n# Please enter the feature description for '$GF_CHANGELOG'. Lines starting"
-        echo -e "# with # and empty lines will be ignored."
-        echo -e "#\n# Commits of '$gf_branch':\n#"
-        echo -e "$commits"
-      } >> "$tmpfile"
-      edit "$tmpfile"
-      sed -i '/^\s*\(#\|$\)/d;/^\s+/d' "$tmpfile"
-    fi
-    msg_start "Updating version history"
-    if [[ -n "$commits" && -n "$(< "$tmpfile")" ]]; then
-      cat "$GF_CHANGELOG" >> "$tmpfile" || return 1
-      mv "$tmpfile" "$GF_CHANGELOG" || return 1
-      git commit -am "Version history updated" >/dev/null || return 1
-      msg_end "$DONE"
-    else
-      msg_end "$SKIP"
-    fi
-    [[ $request == 1 ]] && { gf_request "$GF_DEV"; return $?; }
+    gf_update_changelog || return $?
+    [[ $request == 1 ]] \
+      && { gf_request "$GF_DEV"; return $?; }
     # merge and delete
     merge_branches "$gf_branch" "$GF_DEV" \
       && git_checkout "$GF_DEV" \
@@ -979,7 +991,8 @@ function main {
     RELEASE="release" \
     FEATURE="feature" \
     PULL="pull" \
-    PUSH="push"
+    PUSH="push" \
+    CHANGELOG_KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
   local -r \
     REFSHEADS="refs/heads" \
     DONE="$(colorize "  ok  " $GREEN)" \
