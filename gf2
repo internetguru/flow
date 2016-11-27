@@ -19,6 +19,12 @@ set -u
 # shellcheck disable=SC2086
 : ${GF_OPTIONS:=}
 # shellcheck disable=SC2086
+: ${GF_CHANGELOG_HEADER:=# Change Log
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](http://keepachangelog.com/)
+and this project adheres to [Semantic Versioning](http://semver.org/).}
+# shellcheck disable=SC2086
 : ${GF_NOPREFIX:=}
 : ${COLUMNS:=$(tput cols)}
 : ${LINES:=$(tput lines)}
@@ -267,7 +273,7 @@ function main {
       && msg_end "$DONE"
   }
 
-  function delete_branch {
+  function delete_gf_branch {
     if git_remote_branch_exists >/dev/null 2>&1; then
       msg_start "Deleting remote branch '$gf_branch'"
       local out
@@ -350,7 +356,7 @@ function main {
   # validate $GF_VERSION and $GF_HANGELOG files
   function validate_gf_files {
     init_file "$GF_VERSION" "0.0.0" \
-      && init_file "$GF_CHANGELOG" "$GF_CHANGELOG created" \
+      && init_file "$GF_CHANGELOG" "$GF_CHANGELOG_HEADER" \
       && load_version \
       || return $?
   }
@@ -587,13 +593,11 @@ function main {
   function gf_hotfix {
     local hotfix_name
     hotfix_name="$1"
-    # gf_hotfixable || return $?
     if git_branch_exists "$hotfix_name"; then
       confirm "* '$hotfix_name' already exists, checkout?" || return 0
       gf_checkout "$hotfix_name"
       return $?
     fi
-    # get appropriate stable branch or master
     local to
     to="$( git tag | grep -e ^"$master". | sort -V | tail -n1 )"
     [ -z "$to" ] && to="master"
@@ -637,24 +641,30 @@ function main {
       && merge_branches "$gf_branch" "$GF_DEV" \
       && merge_branches "$gf_branch" master \
       && git_tag "$master".0 \
-      && delete_branch \
+      && delete_gf_branch \
       || return $?
   }
 
   function gf_write_changelog_line {
-    local keyword next_keyword_regexp message
-    keyword="$1"
-    next_keyword_regexp="$2"
-    message="$3"
-    grep -Eq "^##\s+\[?Unreleased\]?" "$GF_CHANGELOG" \
-      || err "Heading 'Unreleased' not found in '$GF_CHANGELOG'" \
-      || return 1
-    gawk -i inplace -v keyword="$keyword" -v next_keyword_regexp="$next_keyword_regexp" -v message="$message" '
-      BEGIN {write=0;}
-      /^##\s+\[?Unreleased\]?/ {write=1;}
-      $0 ~ next_keyword_regexp {if(write==1) {print "## " keyword; print " - " message "\n"; write=0;}}
+    gawk -i inplace -v keyword="$1" -v next_keywords="$2" -v message="$3" '
+      BEGIN {write=1;unreleased=0;}
+      /^## \[?Unreleased\]?/ {unreleased=1;}
+      write == 1 && unreleased == 0 && /^## / && ! /^## \[?Unreleased\]?/ {
+        print "## Unreleased";
+        print "### " keyword;
+        print " - " message "\n";
+        write=0;
+      }
+      write == 1 && $0 ~ next_keywords && ! /^## \[?Unreleased\]?/ {
+        print "### " keyword;
+        print " - " message "\n";
+        write=0;
+      }
       {print}
-      $0 ~ "^###\\s+" keyword {if(write==1) {print " - " message; write=0;}}
+      write == 1 && $0 == "### " keyword {
+        print " - " message;
+        write=0;
+      }
     ' "$GF_CHANGELOG"
   }
 
@@ -677,27 +687,27 @@ function main {
       echo "Type \"Keyword: Message\" or press Enter to skip: "
       clear_stdin
     fi
-    local message keyword selected_keyword next_keyword_regexp i sep
+    local message keyword selected_keyword next_keywords i sep
     while read -r message; do
       [[ -z "$message" ]] && break
       keyword="$(echo "$message" | cut -sd':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
       [[ -z "$keyword" ]] && keyword="${CHANGELOG_KEYWORDS[0]}"
       selected_keyword="${CHANGELOG_KEYWORDS[0]}"
-      next_keyword_regexp=
+      next_keywords=
       sep=
       i=
       for i in "${!CHANGELOG_KEYWORDS[@]}"; do
         [[ "${CHANGELOG_KEYWORDS[i]}" != "$keyword"* ]] && continue
         selected_keyword="${CHANGELOG_KEYWORDS[i]}"
         for ((index="$i+1"; index < ${#CHANGELOG_KEYWORDS[@]}; index++)); do
-          [[ -n "$next_keyword_regexp" ]] && sep="|"
-          next_keyword_regexp="$next_keyword_regexp$sep${CHANGELOG_KEYWORDS[index]}"
+          next_keywords="$next_keywords$sep^### ${CHANGELOG_KEYWORDS[index]}"
+          sep="|"
         done
-        next_keyword_regexp="$next_keyword_regexp$sep^##\\\s+\\\[?[0-9]+"
+        next_keywords="$next_keywords$sep^## "
         break
       done
       message="$(echo "$message" | cut -d':' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-      gf_write_changelog_line "$selected_keyword" "$next_keyword_regexp" "$message"
+      gf_write_changelog_line "$selected_keyword" "$next_keywords" "$message"
     done
     stdout_silent
     msg_start "Updating version history"
@@ -723,7 +733,7 @@ function main {
     # merge and delete
     merge_branches "$gf_branch" "$GF_DEV" \
       && git_checkout "$GF_DEV" \
-      && delete_branch \
+      && delete_gf_branch \
       || return $?
   }
 
@@ -752,38 +762,35 @@ function main {
   }
 
   function gf_merge_hotfix {
-    local confirm_suffix
+    local confirm_suffix into
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     # master -> merge hotfix into master and dev
     if ! git_version_diff master "$major.$minor"; then
+      into=master
       confirm "* Merge hotfix into master and '$GF_DEV'$confirm_suffix?" || return 0
-      gf_prepare_to_merge master || return $?
-      ((patch++))
-      gf_commit_version \
-        || return $?
-      [[ $request == 1 ]] && { gf_request master; return $?; }
-      merge_branches "$gf_branch" master \
-        && git_checkout master \
-        && git_tag "$master.$patch" \
-        && merge_branches "$gf_branch" "$GF_DEV" \
-        || return $?
+    else
+      into="$master"
+      confirm "* Merge hotfix into stable branch '$master'$confirm_suffix?" || return 0
+    fi
+    [[ -n "$(git log "$into".."$gf_branch")" ]] \
+      || err "Nothing to merge - hotfix branch '$gf_branch' is empty" \
+      || return 1
+    gf_prepare_to_merge "$into" \
+      && patch=$((patch+1)) \
+      && gf_commit_version \
+      || return $?
+    [[ $request == 1 ]] && { gf_request master; return $?; }
+    merge_branches "$gf_branch" "$into" \
+      && git_checkout "$into" \
+      && git_tag "$master.$patch" \
+      || return $?
+    if [[ "$into" == master ]]; then
+      merge_branches "$gf_branch" "$GF_DEV" || return $?
       if git_branch_exists "$RELEASE"; then
         merge_branches "$gf_branch" "$RELEASE" || return $?
       fi
-    # not master -> merge only to stable branch
-    else
-      confirm "* Merge hotfix into stable branch '$master'$confirm_suffix?" || return 0
-      gf_prepare_to_merge "$master" || return $?
-      ((patch++))
-      gf_commit_version \
-        || return $?
-      [[ $request == 1 ]] && { gf_request "$master"; return $?; }
-      merge_branches "$gf_branch" "$master" \
-        && git_checkout "$master" \
-        && git_tag "$master.$patch" \
-        || return $?
     fi
-    delete_branch
+    delete_gf_branch
   }
 
   function gf_pull {
