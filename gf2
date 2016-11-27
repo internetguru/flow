@@ -646,26 +646,46 @@ function main {
   }
 
   function gf_write_changelog_line {
-    gawk -i inplace -v keyword="$1" -v next_keywords="$2" -v message="$3" '
-      BEGIN {write=1;unreleased=0;}
-      /^## \[?Unreleased\]?/ {unreleased=1;}
+    local tmpfile
+    tmpfile="$(mktemp)"
+    awk -v keyword="$1" -v next_keywords="$2" -v message="$3" '
+      function print_unreleased () { print "## Unreleased" }
+      function print_keyword () { print "### " keyword }
+      function print_message () { print " - " message }
+      BEGIN {
+        write=1
+        unreleased=0
+      }
+      /^## \[?Unreleased\]?/ { unreleased=1 }
       write == 1 && unreleased == 0 && /^## / && ! /^## \[?Unreleased\]?/ {
-        print "## Unreleased";
-        print "### " keyword;
-        print " - " message "\n";
-        write=0;
+        print_unreleased()
+        print_keyword()
+        print_message()
+        print ""
+        write=0
       }
       write == 1 && $0 ~ next_keywords && ! /^## \[?Unreleased\]?/ {
-        print "### " keyword;
-        print " - " message "\n";
-        write=0;
+        print_keyword()
+        print_message()
+        print ""
+        write=0
       }
       {print}
       write == 1 && $0 == "### " keyword {
-        print " - " message;
-        write=0;
+        print_message()
+        write=0
       }
-    ' "$GF_CHANGELOG"
+      ENDFILE {
+        if(write == 1) {
+          print ""
+          print_unreleased()
+          print_keyword()
+          print_message()
+          print ""
+        }
+      }
+    ' "$GF_CHANGELOG" > "$tmpfile"
+    mv "$tmpfile" "$GF_CHANGELOG"
   }
 
   function gf_update_changelog {
@@ -720,14 +740,15 @@ function main {
   }
 
   function gf_merge_feature {
-    # check iff not empty
     [[ -n "$(git log "$GF_DEV".."$gf_branch")" ]] \
       || err "Nothing to merge - feature branch '$gf_branch' is empty" \
       || return 1
     local confirm_suffix
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     confirm "* Merge feature '$gf_branch' into '$GF_DEV'$confirm_suffix?" || return 0
-    gf_update_changelog || return $?
+    merge_branches "$GF_DEV" "$gf_branch" \
+      && gf_update_changelog \
+      || return $?
     [[ $request == 1 ]] \
       && { gf_request "$GF_DEV"; return $?; }
     # merge and delete
@@ -750,7 +771,6 @@ function main {
       msg_end "$SKIP"
     fi
     load_version
-    # merge master to hotfix (resolve conflicts)
     merge_branches "$1" "$gf_branch"
   }
 
