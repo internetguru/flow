@@ -627,10 +627,24 @@ function main {
       && load_version \
       || return $?
     msg_start "Updating version history"
-    local header
+    local header tmpfile
     header="## $major.$minor - $(date "+%Y-%m-%d")"
-    if ! grep -Eq "^##\s+$major\.$minor - " "$GF_CHANGELOG"; then
-      gawk -i inplace -v header="$header" '{print}/^##\s+\[?Unreleased\]?/{print "\n" header "\n"}' "$GF_CHANGELOG"
+    tmpfile="$(mktemp)"
+    if ! grep -Eq "^## $major\.$minor - " "$GF_CHANGELOG"; then
+      awk -v header="$header" '
+        BEGIN {write=1;}
+        write == 1 && /^## / {
+          print header
+          write=0;
+          if($0 ~ "^## \\[?Unreleased\\]?") { next }
+          print ""
+        }
+        {print}
+        ENDFILE {
+          if(write==1) { print header }
+        }
+        ' "$GF_CHANGELOG" > "$tmpfile"
+        cat "$tmpfile" > "$GF_CHANGELOG"
       git commit -am "Update $GF_CHANGELOG" >/dev/null || return 1
       msg_end "$DONE"
     else
@@ -678,14 +692,13 @@ function main {
       ENDFILE {
         if(write == 1) {
           print ""
-          print_unreleased()
+          if(unreleased == 0) { print_unreleased() }
           print_keyword()
           print_message()
-          print ""
         }
       }
     ' "$GF_CHANGELOG" > "$tmpfile"
-    mv "$tmpfile" "$GF_CHANGELOG"
+    cat "$tmpfile" > "$GF_CHANGELOG"
   }
 
   function gf_update_changelog {
@@ -707,27 +720,31 @@ function main {
       echo "Type \"Keyword: Message\" or press Enter to skip: "
       clear_stdin
     fi
-    local message keyword selected_keyword next_keywords i sep
+    local message keyword next_keywords i sep found
     while read -r message; do
       [[ -z "$message" ]] && break
       keyword="$(echo "$message" | cut -sd':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-      [[ -z "$keyword" ]] && keyword="${CHANGELOG_KEYWORDS[0]}"
-      selected_keyword="${CHANGELOG_KEYWORDS[0]}"
       next_keywords=
+      found=0
       sep=
       i=
-      for i in "${!CHANGELOG_KEYWORDS[@]}"; do
+      [[ -n "$keyword" ]] && for i in "${!CHANGELOG_KEYWORDS[@]}"; do
         [[ "${CHANGELOG_KEYWORDS[i]}" != "$keyword"* ]] && continue
-        selected_keyword="${CHANGELOG_KEYWORDS[i]}"
-        for ((index="$i+1"; index < ${#CHANGELOG_KEYWORDS[@]}; index++)); do
-          next_keywords="$next_keywords$sep^### ${CHANGELOG_KEYWORDS[index]}"
-          sep="|"
-        done
-        next_keywords="$next_keywords$sep^## "
+        keyword="${CHANGELOG_KEYWORDS[i]}"
+        found=1
         break
       done
-      message="$(echo "$message" | cut -d':' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-      gf_write_changelog_line "$selected_keyword" "$next_keywords" "$message"
+      [[ "$found" == 0 ]] \
+        && i=0 \
+        && keyword="${CHANGELOG_KEYWORDS[0]}"
+      for ((index="$i+1"; index < ${#CHANGELOG_KEYWORDS[@]}; index++)); do
+        next_keywords="$next_keywords$sep^### ${CHANGELOG_KEYWORDS[index]}"
+        sep="|"
+      done
+      next_keywords="$next_keywords$sep^## "
+      [[ "$found" == 1 ]] && message="$(echo "$message" | cut -d':' -f2-)"
+      message="$(echo "$message" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+      gf_write_changelog_line "$keyword" "$next_keywords" "$message"
     done
     stdout_silent
     msg_start "Updating version history"
