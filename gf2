@@ -118,6 +118,10 @@ function main {
     echo "$1" | tr '[:upper:]' '[:lower:]'
   }
 
+  function trim {
+    echo "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+  }
+
   function confirm {
     [[ $yes == 1 ]] && return 0
     if [[ $is_stdin == 0 ]]; then
@@ -723,7 +727,7 @@ function main {
     local message keyword next_keywords i sep found
     while read -r message; do
       [[ -z "$message" ]] && break
-      keyword="$(echo "$message" | cut -sd':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+      keyword="$(trim "$(echo "$message" | cut -sd':' -f1)")"
       next_keywords=
       found=0
       sep=
@@ -743,7 +747,7 @@ function main {
       done
       next_keywords="$next_keywords$sep^## "
       [[ "$found" == 1 ]] && message="$(echo "$message" | cut -d':' -f2-)"
-      message="$(echo "$message" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+      message="$(trim "$message")"
       gf_write_changelog_line "$keyword" "$next_keywords" "$message"
     done
     stdout_silent
