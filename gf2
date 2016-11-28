@@ -846,8 +846,7 @@ function main {
       && { git_fetch "$GF_ORIGIN" "$RELEASE:$RELEASE" || return $?; }
     local stable
     for stable in $(git branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
-      git_branch_exists "$stable" \
-        || { git_branch_create "$stable" || return $?; }
+      git_branch_exists "$stable" || continue
       git_fetch "$GF_ORIGIN" "$stable:$stable" || return $?
     done
   }
