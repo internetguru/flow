@@ -224,11 +224,9 @@ function main {
   }
 
   function git_remote_branch_exists {
-    local branch
-    branch="$gf_branch"
-    msg_start "Checking if '$branch' exists on remote '$GF_ORIGIN'"
-    git ls-remote --heads "$GF_ORIGIN" | grep -q "$REFSHEADS/$branch"$ \
-      || err "Remote branch '$branch' does not exist" \
+    msg_start "Checking if '$gf_branch' exists on remote '$GF_ORIGIN'"
+    git ls-remote --heads "$GF_ORIGIN" | grep -q "$REFSHEADS/$gf_branch"$ \
+      || err "Remote branch '$gf_branch' does not exist" \
       || return 1
     msg_end "$DONE"
   }
@@ -250,10 +248,13 @@ function main {
     msg_start "Stashing files"
     git add -A >/dev/null || return 1
     git stash >/dev/null || return 1
-    # shellcheck disable=SC2015
-    git_status_empty 2>/dev/null \
-      && { stashed=1; msg_end "$DONE"; } \
-      || { msg_end "$FAIL"; return 1; }
+    if git_status_empty 2>/dev/null; then
+      stashed=1
+      msg_end "$DONE"
+    else
+      msg_end "$FAIL"
+      return 1
+    fi
   }
 
   function git_stash_pop {
@@ -268,12 +269,10 @@ function main {
   }
 
   function merge_branches {
-    local curbranch
-    curbranch="$(git_current_branch)"
     msg_start "Merging '$1' into branch '$2'" \
       && git_checkout "$2" \
       && { git_merge "$1" "${3:---no-ff}" || return 5; } \
-      && git_checkout "$curbranch" \
+      && git_checkout "$(git_current_branch)" \
       && msg_end "$DONE"
   }
 
@@ -312,10 +311,17 @@ function main {
     git cherry -v "$GF_DEV" master | tail -n1 | cut -d" " -f2
   }
 
+  # $1 filepath
+  # $2 default content
+  # $3 allow empty file
   function init_file {
-    [[ -s "$1" ]] && return 0 # file exists and is not empty
+    [[ -f "$1" ]] && return 0
+    [[ -z "$1" && $3 == 1 ]] && return 0
+    local or_empty_msg
+    or_empty_msg=
+    [[ $3 == 0 ]] && or_empty_msg=" or empty"
     [[ $conform == 1 ]] \
-      || err "Missing or empty file '$1'" \
+      || err "Missing$or_empty_msg file '$1'" \
       || return 3
     local message
     message="Initializing '$1' file"
@@ -359,8 +365,8 @@ function main {
 
   # validate $GF_VERSION and $GF_HANGELOG files
   function validate_gf_files {
-    init_file "$GF_VERSION" "0.0.0" \
-      && init_file "$GF_CHANGELOG" "$GF_CHANGELOG_HEADER" \
+    init_file "$GF_VERSION" "0.0.0" 0 \
+      && init_file "$GF_CHANGELOG" "$GF_CHANGELOG_HEADER" 1 \
       && load_version \
       || return $?
   }
@@ -397,12 +403,27 @@ function main {
     fi
   }
 
+  function validate_changelog_heading {
+    grep -qE "^# " "$GF_CHANGELOG" && return 0
+    [[ "$conform" == 1 ]] \
+      || err "File $GF_CHANGELOG missing '# Heading'" \
+      || return 3
+    local msg
+    msg="Add default heading to $GF_CHANGELOG"
+    msg_start "$msg"
+    echo -e "$GF_CHANGELOG_HEADER\n$(cat "$GF_CHANGELOG")" > "$GF_CHANGELOG" \
+      && git commit -am "$msg" >/dev/null \
+      || return 1
+    msg_end "$DONE"
+  }
+
   function gf_validate {
     validate_git_repository || return $?
     validate_gf_files || return $?
     validate_master_tag "$gf_branch" || return $?
     validate_dev || return $?
     validate_status_empty || return $?
+    validate_changelog_heading || return $?
     # load and validate user params
     [[ $arg_count -gt 2 ]] \
       && { err "Wrong number of parameters" || return 1; }
@@ -648,7 +669,7 @@ function main {
     header="## $major.$minor.$patch - $(date "+%Y-%m-%d")"
     tmpfile="$(mktemp)"
     awk -v header="$header" '
-      BEGIN {write=1;}
+      BEGIN { write=1 }
       write == 1 && /^## / {
         print header
         write=0;
@@ -661,7 +682,7 @@ function main {
       }
       ' "$GF_CHANGELOG" > "$tmpfile"
     cat "$tmpfile" > "$GF_CHANGELOG"
-    git commit -am "Update $GF_CHANGELOG" >/dev/null || return 1
+    git commit -am "Update $GF_CHANGELOG header" >/dev/null || return 1
     msg_end "$DONE"
   }
 
@@ -753,13 +774,12 @@ function main {
         next_keywords="$next_keywords|^### ${CHANGELOG_KEYWORDS[index]}"
       done
       [[ "$found" == 1 ]] && message="$(echo "$message" | cut -d':' -f2-)"
-      message="$(trim "$message")"
-      gf_write_changelog_line "$keyword" "$next_keywords" "$message"
+      gf_write_changelog_line "$keyword" "$next_keywords" "$(trim "$message")"
     done
     stdout_silent
     msg_start "Updating version history"
     if ! git_status_empty 2>/dev/null; then
-      git commit -am "Version history updated" >/dev/null || return 1
+      git commit -am "Update $CHANGELOG" >/dev/null || return 1
       msg_end "$DONE"
     else
       msg_end "$SKIP"
