@@ -631,31 +631,8 @@ function main {
     patch=0
     gf_commit_version \
       && load_version \
+      && gf_update_changelog_header \
       || return $?
-    msg_start "Updating version history"
-    local header tmpfile
-    header="## $major.$minor - $(date "+%Y-%m-%d")"
-    tmpfile="$(mktemp)"
-    if ! grep -Eq "^## $major\.$minor - " "$GF_CHANGELOG"; then
-      awk -v header="$header" '
-        BEGIN {write=1;}
-        write == 1 && /^## / {
-          print header
-          write=0;
-          if($0 ~ "^## \\[?Unreleased\\]?") { next }
-          print ""
-        }
-        {print}
-        ENDFILE {
-          if(write==1) { print header }
-        }
-        ' "$GF_CHANGELOG" > "$tmpfile"
-        cat "$tmpfile" > "$GF_CHANGELOG"
-      git commit -am "Update $GF_CHANGELOG" >/dev/null || return 1
-      msg_end "$DONE"
-    else
-      msg_end "$SKIP"
-    fi
     [[ $request == 1 ]] && { gf_request master; return $?; }
     git_checkout master \
       && merge_branches "$gf_branch" "$GF_DEV" \
@@ -663,6 +640,29 @@ function main {
       && git_tag "$master".0 \
       && delete_gf_branch \
       || return $?
+  }
+
+  function gf_update_changelog_header {
+    msg_start "Updating version history header"
+    local header tmpfile
+    header="## $major.$minor.$patch - $(date "+%Y-%m-%d")"
+    tmpfile="$(mktemp)"
+    awk -v header="$header" '
+      BEGIN {write=1;}
+      write == 1 && /^## / {
+        print header
+        write=0;
+        if($0 ~ "^## \\[?Unreleased\\]?") { next }
+        print ""
+      }
+      {print}
+      ENDFILE {
+        if(write==1) { print header }
+      }
+      ' "$GF_CHANGELOG" > "$tmpfile"
+    cat "$tmpfile" > "$GF_CHANGELOG"
+    git commit -am "Update $GF_CHANGELOG" >/dev/null || return 1
+    msg_end "$DONE"
   }
 
   function gf_write_changelog_line {
@@ -684,7 +684,7 @@ function main {
         print ""
         write=0
       }
-      write == 1 && $0 ~ next_keywords && ! /^## \[?Unreleased\]?/ {
+      write == 1 && $0 ~ "^## " next_keywords && ! /^## \[?Unreleased\]?/ {
         print_keyword()
         print_message()
         print ""
@@ -723,31 +723,35 @@ function main {
     REPLY=
     stdout_verbose
     if [[ $is_stdin == 0 ]]; then
-      echo "Type \"Keyword: Message\" or press Enter to skip: "
+      echo "Type \"Keyword: Message\" (default ${CHANGELOG_KEYWORDS[$1]}) or press Enter to skip: "
       clear_stdin
     fi
-    local message keyword next_keywords i sep found
-    while read -r message; do
+    local message keyword next_keywords i found
+    while read -e -r message; do
       [[ -z "$message" ]] && break
+      history -s "$message"
       keyword="$(trim "$(echo "$message" | cut -sd':' -f1)")"
       next_keywords=
       found=0
-      sep=
       i=
-      [[ -n "$keyword" ]] && for i in "${!CHANGELOG_KEYWORDS[@]}"; do
-        [[ "${CHANGELOG_KEYWORDS[i]}" != "$keyword"* ]] && continue
-        keyword="${CHANGELOG_KEYWORDS[i]}"
-        found=1
-        break
-      done
-      [[ "$found" == 0 ]] \
-        && i=0 \
-        && keyword="${CHANGELOG_KEYWORDS[0]}"
+      if [[ -n "$keyword" ]]; then
+        for i in "${!CHANGELOG_KEYWORDS[@]}"; do
+          [[ "${CHANGELOG_KEYWORDS[i]}" != "$keyword"* ]] && continue
+          keyword="${CHANGELOG_KEYWORDS[i]}"
+          found=1
+          break
+        done
+        if [[ "$found" == 0 ]]; then
+          echo "'$keyword' is not a valid keyword"
+          continue
+        fi
+      else
+        i=$1
+        keyword="${CHANGELOG_KEYWORDS[$1]}"
+      fi
       for ((index="$i+1"; index < ${#CHANGELOG_KEYWORDS[@]}; index++)); do
-        next_keywords="$next_keywords$sep^### ${CHANGELOG_KEYWORDS[index]}"
-        sep="|"
+        next_keywords="$next_keywords|^### ${CHANGELOG_KEYWORDS[index]}"
       done
-      next_keywords="$next_keywords$sep^## "
       [[ "$found" == 1 ]] && message="$(echo "$message" | cut -d':' -f2-)"
       message="$(trim "$message")"
       gf_write_changelog_line "$keyword" "$next_keywords" "$message"
@@ -770,11 +774,10 @@ function main {
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     confirm "* Merge feature '$gf_branch' into '$GF_DEV'$confirm_suffix?" || return 0
     merge_branches "$GF_DEV" "$gf_branch" \
-      && gf_update_changelog \
+      && gf_update_changelog 0 \
       || return $?
     [[ $request == 1 ]] \
       && { gf_request "$GF_DEV"; return $?; }
-    # merge and delete
     merge_branches "$gf_branch" "$GF_DEV" \
       && git_checkout "$GF_DEV" \
       && delete_gf_branch \
@@ -821,6 +824,8 @@ function main {
     gf_prepare_to_merge "$into" \
       && patch=$((patch+1)) \
       && gf_commit_version \
+      && gf_update_changelog 4 \
+      && gf_update_changelog_header \
       || return $?
     [[ $request == 1 ]] && { gf_request master; return $?; }
     merge_branches "$gf_branch" "$into" \
