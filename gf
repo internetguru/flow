@@ -7,7 +7,7 @@ set -u
 # shellcheck disable=SC2086
 : ${GF_DATAPATH:=.}
 # shellcheck disable=SC2086
-: ${GF_CHANGELOG:=CHANGELOG}
+: ${GF_CHANGELOG:=CHANGELOG.md}
 # shellcheck disable=SC2086
 : ${GF_VERSION:=VERSION}
 # shellcheck disable=SC2086
@@ -269,10 +269,12 @@ function main {
   }
 
   function merge_branches {
+    local prev_branch
+    prev_branch="$(git_current_branch)"
     msg_start "Merging '$1' into branch '$2'" \
       && git_checkout "$2" \
       && { git_merge "$1" "${3:---no-ff}" || return 5; } \
-      && git_checkout "$(git_current_branch)" \
+      && git_checkout "$prev_branch" \
       && msg_end "$DONE"
   }
 
@@ -660,6 +662,7 @@ function main {
       && merge_branches "$gf_branch" master \
       && git_tag "$master".0 \
       && delete_gf_branch \
+      && git_checkout "$GF_DEV" \
       || return $?
   }
 
@@ -669,15 +672,19 @@ function main {
     case "$url" in
       *"$GITHUB"*) echo "https://$url/compare/$1...$2" ;;
       *"$BITBUCKET"*) echo "https://$url/compare/$2..$1" ;;
-      *) err "Unknown remote server '$url'" || return 1 ;;
+      *) echo "" ;;
     esac
   }
 
   function gf_update_changelog_header {
+    local header tmpfile compare_url prev_tag
     msg_start "Updating version history header"
-    local header tmpfile compare_url
     header="## [$major.$minor.$patch] - $(date "+%Y-%m-%d")"
-    compare_url="[$major.$minor.$patch]: $(gf_get_compare_url "$(git tag | sort -V | tail -n1 )" "$master.$patch" )"
+    prev_tag="$(git tag | sort -V | tail -n1 )"
+    compare_url="$(gf_get_compare_url "$prev_tag" "$master.$patch" )"
+    [[ -n "$compare_url" ]] \
+      && compare_url="[$major.$minor.$patch]: $compare_url" \
+      || compare_url="[$major.$minor.$patch]: $prev_tag..$master.$patch"
     tmpfile="$(mktemp)"
     awk -v header="$header" -v compare_url="$compare_url" '
       BEGIN {
@@ -690,7 +697,7 @@ function main {
         if($0 ~ "^## \\[?Unreleased\\]?") { next }
         print ""
       }
-      write_url == 1 && /^\[/ && ! /^\[Unreleased\]/ {
+      write_url == 1 && /^\[/ && ! /^\[?Unreleased\]?/ {
         print compare_url
         write_url=0
       }
@@ -708,15 +715,18 @@ function main {
   function gf_write_changelog_line {
     local tmpfile compare_url
     tmpfile="$(mktemp)"
-    compare_url="[Unreleased]($(gf_get_compare_url "$GF_DEV" master ))"
+    compare_url="$(gf_get_compare_url "$GF_DEV" master)"
+    [[ -n "$compare_url" ]] \
+      && compare_url="[Unreleased]: $compare_url" \
+      || compare_url="[Unreleased]: $GF_DEV..master"
     awk -v keyword="$1" -v next_keywords="$2" -v message="$3" -v compare_url="$compare_url" '
       function print_unreleased () { print "## [Unreleased]" }
       function print_keyword () { print "### " keyword }
       function print_message () { print " - " message }
       BEGIN {
         write=1
-        write_url=1
         unreleased=0
+        write_url=1
       }
       /^## \[?Unreleased\]?/ { unreleased=1 }
       write == 1 && unreleased == 0 && /^## / && ! /^## \[?Unreleased\]?/ {
@@ -732,7 +742,7 @@ function main {
         print ""
         write=0
       }
-      /^\[Unreleased\]/ { write_url=0 }
+      /^\[?Unreleased\]?/ { write_url=0 }
       write_url == 1 && /^\[/ {
         print compare_url
         write_url=0

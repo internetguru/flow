@@ -26,7 +26,7 @@ improvements:
 
 -  automatic **semantic version numbering**\ [4] (file VERSION),
 
--  version history update support (file CHANGELOG),
+-  version history update support (file CHANGELOG.md),
 
 -  tips how to proceed with development on current state,
 
@@ -87,26 +87,26 @@ Developing a feature...
 Merge feature
     -  ``gf``
     -  Confirm by typing ``YES`` (or hit Enter)
-    -  Insert myfeature description into CHANGELOG.
+    -  Insert myfeature description into CHANGELOG.md
 
 Bugfixing on dev...
     -  ``echo "bugfix 2" >> myfile``
     -  ``git commit -am "add bugfix 2"``
 
 Create release
-    -  ``gf``
+    -  ``gf release``
     -  Confirm by typing ``YES`` (or hit Enter)
 
 Bugfixing on release...
     -  ``echo "release bugfix 1" >> myfile``
     -  ``git commit -am "add release bugfix 1"``
     -  ``gf``
-    -  Type ``NO`` and then ``YES`` (or hit Enter)
+    -  Confirm by typing ``YES`` (or hit Enter)
     -  ``echo "release bugfix 2" >> myfile``
     -  ``git commit -am "add release bugfix 2"``
 
 Merge release
-    -  ``gf``
+    -  ``gf release``
     -  Confirm by typing ``YES`` (or hit Enter)
 
 Continue on branch dev...
@@ -119,16 +119,17 @@ Assume YES by default
 
 New feature from uncommitted changes
     -  ``echo "feature force" >> myfile``
-    -  ``gf myfeature``
+    -  ``gf feature myfeature``
     -  ...will exit with code 4
     -  ``gf --force myfeature``
     -  ``git commit -am "add feature force"``
 
 Hotfix master branch
-    -  ``gf master``
+    -  ``gf hotfix``
     -  ``echo "hotfix 1" >> myfile``
     -  ``git commit -am "add hotfix 1"``
     -  ``gf``
+    -  Insert hotfix description into CHANGELOG.md
 
 Merge conflicting feature
     -  ``gf myfeature``
@@ -139,19 +140,20 @@ Merge conflicting feature
     -  ``gf``
 
 Create release with new MAJOR version
-    -  ``gf``
+    -  ``gf release``
     -  ``echo 1.0.0 > VERSION``
     -  ``git commit -am "increment major version"``
 
 Restore **OMGF** model (after simulated pull request to master)
     -  ``git checkout master``
     -  ``git merge --no-ff release``
-    -  ``gf myfeature``
+    -  ``gf feature myfeature``
     -  ...will exit with code 3
     -  ``gf --conform myfeature``
 
 Hotfix obsolete stable branch
-    -  ``gf v0.1``
+    -  ``git checkout v0.0.0``
+    -  ``gf``
     -  ``echo "hotfix old" >> myfile``
     -  ``git add myfile``
     -  ``git commit -am "add old hotfix"``
@@ -187,7 +189,7 @@ HISTORY
 Actual version
     see file VERSION
 Actual change log
-    see file CHANGELOG
+    see file CHANGELOG.md
 
 EXIT STATUS
 ===========
