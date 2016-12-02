@@ -693,13 +693,14 @@ function main {
         writemsg=1
         writeurl=1
       }
+      /^\[Unreleased\]/ { next }
       writemsg == 1 && /^## / {
         print header
         writemsg=0
         if($0 ~ "^## \\[?Unreleased\\]?") { next }
         print ""
       }
-      writeurl == 1 && /^\[/ && ! /^\[?Unreleased\]?/ {
+      writeurl == 1 && /^\[/ && ! /^\[Unreleased\]/ {
         print compare_url
         writeurl=0
       }
@@ -744,7 +745,7 @@ function main {
         print ""
         writemsg=0
       }
-      /^\[?Unreleased\]?/ { writeurl=0 }
+      /^\[Unreleased\]/ { writeurl=0 }
       writeurl == 1 && /^\[/ {
         print compare_url
         writeurl=0
