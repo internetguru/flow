@@ -144,12 +144,10 @@ Create release with new MAJOR version
     -  ``echo 1.0.0 > VERSION``
     -  ``git commit -am "increment major version"``
 
-Restore **OMGF** model (after simulated pull request to master)
-    -  ``git checkout master``
-    -  ``git merge --no-ff release``
+Restore **OMGF** model (after merge pull request - release to master)
     -  ``gf feature myfeature``
     -  ...will exit with code 3
-    -  ``gf --conform myfeature``
+    -  ``gf --conform feature myfeature``
 
 Hotfix obsolete stable branch
     -  ``git checkout v0.0.0``
