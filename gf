@@ -649,13 +649,15 @@ function main {
     local confirm_suffix
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     confirm "* Create stable branch from release$confirm_suffix?" || return 0
-    gf_prepare_to_merge master || return $?
-    ((minor++))
-    patch=0
-    gf_commit_version \
-      && load_version \
-      && gf_update_changelog_header \
-      || return $?
+    merge_branches master "$gf_branch" || return $?
+    if ! git_version_diff "$GF_DEV" "$major.$minor"; then
+      ((minor++))
+      patch=0
+      gf_commit_version \
+        && load_version \
+        || return $?
+    fi
+    gf_update_changelog_header || return $?
     [[ $request == 1 ]] && { gf_request master; return $?; }
     git_checkout master \
       && merge_branches "$gf_branch" "$GF_DEV" \
