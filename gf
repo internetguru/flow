@@ -690,23 +690,23 @@ function main {
     tmpfile="$(mktemp)"
     awk -v header="$header" -v compare_url="$compare_url" '
       BEGIN {
-        write=1
-        write_url=1
+        writemsg=1
+        writeurl=1
       }
-      write == 1 && /^## / {
+      writemsg == 1 && /^## / {
         print header
-        write=0
+        writemsg=0
         if($0 ~ "^## \\[?Unreleased\\]?") { next }
         print ""
       }
-      write_url == 1 && /^\[/ && ! /^\[?Unreleased\]?/ {
+      writeurl == 1 && /^\[/ && ! /^\[?Unreleased\]?/ {
         print compare_url
-        write_url=0
+        writeurl=0
       }
       {print}
       ENDFILE {
-        if(write==1) { print header }
-        if(write_url==1) { print compare_url }
+        if(writemsg==1) { print header }
+        if(writeurl==1) { print compare_url }
       }
       ' "$GF_CHANGELOG" > "$tmpfile"
     cat "$tmpfile" > "$GF_CHANGELOG"
@@ -726,42 +726,42 @@ function main {
       function print_keyword () { print "### " keyword }
       function print_message () { print " - " message }
       BEGIN {
-        write=1
+        writemsg=1
         unreleased=0
-        write_url=1
+        writeurl=1
       }
       /^## \[?Unreleased\]?/ { unreleased=1 }
-      write == 1 && unreleased == 0 && /^## / && ! /^## \[?Unreleased\]?/ {
+      writemsg == 1 && unreleased == 0 && /^## / && ! /^## \[?Unreleased\]?/ {
         print_unreleased()
         print_keyword()
         print_message()
         print ""
-        write=0
+        writemsg=0
       }
-      write == 1 && $0 ~ "^## " next_keywords && ! /^## \[?Unreleased\]?/ {
+      writemsg == 1 && $0 ~ "^## " next_keywords && ! /^## \[?Unreleased\]?/ {
         print_keyword()
         print_message()
         print ""
-        write=0
+        writemsg=0
       }
-      /^\[?Unreleased\]?/ { write_url=0 }
-      write_url == 1 && /^\[/ {
+      /^\[?Unreleased\]?/ { writeurl=0 }
+      writeurl == 1 && /^\[/ {
         print compare_url
-        write_url=0
+        writeurl=0
       }
       {print}
-      write == 1 && $0 == "### " keyword {
+      writemsg == 1 && $0 == "### " keyword {
         print_message()
-        write=0
+        writemsg=0
       }
       ENDFILE {
-        if(write == 1) {
+        if(writemsg == 1) {
           print ""
           if(unreleased == 0) { print_unreleased() }
           print_keyword()
           print_message()
         }
-        if(write_url==1) { print compare_url }
+        if(writeurl==1) { print compare_url }
       }
     ' "$GF_CHANGELOG" > "$tmpfile"
     cat "$tmpfile" > "$GF_CHANGELOG"
