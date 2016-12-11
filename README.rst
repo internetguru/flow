@@ -75,7 +75,7 @@ Bugfixing on dev...
     -  ``git commit -m "add bugfix 1"``
 
 Create a feature
-    -  ``gf myfeature``
+    -  ``gf``
     -  Confirm by typing ``YES`` (or hit Enter)
 
 Developing a feature...
@@ -150,8 +150,7 @@ Restore **OMGF** model (after merge pull request - release to master)
     -  ``gf --conform feature myfeature``
 
 Hotfix obsolete stable branch
-    -  ``git checkout v0.0.0``
-    -  ``gf``
+    -  ``gf hotfix v0.0``
     -  ``echo "hotfix old" >> myfile``
     -  ``git add myfile``
     -  ``git commit -am "add old hotfix"``

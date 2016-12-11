@@ -17,8 +17,6 @@ set -u
 # shellcheck disable=SC2086
 : ${GF_UPSTREAM:=$GF_ORIGIN}
 # shellcheck disable=SC2086
-: ${GF_OPTIONS:=}
-# shellcheck disable=SC2086
 : ${GF_CHANGELOG_HEADER:=# Change Log
 All notable changes to this project will be documented in this file.
 
@@ -241,6 +239,10 @@ function main {
 
   function git_current_branch {
     git rev-parse --abbrev-ref HEAD
+  }
+
+  function git_current_commit {
+    git rev-parse HEAD
   }
 
   function git_stash {
@@ -565,13 +567,10 @@ function main {
         $GF_DEV|$FEATURE) par_kw="$FEATURE" ;;
         *) err "Current branch '$gf_branch' is not recognized" || return 1 ;;
       esac
-      branch_name="$par_kw-$par_name"
-    else
-      branch_name="$(prefix_branch "$par_kw" "$par_name")"
     fi
     case "$par_kw" in
-      $HOTFIX) gf_hotfix "$branch_name" ;;
-      $FEATURE) gf_feature "$branch_name";;
+      $HOTFIX) gf_hotfix "$par_kw" "$par_name" ;;
+      $FEATURE) gf_feature "$par_kw-$par_name";;
       *) err "'$par_kw' with second parameter is not supported" || return 1 ;;
     esac
     return $?
@@ -587,7 +586,9 @@ function main {
   }
 
   function gf_confirm_checkout {
-    confirm "* '$1' already exists, checkout?" || return 0
+    local msg
+    msg="${2:-* \'$1\' already exists, checkout?}"
+    confirm "$msg" || return 1
     gf_checkout "$1"
   }
 
@@ -596,11 +597,24 @@ function main {
       gf_confirm_checkout "$RELEASE"
       return $?
     fi
-    # dev and master has no diff, nothing to do
-    [[ -n "$(git diff "$GF_DEV" master)" ]] \
-      || err "Branch '$GF_DEV' is same as branch 'master', nothing to do" \
+    local last_merge valid_commits confirmed
+    confirmed=0
+    last_merge="$(git reflog show dev --format="%h:%gs" | grep -m1 ":merge release:" | cut -d: -f1)"
+    # commits on dev before last release merge
+    valid_commits="$(git reflog show dev --format="%H")"
+    [[ -n "$last_merge" ]] && valid_commits="$(echo "$valid_commits" | sed "/$last_merge/Q")"
+    # on invalid commit?
+    if ! echo "$valid_commits" | grep -q "$(git_current_commit)"; then
+      gf_confirm_checkout "$GF_DEV" "* Unable to create '$RELEASE' from current commit, create '$RELEASE' from '$GF_DEV'?" \
+        || return 1
+      confirmed=1
+    fi
+    # HEAD and master has no diff, nothing to do
+    [[ -n "$(git diff HEAD master)" ]] \
+      || err "Current HEAD is same as branch 'master', nothing to do" \
       || return 1
-    confirm "* Create branch '$RELEASE' from branch '$GF_DEV'?" || return 0
+    [[ $confirmed == 0 ]] \
+      && { confirm "* Create branch '$RELEASE' from current HEAD?" || return 0; }
     git_checkout_branch "$RELEASE"
   }
 
@@ -621,15 +635,23 @@ function main {
   }
 
   function gf_hotfix {
-    local hotfix_name
-    hotfix_name="$1"
+    local hotfix_name to
+    if [ -n "${2:-}" ]; then
+      if echo "$2" | grep -q "^$prefix[0-9]\+\.[0-9]\+\+$"; then
+        master="$2"
+        hotfix_name="$(prefix_branch "$par_kw" "$(strtolower "$(whoami)")" )"
+      else
+        hotfix_name="$1-$2"
+      fi
+    else
+      hotfix_name="$1"
+    fi
+    to="$( git tag | grep -e ^"$master". | sort -V | tail -n1 )"
+    [ -z "$to" ] && to="master"
     if git_branch_exists "$hotfix_name"; then
       gf_confirm_checkout "$hotfix_name"
       return $?
     fi
-    local to
-    to="$( git tag | grep -e ^"$master". | sort -V | tail -n1 )"
-    [ -z "$to" ] && to="master"
     confirm "* Create hotfix '$hotfix_name' from '$to'?" || return 0
     gf_checkout "$to" \
       && load_version \
@@ -1064,7 +1086,7 @@ function main {
     IFS=" " getopt -n "$0" \
            -o cfhinrvVwy\? \
            -l conform,color::,colour::,force,help,init,dry-run,request,verbose,version,what-now,yes \
-           -- $GF_OPTIONS $*
+           -- $*
   )
   then gf_usage; return 2; fi
   eval set -- "$line"
