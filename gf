@@ -565,10 +565,8 @@ function main {
         $GF_DEV|$FEATURE) par_kw="$FEATURE" ;;
         *) err "Current branch '$gf_branch' is not recognized" || return 1 ;;
       esac
-      branch_name="$par_kw-$par_name"
-    else
-      branch_name="$(prefix_branch "$par_kw" "$par_name")"
     fi
+    branch_name="$par_kw-$par_name"
     case "$par_kw" in
       $HOTFIX) gf_hotfix "$branch_name" ;;
       $FEATURE) gf_feature "$branch_name";;
