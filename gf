@@ -568,10 +568,9 @@ function main {
         *) err "Current branch '$gf_branch' is not recognized" || return 1 ;;
       esac
     fi
-    branch_name="$par_kw-$par_name"
     case "$par_kw" in
-      $HOTFIX) gf_hotfix "$branch_name" ;;
-      $FEATURE) gf_feature "$branch_name";;
+      $HOTFIX) gf_hotfix "$par_kw" "$par_name" ;;
+      $FEATURE) gf_feature "$par_kw-$par_name";;
       *) err "'$par_kw' with second parameter is not supported" || return 1 ;;
     esac
     return $?
@@ -635,15 +634,23 @@ function main {
   }
 
   function gf_hotfix {
-    local hotfix_name
-    hotfix_name="$1"
+    local hotfix_name to
+    if [ -n "${2:-}" ]; then
+      if echo "$2" | grep -q "^$prefix[0-9]\+\.[0-9]\+\+$"; then
+        master="$2"
+        hotfix_name="$(prefix_branch "$par_kw" "$(strtolower "$(whoami)")" )"
+      else
+        hotfix_name="$1-$2"
+      fi
+    else
+      hotfix_name="$1"
+    fi
+    to="$( git tag | grep -e ^"$master". | sort -V | tail -n1 )"
+    [ -z "$to" ] && to="master"
     if git_branch_exists "$hotfix_name"; then
       gf_confirm_checkout "$hotfix_name"
       return $?
     fi
-    local to
-    to="$( git tag | grep -e ^"$master". | sort -V | tail -n1 )"
-    [ -z "$to" ] && to="master"
     confirm "* Create hotfix '$hotfix_name' from '$to'?" || return 0
     gf_checkout "$to" \
       && load_version \
