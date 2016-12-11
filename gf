@@ -17,8 +17,6 @@ set -u
 # shellcheck disable=SC2086
 : ${GF_UPSTREAM:=$GF_ORIGIN}
 # shellcheck disable=SC2086
-: ${GF_OPTIONS:=}
-# shellcheck disable=SC2086
 : ${GF_CHANGELOG_HEADER:=# Change Log
 All notable changes to this project will be documented in this file.
 
@@ -1061,7 +1059,7 @@ function main {
     IFS=" " getopt -n "$0" \
            -o cfhinrvVwy\? \
            -l conform,color::,colour::,force,help,init,dry-run,request,verbose,version,what-now,yes \
-           -- $GF_OPTIONS $*
+           -- $*
   )
   then gf_usage; return 2; fi
   eval set -- "$line"
