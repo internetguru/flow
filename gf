@@ -241,6 +241,10 @@ function main {
     git rev-parse --abbrev-ref HEAD
   }
 
+  function git_current_commit {
+    git rev-parse HEAD
+  }
+
   function git_stash {
     git_status_empty 2>/dev/null && return 0
     msg_start "Stashing files"
@@ -583,7 +587,9 @@ function main {
   }
 
   function gf_confirm_checkout {
-    confirm "* '$1' already exists, checkout?" || return 0
+    local msg
+    msg="${2:-* \'$1\' already exists, checkout?}"
+    confirm "$msg" || return 1
     gf_checkout "$1"
   }
 
@@ -592,11 +598,23 @@ function main {
       gf_confirm_checkout "$RELEASE"
       return $?
     fi
-    # dev and master has no diff, nothing to do
-    [[ -n "$(git diff "$GF_DEV" master)" ]] \
-      || err "Branch '$GF_DEV' is same as branch 'master', nothing to do" \
+    local last_merge valid_commits confirmed
+    confirmed=0
+    last_merge="$(git reflog show dev --format="%h:%gs" | grep -m1 ":merge release:" | cut -d: -f1)"
+    # commits on dev before last release merge
+    valid_commits="$(git reflog show dev --format="%H" | sed "/$last_merge/Q")"
+    # on invalid commit?
+    if ! echo "$valid_commits" | grep -q "$(git_current_commit)"; then
+      gf_confirm_checkout "$GF_DEV" "* Unable to create '$RELEASE' from current commit, create '$RELEASE' from '$GF_DEV'?" \
+        || return 1
+      confirmed=1
+    fi
+    # HEAD and master has no diff, nothing to do
+    [[ -n "$(git diff HEAD master)" ]] \
+      || err "Current HEAD is same as branch 'master', nothing to do" \
       || return 1
-    confirm "* Create branch '$RELEASE' from branch '$GF_DEV'?" || return 0
+    [[ $confirmed == 0 ]] \
+      && { confirm "* Create branch '$RELEASE' from current HEAD?" || return 0; }
     git_checkout_branch "$RELEASE"
   }
 
