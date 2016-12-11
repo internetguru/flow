@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for cmd in rst2man.py make; do
+for cmd in rst2man make; do
   type $cmd > /dev/null 2>&1 && continue
   echo "Command $cmd not found." >&2
   exit 1

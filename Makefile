@@ -18,7 +18,7 @@ SYSTEM       ?= $(system)
 #-------------------------------------------------------------------------------
 
 DIRNAME     := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-RST2MAN     := rst2man.py
+RST2MAN     := rst2man
 GF          := gf
 README      := README
 MANFILE     := $(GF).1
