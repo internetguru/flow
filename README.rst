@@ -24,7 +24,7 @@ improvements:
 
 -  pull request support,
 
--  validate and repair project to conform **OMGF** model,
+-  validate and repair project to conform the model,
 
 -  automatic **semantic version numbering**\ [4] (file VERSION),
 
@@ -45,7 +45,52 @@ Basic OMGF feature list:
 PARAMETERS
 ==========
 
-#TODO
+NO PARAM
+--------
+
+on stable branch
+    create hotfix
+on dev branch
+    create feature
+on feature branch
+    merge feature into dev
+on release branch
+    merge release into dev
+on hotfix branch of newest stable branch
+    merge hotfix into stable
+    merge hotfix into dev and release (if exists)
+on hotfix branch of other stable branch
+    merge hotfix into stable
+
+PARAM KEYWORD
+-------------
+
+hotfix
+    create new ``hotfix-$USER(-[0-9]+)``
+release on release branch
+    merge release into stable and dev
+release on another branch
+    switch to or create release
+feature
+    create new ``feature-$USER(-[0-9]+)``
+
+PARAM [KEYWORD] NAME
+--------------------
+
+on stable branch
+    default KEYWORD = hotfix
+on dev branch
+    default KEYWORD = feature
+on feature branch
+    default KEYWORD = feature
+on release branch
+    default KEYWORD = hotfix
+on hotfix branch
+    default KEYWORD = hotfix
+if KEYWORD is hotfix and NAME matches v#.#
+    same as ``gf hotfix`` on stable branch v#.#
+else
+    switch to or create ``KEYWORD-NAME`` branch
 
 OPTIONS
 =======
@@ -79,7 +124,7 @@ BASIC FLOW EXAMPLES
 ===================
 
 Set default options as alias
-    -  ``alias g="gf --verbose --what-now"``
+    -  ``alias gf="gf --verbose --what-now"``
 
 Initialize **OMGF**
     -  ``gf --init``
@@ -130,7 +175,7 @@ ADVANCED EXAMPLES
 =================
 
 Assume YES by default as alias
-    -  ``alias g="gf --verbose --yes"``
+    -  ``alias gf="gf --verbose --yes"``
 
 New feature from uncommitted changes
     -  ``echo "feature force" >> myfile``

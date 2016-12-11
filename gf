@@ -494,30 +494,6 @@ function main {
     git_checkout_branch "$master" || return 1
   }
 
-  # gf [kw] [name]
-  #   gf:
-  #     according to current branch:
-  #       stable  => create hotfix
-  #       dev     => create feature
-  #       feature => merge feature into dev
-  #       release => merge release into dev
-  #       hotfix  => merge release into stable
-  #               => stable == master ? merge release into dev
-  #   gf kw:
-  #     according to kw:
-  #       hotfix  => create "hotfix-$USER(-[0-9]+)"
-  #       release => on release branch
-  #                    ? merge release into stable and dev
-  #                    : switch on release (create if not exists)
-  #       feature => create "feature-$USER(-[0-9]+)"
-  #   gf name, gf kw name:
-  #     kw := according to current branch:
-  #       stable  => hotfix
-  #       dev     => feature
-  #       feature => feature
-  #       release => hotfix
-  #       hotfix  => hotfix
-  #     switch or create "kw-name" branch
   function gf_process {
     # explicit init
     [[ $init == 1 ]] \
@@ -637,7 +613,7 @@ function main {
   function gf_hotfix {
     local hotfix_name to
     if [ -n "${2:-}" ]; then
-      if echo "$2" | grep -q "^$prefix[0-9]\+\.[0-9]\+\+$"; then
+      if echo "$2" | grep -q "^$prefix[0-9]\+\.[0-9]\+$"; then
         master="$2"
         hotfix_name="$(prefix_branch "$par_kw" "$(strtolower "$(whoami)")" )"
       else
