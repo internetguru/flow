@@ -977,6 +977,31 @@ function main {
     stdout_silent
   }
 
+  function gf_usage {
+    local usage_file shift_left
+    usage_file="$GF_DATAPATH/${script_name}.usage"
+    [ -f "$usage_file" ] \
+      || err "Usage file not found" \
+      || return 1
+    head -n1 "$usage_file"
+    echo
+    shift_left=0
+    # shellcheck disable=SC2004
+    [[ $COLUMNS -gt 1 ]] && shift_left=5 && export MANWIDTH=$((COLUMNS+$shift_left))
+    # shellcheck disable=SC2005
+    echo "$(tail -n+2 "$usage_file")" | man --nj --nh -l - | sed "1,2d;/^[[:space:]]*$/d;\$d;s/^ \{$shift_left\}//"
+  }
+
+  function gf_version {
+    local version
+    version="$GF_DATAPATH/VERSION"
+    [ -f "$version" ] \
+      || err "Version file not found" \
+      || return 1
+    echo -n "GNU gf "
+    cat "$version"
+  }
+
   function gf_what_now {
     [[ $what_now == 0 ]] && return 0
     stdout_verbose
