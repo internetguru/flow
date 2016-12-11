@@ -601,7 +601,8 @@ function main {
     confirmed=0
     last_merge="$(git reflog show dev --format="%h:%gs" | grep -m1 ":merge release:" | cut -d: -f1)"
     # commits on dev before last release merge
-    valid_commits="$(git reflog show dev --format="%H" | sed "/$last_merge/Q")"
+    valid_commits="$(git reflog show dev --format="%H")"
+    [[ -n "$last_merge" ]] && valid_commits="$(echo "$valid_commits" | sed "/$last_merge/Q")"
     # on invalid commit?
     if ! echo "$valid_commits" | grep -q "$(git_current_commit)"; then
       gf_confirm_checkout "$GF_DEV" "* Unable to create '$RELEASE' from current commit, create '$RELEASE' from '$GF_DEV'?" \
