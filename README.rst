@@ -6,31 +6,46 @@ Oh My Git Flow
 SYNOPSIS
 ========
 
-gf [-cfhinrvVwy] [--color[=WHEN]] [BRANCH\|TAG\|KEYWORD]
+gf [-cfhinrvVwy] [--color[=WHEN]] [KEYWORD] [NAME]
 
 DESCRIPTION
 ===========
 
 **Oh My Git Flow**\ [1] (hereinafter referred as the 'OMGF') applies **git
-flow branching model**\ [2] on current or selected BRANCH, TAG or KEYWORD such
-as 'release' or 'hotfix'. If BRANCH does not exist, new feature is created.
+flow branching model**\ [2] according to KEYWORD and NAME. Both parameters are
+optional (see PARAMETERS below).
 
-It is an alternative to **git-flow cheatsheet**\ [3] command with following
+OMGF is an alternative to **git-flow cheatsheet**\ [3] command with following
 improvements:
 
--  even simpler usage (no parameters required),
+-  even simpler usage (no parameters are required),
+
+-  push and pull all main branches,
 
 -  pull request support,
 
--  check and repair project to conform **OMGF** model,
+-  validate and repair project to conform **OMGF** model,
 
 -  automatic **semantic version numbering**\ [4] (file VERSION),
 
 -  version history update support (file CHANGELOG.md),
 
+-  version history follows **Keep a CHANGELOG**\ [5] principle,
+
 -  tips how to proceed with development on current state,
 
 -  independent production branches support.
+
+Basic OMGF feature list:
+
+- creating and merging standard branches,
+
+- creating standard tags.
+
+PARAMETERS
+==========
+
+#TODO
 
 OPTIONS
 =======
@@ -39,7 +54,7 @@ OPTIONS
     Repair (initialize) project to be conform with **OMGF** model and proceed.
 \--color[=WHEN], --colour[=WHEN]
     Use markers to highlight command status; WHEN is 'always', 'never', or
-    'auto'.
+    'auto'. Empty WHEN sets color to 'always'. Default color value is 'auto'.
 \-f, --force
     Move (stash and pop) uncommitted changes.
 \-h, --help
@@ -63,8 +78,8 @@ OPTIONS
 BASIC FLOW EXAMPLES
 ===================
 
-Set global options
-    -  ``export GF_OPTIONS="--verbose --what-now"``
+Set default options as alias
+    -  ``alias g="gf --verbose --what-now"``
 
 Initialize **OMGF**
     -  ``gf --init``
@@ -114,8 +129,8 @@ Continue on branch dev...
 ADVANCED EXAMPLES
 =================
 
-Assume YES by default
-    -  ``export GF_OPTIONS="$GF_OPTIONS --yes"``
+Assume YES by default as alias
+    -  ``alias g="gf --verbose --yes"``
 
 New feature from uncommitted changes
     -  ``echo "feature force" >> myfile``
@@ -214,6 +229,8 @@ SEE ALSO
 `Git-flow cheatsheet[3] <http://danielkummer.github.io/git-flow-cheatsheet/>`__
 
 `Semantic Versioning[4] <http://semver.org/>`__
+
+`Keep a CHANGELOG[5] <http://keepachangelog.com/en/0.3.0/>`__
 
 REPORTING BUGS
 ==============
