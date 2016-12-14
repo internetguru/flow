@@ -775,7 +775,7 @@ function main {
     echo "* Please enter the $gf_branch description for $GF_CHANGELOG."
     echo "*"
     echo "* Keywords:"
-    echo "*   $(IFS=,; echo "${CHANGELOG_KEYWORDS[*]}")"
+    echo "*   $(IFS=', '; echo "${CHANGELOG_KEYWORDS[*]}")"
     echo "*"
     echo "* Commits of '$gf_branch':"
     echo "$commits"
