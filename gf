@@ -782,7 +782,7 @@ function main {
     echo "*"
     REPLY=
     if [[ $is_stdin == 0 ]]; then
-      echo "Type \"Keyword: Message\" (default ${CHANGELOG_KEYWORDS[$1]}) or press Enter to skip: "
+      echo "Type \"Keyword: Message\" (default ${CHANGELOG_KEYWORDS[$1]}), empty line to end:"
       clear_stdin
     fi
     local message keyword next_keywords i found
