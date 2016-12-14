@@ -49,16 +49,15 @@ NO PARAM
 --------
 
 on stable branch
-    create hotfix
+    create new ``hotfix-$USER(-[0-9]+)?``
 on dev branch
-    create feature
+    create new ``feature-$USER(-[0-9]+)?``
 on feature branch
     merge feature into dev
 on release branch
     merge release into dev
 on hotfix branch of newest stable branch
-    merge hotfix into stable
-    merge hotfix into dev and release (if exists)
+    merge hotfix into stable, dev and release (if exists)
 on hotfix branch of other stable branch
     merge hotfix into stable
 
@@ -66,13 +65,13 @@ PARAM KEYWORD
 -------------
 
 hotfix
-    create new ``hotfix-$USER(-[0-9]+)``
+    create new ``hotfix-$USER(-[0-9]+)?``
 release on release branch
     merge release into stable and dev
 release on another branch
     switch to or create release
 feature
-    create new ``feature-$USER(-[0-9]+)``
+    create new ``feature-$USER(-[0-9]+)?``
 
 PARAM [KEYWORD] NAME
 --------------------
@@ -181,7 +180,7 @@ New feature from uncommitted changes
     -  ``echo "feature force" >> myfile``
     -  ``gf feature myfeature``
     -  ...will exit with code 4
-    -  ``gf --force myfeature``
+    -  ``gf --force feature myfeature``
     -  ``git commit -am "add feature force"``
 
 Hotfix master branch
@@ -195,8 +194,6 @@ Merge conflicting feature
     -  ``gf myfeature``
     -  ...will exit with code 5
     -  Resolve conflict...
-    -  ``git add -A``
-    -  ``git rebase --continue``
     -  ``gf``
 
 Create release with new MAJOR version

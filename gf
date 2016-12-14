@@ -705,7 +705,7 @@ function main {
       {print}
       ENDFILE {
         if(writemsg==1) { print header }
-        if(writeurl==1) { print compare_url }
+        if(writeurl==1) { print ""; print compare_url }
       }
       ' "$GF_CHANGELOG" > "$tmpfile"
     cat "$tmpfile" > "$GF_CHANGELOG"
