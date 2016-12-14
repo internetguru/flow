@@ -767,15 +767,17 @@ function main {
   }
 
   function gf_update_changelog {
-    local commits
+    local commits kws
     commits="$(git log "$GF_DEV".."$gf_branch" --pretty=format:"*   %h %s")"
+    kws="$(printf ", %s" "${CHANGELOG_KEYWORDS[@]}")"
+    kws="${kws:2}"
     stdout_verbose
     echo
     echo "***"
     echo "* Please enter the $gf_branch description for $GF_CHANGELOG."
     echo "*"
     echo "* Keywords:"
-    echo "*   $(IFS=', '; echo "${CHANGELOG_KEYWORDS[*]}")"
+    echo "*   $kws"
     echo "*"
     echo "* Commits of '$gf_branch':"
     echo "$commits"
