@@ -769,18 +769,18 @@ function main {
   function gf_update_changelog {
     local commits
     commits="$(git log "$GF_DEV".."$gf_branch" --pretty=format:"*   %h %s")"
+    stdout_verbose
     echo
     echo "***"
     echo "* Please enter the $gf_branch description for $GF_CHANGELOG."
     echo "*"
     echo "* Keywords:"
-    echo "*   ${CHANGELOG_KEYWORDS[*]}"
+    echo "*   $(IFS=,; echo "${CHANGELOG_KEYWORDS[*]}")"
     echo "*"
     echo "* Commits of '$gf_branch':"
     echo "$commits"
     echo "*"
     REPLY=
-    stdout_verbose
     if [[ $is_stdin == 0 ]]; then
       echo "Type \"Keyword: Message\" (default ${CHANGELOG_KEYWORDS[$1]}) or press Enter to skip: "
       clear_stdin
