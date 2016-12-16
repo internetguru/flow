@@ -767,24 +767,22 @@ function main {
   }
 
   function gf_update_changelog {
-    local commits kws
+    local commits
     commits="$(git log "$GF_DEV".."$gf_branch" --pretty=format:"*   %h %s")"
-    kws="$(printf ", %s" "${CHANGELOG_KEYWORDS[@]}")"
-    kws="${kws:2}"
     stdout_verbose
     echo
     echo "***"
     echo "* Please enter the $gf_branch description for $GF_CHANGELOG."
     echo "*"
     echo "* Keywords:"
-    echo "*   $kws"
+    echo "*   $(echo $CHANGELOG_KEYWORDS | sed 's/ /, /g;s/,/ (default),/')"
     echo "*"
     echo "* Commits of '$gf_branch':"
     echo "$commits"
     echo "*"
     REPLY=
     if [[ $is_stdin == 0 ]]; then
-      echo "Type \"Keyword: Message\" (default ${CHANGELOG_KEYWORDS[$1]}), empty line to end:"
+      echo "Type \"Keyword: Message\", empty line to end:"
       clear_stdin
     fi
     local message keyword next_keywords i found
