@@ -1,5 +1,6 @@
 language: bash
-sudo: required
+dist: trusty
+sudo: false
 
 addons:
   apt:
