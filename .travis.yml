@@ -1,29 +1,33 @@
 language: bash
-sudo: required
 
 addons:
   apt:
+    # https://github.com/koalaman/shellcheck/wiki/TravisCI
     sources:
     - debian-sid
     packages:
     - shellcheck
+    - python-docutils # Needed for rst2man
 
 before_install:
- - sudo pip install docutils
+  - export PREFIX=$HOME/opt
+  - mkdir -p $PREFIX/bin
+  - export PATH=$PREFIX/bin:$PATH
+
 
 install:
- - sudo ./configure && sudo PREFIX=/usr make && sudo compiled/install
+  # Install BUTT for Bash testing
+  - wget https://github.com/InternetGuru/butt/archive/dev.tar.gz -O /tmp/butt.tar.gz
+  - tar -xvf /tmp/butt.tar.gz
+  - pushd butt-dev && ./configure && make && compiled/install && popd
 
 before_script:
- - git clone https://github.com/InternetGuru/butt
- - cd butt
- - sudo ./configure && sudo PREFIX=/usr make && sudo compiled/install
- - cd ..
+ - git config --global user.email "test@test.cz"
+ - git config --global user.name "test"
+ - ./configure && make && compiled/install
 
 script:
  - shellcheck gf
- - git config --global user.email "test@test.cz"
- - git config --global user.name "test"
  - butt test/test.butt
 
 matrix:
