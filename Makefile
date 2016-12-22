@@ -3,68 +3,123 @@
 #-------------------------------------------------------------------------------
 
 # Specify default values.
-prefix    := /usr/local
-destdir   :=
+prefix       := /usr/local
+exec_prefix  := $(prefix)
+destdir      :=
+system       := cygwin
 # Fallback to defaults but allow to get the values from environment.
-PREFIX    ?= $(prefix)
-DESTDIR   ?= $(destdir)
+PREFIX       ?= $(prefix)
+EXEC_PREFIX  ?= $(exec_prefix)
+DESTDIR      ?= $(destdir)
+SYSTEM       ?= $(system)
 
 #-------------------------------------------------------------------------------
 # Installation paths
 #-------------------------------------------------------------------------------
 
-PANDOC      := pandoc
+DIRNAME     := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+RST2MAN     := rst2man
 GF          := gf
-MD_FILE     := $(GF).md
-MAN_FILE    := $(GF).1
-HELP_FILE   := $(GF).help
+README      := README
+MANFILE     := $(GF).1
+USAGEFILE   := $(GF).usage
+VERFILE     := VERSION
+CHLOGFILE   := CHANGELOG.md
 DESTPATH    := $(DESTDIR)$(PREFIX)
-BINPATH     := $(DESTPATH)/bin
-DATAPATH    := $(DESTPATH)/share/$(GF)
-MANPATH     := $(DATAPATH)/man/man1
+BINPATH     := $(DESTDIR)$(EXEC_PREFIX)/bin
+SHAREPATH   := $(DESTPATH)/share
+MANDIR      := man/man1
+GCB         := $$(git rev-parse --abbrev-ref HEAD)
+NOMASTER    := $$([[ $(GCB) != master ]] && echo -$(GCB))
+DISTNAME    := compiled
+DISTDIR     := dist
+INSTFILE    := install
+INSDEVTFILE := install_develop
+UNINSTFILE  := uninstall
+USAGEHEADER := "Usage: "
 
 #-------------------------------------------------------------------------------
 # Recipes
 #-------------------------------------------------------------------------------
 
-default:
-	@ echo -n "Creating man file ..."
-	@ $(PANDOC) -s -t man $(MD_FILE) -o $(MAN_FILE)
-	@ echo DONE
-	@ echo -n "Creating help file ..."
-	@ sed -n '/# SYNOPSIS/,/# INTRODUCTION/p;/# REFE/,//p' $(MD_FILE) | grep -v "# INTRODUCTION" \
-	| sed "s/\*\*//g;s/^:   /       /;s/^[^#]/       \0/;s/^# //;s/\[\(.\+\)(\([0-9]\+\))\](\(.\+\))/(\2) \1\n              \3/;s/,$$/,\n/" > $(HELP_FILE)
-	@ echo -e "\nOTHER\n\n       See man $(GF) for more information." >> $(HELP_FILE)
+all:
+
+	@ rm -rf $(DISTNAME) 2>/dev/null || true
+	@ mkdir -p $(DISTNAME)
+	@ cp $(VERFILE) $(CHLOGFILE) $(DISTNAME)
+
+	@ echo -n "Compiling command file ..."
+	@ { \
+	head -n1 $(GF); \
+	echo "GF_DATAPATH=\"$(SHAREPATH)/$(GF)\""; \
+	tail -n+2 $(GF); \
+	} > $(DISTNAME)/$(GF)
+	@ chmod +x $(DISTNAME)/$(GF)
 	@ echo DONE
 
-install:
-	@ [ -f $(MAN_FILE) ] && [ -f $(HELP_FILE) ] \
-	|| { echo "Expected files not found; run 'make' first."; exit 1; }
-	@ echo -n "Install man page ..."
-	@ [ -d $(MANPATH) ] || mkdir -p $(MANPATH)
-	@ cp $(MAN_FILE) $(MANPATH)
-	@ echo DONE
-	@ echo -n "Register command ..."
-	@ cp $(GF) "$(BINPATH)"
-	@ echo DONE
-	@ echo -n "Create shared folder ..."
-	@ [ -d $(DATAPATH) ] || mkdir -p $(DATAPATH)
-	@ cp $(HELP_FILE) $(DATAPATH)
+	@ echo -n "Compiling man file ..."
+	@ { \
+	echo -n ".TH \"GF\" \"1\" "; \
+	echo -n "\""; echo -n $$(stat -c %z $(README).rst | cut -d" " -f1); echo -n "\" "; \
+	echo -n "\"User Manual\" "; \
+	echo -n "\"Version "; echo -n $$(cat $(VERFILE)); echo -n "\" "; \
+	echo; \
+	} > $(DISTNAME)/$(MANFILE)
+	@ cat $(README).rst | sed -n '/^NAME/,/^INSTALL/p;/^EXIT STATUS/,//p' $(README).rst | grep -v "^INSTALL" | sed 's/`\(.*\)<\(.*\)>`__/\1\n\t\2/g' | $(RST2MAN) | tail -n+8 >> $(DISTNAME)/$(MANFILE)
 	@ echo DONE
 
-uninstall:
-	@ echo -n "Remove man page ..."
-	@ rm $(MANPATH)/$(MAN_FILE) 2>/dev/null || true
-	@ echo DONE
-	@ echo -n "Remove command ..."
-	@ rm $(BINPATH)/$(GF) 2>/dev/null || true
-	@ echo DONE
-	@ echo -n "Remove shared folder ..."
-	@ rm -rf $(DATAPATH) 2>/dev/null || true
+	@ echo -n "Compiling readme file ..."
+	@ cp $(README).rst $(DISTNAME)/$(README).rst
 	@ echo DONE
 
-clean:
-	@ echo -n "Remove compiled files ..."
-	@ rm "$(MAN_FILE)" 2>/dev/null || true
-	@ rm "$(HELP_FILE)" 2>/dev/null || true
+	@ echo -n "Compiling usage file ..."
+	@ echo -n "$(USAGEHEADER)" > $(DISTNAME)/$(USAGEFILE)
+	@ grep "^gf \[" $(README).rst | sed 's/\\|/|/g' >> $(DISTNAME)/$(USAGEFILE)
+	@ echo ".TH" >> $(DISTNAME)/$(USAGEFILE)
+	@ sed -n '/^OPTIONS/,/^BASIC FLOW EXAMPLES/p' $(README).rst  | grep -v "^\(BASIC FLOW EXAMPLES\|OPTIONS\|======\)" \
+	| sed 's/^\\//;s/^-/.TP 18\n-/' | sed 's/^    //' | sed '/^$$/d' >> $(DISTNAME)/$(USAGEFILE)
 	@ echo DONE
+
+	@ echo -n "Compiling install file ..."
+	@ { \
+	echo "#!/bin/bash"; \
+	echo; \
+	echo ": \$${BINPATH:=$(BINPATH)}"; \
+	echo ": \$${SHAREPATH:=$(SHAREPATH)}"; \
+	echo ": \$${USRMANPATH:=\$$SHAREPATH/$(MANDIR)}"; \
+	echo; \
+	echo "dir=\"\$$(dirname \"\$$0\")\""; \
+	echo "mkdir -p \"\$$USRMANPATH\" \\"; \
+	echo "&& cp \"\$$dir/$(MANFILE)\" \"\$$USRMANPATH\" \\"; \
+	echo "&& mkdir -p \"\$$BINPATH\" \\"; \
+	echo "&& cp \"\$$dir/$(GF)\" \"\$$BINPATH\" \\"; \
+	echo "&& mkdir -p \"\$$SHAREPATH/$(GF)\" \\"; \
+	echo "&& cp \"\$$dir/$(USAGEFILE)\" \"\$$dir/$(VERFILE)\" \"\$$SHAREPATH/$(GF)\" \\"; \
+	echo "&& echo 'Installation completed.' \\"; \
+	echo "|| { echo 'Installation failed.'; exit 1; }"; \
+	} > $(DISTNAME)/$(INSTFILE)
+	@ chmod +x $(DISTNAME)/$(INSTFILE)
+	@ echo DONE
+
+	@ echo -n "Compiling uninstall file ..."
+	@ { \
+	echo "#!/bin/bash"; \
+	echo; \
+	echo ": \$${BINPATH:=$(BINPATH)}"; \
+	echo ": \$${SHAREPATH:=$(SHAREPATH)}"; \
+	echo ": \$${USRMANPATH:=\$$SHAREPATH/$(MANDIR)}"; \
+	echo; \
+	echo "rm \"\$$USRMANPATH/$(MANFILE)\""; \
+	echo "rm \"\$$BINPATH/$(GF)\""; \
+	echo "rm -rf \"\$$SHAREPATH/$(GF)\""; \
+	echo "echo 'Uninstallation completed.'"; \
+	} > $(DISTNAME)/$(UNINSTFILE)
+	@ chmod +x $(DISTNAME)/$(UNINSTFILE)
+	@ echo DONE
+
+dist: DISTNAME=$(GF)-$$(cat $(VERFILE))$(NOMASTER)-$(SYSTEM)
+dist: all
+	@ mkdir -p $(DISTDIR)
+	@ tar czf $(DISTDIR)/$(DISTNAME).tar.gz $(DISTNAME)
+	@ rm -rf $(DISTNAME)
+	@ echo "Distribution built; see 'tar tzf $(DISTDIR)/$(DISTNAME).tar.gz'"
