@@ -1,10 +1,10 @@
 language: bash
+sudo: required
 
 addons:
   apt:
-    # https://github.com/koalaman/shellcheck/wiki/TravisCI
     sources:
-    - debian-sid
+    - debian-sid # Needed for shellcheck
     packages:
     - shellcheck
     - python-docutils # Needed for rst2man
