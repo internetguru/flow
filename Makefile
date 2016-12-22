@@ -18,13 +18,13 @@ SYSTEM       ?= $(system)
 #-------------------------------------------------------------------------------
 
 DIRNAME     := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-RST2MAN     := rst2man.py
+RST2MAN     := rst2man
 GF          := gf
 README      := README
 MANFILE     := $(GF).1
 USAGEFILE   := $(GF).usage
 VERFILE     := VERSION
-CHLOGFILE   := CHANGELOG
+CHLOGFILE   := CHANGELOG.md
 DESTPATH    := $(DESTDIR)$(PREFIX)
 BINPATH     := $(DESTDIR)$(EXEC_PREFIX)/bin
 SHAREPATH   := $(DESTPATH)/share
@@ -77,7 +77,7 @@ all:
 	@ grep "^gf \[" $(README).rst | sed 's/\\|/|/g' >> $(DISTNAME)/$(USAGEFILE)
 	@ echo ".TH" >> $(DISTNAME)/$(USAGEFILE)
 	@ sed -n '/^OPTIONS/,/^BASIC FLOW EXAMPLES/p' $(README).rst  | grep -v "^\(BASIC FLOW EXAMPLES\|OPTIONS\|======\)" \
-	| sed 's/^\\/-/;s/^-/.TP 18\n-/' | sed 's/^    //' | sed '/^$$/d' >> $(DISTNAME)/$(USAGEFILE)
+	| sed 's/^\\//;s/^-/.TP 18\n-/' | sed 's/^    //' | sed '/^$$/d' >> $(DISTNAME)/$(USAGEFILE)
 	@ echo DONE
 
 	@ echo -n "Compiling install file ..."

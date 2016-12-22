@@ -6,31 +6,90 @@ Oh My Git Flow
 SYNOPSIS
 ========
 
-gf [-cfhinrvVwy] [--color[=WHEN]] [BRANCH\|TAG\|KEYWORD]
+gf [-cfhinrvVwy] [--color[=WHEN]] [KEYWORD] [NAME]
 
 DESCRIPTION
 ===========
 
 **Oh My Git Flow**\ [1] (hereinafter referred as the 'OMGF') applies **git
-flow branching model**\ [2] on current or selected BRANCH, TAG or KEYWORD such
-as 'release' or 'hotfix'. If BRANCH does not exist, new feature is created.
+flow branching model**\ [2] according to KEYWORD and NAME. Both parameters are
+optional (see PARAMETERS below).
 
-It is an alternative to **git-flow cheatsheet**\ [3] command with following
+OMGF is an alternative to **git-flow cheatsheet**\ [3] command with following
 improvements:
 
--  even simpler usage (no parameters required),
+-  even simpler usage (no parameters are required),
+
+-  push and pull all main branches,
 
 -  pull request support,
 
--  check and repair project to conform **OMGF** model,
+-  validate and repair project to conform the model,
 
 -  automatic **semantic version numbering**\ [4] (file VERSION),
 
--  version history update support (file CHANGELOG),
+-  version history update support (file CHANGELOG.md),
+
+-  version history follows **Keep a CHANGELOG**\ [5] principle,
 
 -  tips how to proceed with development on current state,
 
 -  independent production branches support.
+
+Basic OMGF feature list:
+
+- creating and merging standard branches,
+
+- creating standard tags.
+
+PARAMETERS
+==========
+
+NO PARAM
+--------
+
+on stable branch
+    create new ``hotfix-$USER(-[0-9]+)?``
+on dev branch
+    create new ``feature-$USER(-[0-9]+)?``
+on feature branch
+    merge feature into dev
+on release branch
+    merge release into dev
+on hotfix branch of newest stable branch
+    merge hotfix into stable, dev and release (if exists)
+on hotfix branch of other stable branch
+    merge hotfix into stable
+
+PARAM KEYWORD
+-------------
+
+hotfix
+    create new ``hotfix-$USER(-[0-9]+)?``
+release on release branch
+    merge release into stable and dev
+release on another branch
+    switch to or create release
+feature
+    create new ``feature-$USER(-[0-9]+)?``
+
+PARAM [KEYWORD] NAME
+--------------------
+
+on stable branch
+    default KEYWORD = hotfix
+on dev branch
+    default KEYWORD = feature
+on feature branch
+    default KEYWORD = feature
+on release branch
+    default KEYWORD = hotfix
+on hotfix branch
+    default KEYWORD = hotfix
+if KEYWORD is hotfix and NAME matches v#.#
+    same as ``gf hotfix`` on stable branch v#.#
+else
+    switch to or create ``KEYWORD-NAME`` branch
 
 OPTIONS
 =======
@@ -39,7 +98,7 @@ OPTIONS
     Repair (initialize) project to be conform with **OMGF** model and proceed.
 \--color[=WHEN], --colour[=WHEN]
     Use markers to highlight command status; WHEN is 'always', 'never', or
-    'auto'.
+    'auto'. Empty WHEN sets color to 'always'. Default color value is 'auto'.
 \-f, --force
     Move (stash and pop) uncommitted changes.
 \-h, --help
@@ -63,8 +122,8 @@ OPTIONS
 BASIC FLOW EXAMPLES
 ===================
 
-Set global options
-    -  ``export GF_OPTIONS="--verbose --what-now"``
+Set default options as alias
+    -  ``alias gf="gf --verbose --what-now"``
 
 Initialize **OMGF**
     -  ``gf --init``
@@ -75,7 +134,7 @@ Bugfixing on dev...
     -  ``git commit -m "add bugfix 1"``
 
 Create a feature
-    -  ``gf myfeature``
+    -  ``gf``
     -  Confirm by typing ``YES`` (or hit Enter)
 
 Developing a feature...
@@ -87,26 +146,26 @@ Developing a feature...
 Merge feature
     -  ``gf``
     -  Confirm by typing ``YES`` (or hit Enter)
-    -  Insert myfeature description into CHANGELOG.
+    -  Insert myfeature description into CHANGELOG.md
 
 Bugfixing on dev...
     -  ``echo "bugfix 2" >> myfile``
     -  ``git commit -am "add bugfix 2"``
 
 Create release
-    -  ``gf``
+    -  ``gf release``
     -  Confirm by typing ``YES`` (or hit Enter)
 
 Bugfixing on release...
     -  ``echo "release bugfix 1" >> myfile``
     -  ``git commit -am "add release bugfix 1"``
     -  ``gf``
-    -  Type ``NO`` and then ``YES`` (or hit Enter)
+    -  Confirm by typing ``YES`` (or hit Enter)
     -  ``echo "release bugfix 2" >> myfile``
     -  ``git commit -am "add release bugfix 2"``
 
 Merge release
-    -  ``gf``
+    -  ``gf release``
     -  Confirm by typing ``YES`` (or hit Enter)
 
 Continue on branch dev...
@@ -114,44 +173,41 @@ Continue on branch dev...
 ADVANCED EXAMPLES
 =================
 
-Assume YES by default
-    -  ``export GF_OPTIONS="$GF_OPTIONS --yes"``
+Assume YES by default as alias
+    -  ``alias gf="gf --verbose --yes"``
 
 New feature from uncommitted changes
     -  ``echo "feature force" >> myfile``
-    -  ``gf myfeature``
+    -  ``gf feature myfeature``
     -  ...will exit with code 4
-    -  ``gf --force myfeature``
+    -  ``gf --force feature myfeature``
     -  ``git commit -am "add feature force"``
 
 Hotfix master branch
-    -  ``gf master``
+    -  ``gf hotfix``
     -  ``echo "hotfix 1" >> myfile``
     -  ``git commit -am "add hotfix 1"``
     -  ``gf``
+    -  Insert hotfix description into CHANGELOG.md
 
 Merge conflicting feature
     -  ``gf myfeature``
     -  ...will exit with code 5
     -  Resolve conflict...
-    -  ``git add -A``
-    -  ``git rebase --continue``
     -  ``gf``
 
 Create release with new MAJOR version
-    -  ``gf``
+    -  ``gf release``
     -  ``echo 1.0.0 > VERSION``
     -  ``git commit -am "increment major version"``
 
-Restore **OMGF** model (after simulated pull request to master)
-    -  ``git checkout master``
-    -  ``git merge --no-ff release``
-    -  ``gf myfeature``
+Restore **OMGF** model (after merge pull request - release to master)
+    -  ``gf feature myfeature``
     -  ...will exit with code 3
-    -  ``gf --conform myfeature``
+    -  ``gf --conform feature myfeature``
 
 Hotfix obsolete stable branch
-    -  ``gf v0.1``
+    -  ``gf hotfix v0.0``
     -  ``echo "hotfix old" >> myfile``
     -  ``git add myfile``
     -  ``git commit -am "add old hotfix"``
@@ -187,7 +243,7 @@ HISTORY
 Actual version
     see file VERSION
 Actual change log
-    see file CHANGELOG
+    see file CHANGELOG.md
 
 EXIT STATUS
 ===========
@@ -215,6 +271,8 @@ SEE ALSO
 `Git-flow cheatsheet[3] <http://danielkummer.github.io/git-flow-cheatsheet/>`__
 
 `Semantic Versioning[4] <http://semver.org/>`__
+
+`Keep a CHANGELOG[5] <http://keepachangelog.com/en/0.3.0/>`__
 
 REPORTING BUGS
 ==============
