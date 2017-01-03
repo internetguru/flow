@@ -25,7 +25,8 @@ install:
 before_script:
  - git config --global user.email "test@test.cz"
  - git config --global user.name "test"
- - ./configure && make && compiled/install
+ - ./configure && make
+ - cat compiled/install && compiled/install
 
 script:
  - shellcheck gf
