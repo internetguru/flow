@@ -34,6 +34,8 @@ improvements:
 
 -  tips how to proceed with development on current state,
 
+-  parallel hotfix branches support,
+
 -  independent production branches support.
 
 Basic OMGF feature list:
