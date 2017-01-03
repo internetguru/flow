@@ -30,7 +30,7 @@ before_script:
 
 script:
  - shellcheck gf
- - butt test/test.butt
+ - butt -v test/test.butt
 
 matrix:
   fast_finish: true
