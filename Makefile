@@ -9,7 +9,7 @@ destdir      :=
 system       := cygwin
 # Fallback to defaults but allow to get the values from environment.
 PREFIX       ?= $(prefix)
-EXEC_PREFIX  ?= $(exec_prefix)
+EXEC_PREFIX  ?= $(PREFIX)
 DESTDIR      ?= $(destdir)
 SYSTEM       ?= $(system)
 
