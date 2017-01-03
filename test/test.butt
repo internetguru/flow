@@ -27,7 +27,7 @@ function checkInitRefs {
 }
 function checkInitFiles {
   assert_equal "$(cat VERSION)" "0.0.0"
-  assert_equal "$(cat CHANGELOG)" "CHANGELOG created"
+  assert_equal "$(head -n1 CHANGELOG)" "# Change Log"
 }
 function load_log {
   log="$(git --no-pager log --oneline --decorate --graph --all)"
@@ -65,6 +65,8 @@ end
 start "gf version"
   take "$i"
   debug "gf --version"
+  echo "$stdout"
+  echo "$stderr"
   assert_equal $status 0
   assert_startwith "${outlines[0]}" "GNU gf "
 end
