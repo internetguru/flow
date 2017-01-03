@@ -27,14 +27,14 @@ function checkInitRefs {
 }
 function checkInitFiles {
   assert_equal "$(cat VERSION)" "0.0.0"
-  assert_equal "$(cat CHANGELOG)" "CHANGELOG created"
+  assert_equal "$(head -n1 CHANGELOG.md)" "# Change Log"
 }
 function load_log {
   log="$(git --no-pager log --oneline --decorate --graph --all)"
   IFS=$'\n' read -d '' -r -a loglines <<< "$log" || return 0
 }
 function load_changelog {
-  chglog="$(cat CHANGELOG)"
+  chglog="$(cat CHANGELOG.md)"
   IFS=$'\n' read -d '' -r -a chgloglines <<< "$chglog" || return 0
 }
 
@@ -69,13 +69,13 @@ start "gf version"
   assert_startwith "${outlines[0]}" "GNU gf "
 end
 #######################################
-: $((i++))
-start "man gf"
-  take "$i"
-  debug "man 2>/dev/null gf"
-  assert_equal $status 0
-  assert_startwith "${outlines[0]}" "GF(1)"
-end
+# : $((i++))
+# start "man gf"
+#   take "$i"
+#   debug "man 2>/dev/null gf"
+#   assert_equal $status 0
+#   assert_startwith "${outlines[0]}" "GF(1)"
+# end
 #######################################
 ## Error codes
 #######################################
@@ -126,8 +126,8 @@ start "dev is behind master error code"
     && echo a > a \
     && git add a \
     && git commit -am "add file a" \
-    && gf --yes \
-    && gf --yes \
+    && gf release --yes \
+    && gf release --yes \
     && git reset --hard HEAD~1
   } >/dev/null
   debug "gf -v"
@@ -150,12 +150,16 @@ end
 start "conflicting merge error code"
   take "$i"
   { gf -i \
-    && gf --yes hotfix \
+    && gf --yes hotfix a \
+    && echo aa >> CHANGELOG.md \
+    && git add -A \
+    && git commit -am "fix changelog" \
     && git checkout dev 2>&1 \
     && echo 1.0.0 > VERSION \
-    && git commit -am "bump version"
+    && git commit -am "bump version" \
+    && git checkout hotfix-a 2>&1
   } >/dev/null
-  debug "gf --yes hotfix"
+  debug "echo '' | gf --yes"
   assert_equal $status 5
   assert_startwith "${errlines[0]}" "gf[error]: Auto-merging"
 end
@@ -336,10 +340,10 @@ start "create feature"
   { gf --init; } >/dev/null
   debug "gf -v --yes myfeature"
   assert_equal $status 0
-  assert_contains "${outlines[0]}" "Creating branch 'myfeature'"
+  assert_contains "${outlines[0]}" "Creating branch 'feature-myfeature'"
   gref
-  assert_contains "$ref" "refs/heads/myfeature"
-  assert_equal "$(git_current_branch)" "myfeature"
+  assert_contains "$ref" "refs/heads/feature-myfeature"
+  assert_equal "$(git_current_branch)" "feature-myfeature"
 end
 #######################################
 : $((i++))
@@ -351,7 +355,7 @@ start "create feature with uncommited changes and --force"
   debug "gf -v --yes --force myfeature"
   assert_equal $status 0
   assert_contains "${outlines[0]}" "Stashing files"
-  assert_equal "$(git_current_branch)" "myfeature"
+  assert_equal "$(git_current_branch)" "feature-myfeature"
   assert_equal "$(gsp)" "A  a"
 end
 #######################################
@@ -367,12 +371,13 @@ start "merge feature"
   debug "echo 'feature1' | gf -v --yes"
   assert_equal $status 0
   load_log
-  assert_contains "$log" "Version history updated"
-  assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'myfeature' into dev"
+  assert_contains "$log" "Update CHANGELOG.md"
+  assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'feature-myfeature' into dev"
   gref
-  assert_equal "$(echo "$ref" | grep /refs/heads/myfeature)" ""
+  assert_equal "$(echo "$ref" | grep /refs/heads/feature-myfeature)" ""
   load_changelog
-  assert_equal "${chgloglines[0]}" "feature1"
+  assert_contains "$chglog" "## Added"
+  assert_contains "$chglog" " - feature1"
   assert_equal "$(gsp)" ""
 end
 #######################################
@@ -385,50 +390,6 @@ start "merge empty feature"
   debug "gf -v --yes"
   assert_equal $status 1
   assert_startwith "${errlines[0]}" "gf[error]: Nothing to merge"
-end
-#######################################
-: $((i++))
-start "merge feature with rebase"
-  take "$i"
-  { gf --init \
-    && gf --yes myfeature \
-    && echo a > a \
-    && git add . \
-    && git commit -am "add feature 1" \
-    && git checkout dev \
-    && echo c > c \
-    && git add . \
-    && git commit -am "bugfix 1"
-  } >/dev/null 2>&1
-  debug "echo 'feature1' | gf -v --yes myfeature"
-  assert_equal $status 0
-  load_log
-  assert_contains "$log" "Version history updated"
-  assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'myfeature' into dev"
-  assert_contains "${loglines[5]}" "bugfix 1"
-  gref
-  assert_equal "$(echo "$ref" | grep /refs/heads/myfeature)" ""
-  load_changelog
-  assert_equal "${chgloglines[0]}" "feature1"
-  assert_equal "$(gsp)" ""
-end
-#######################################
-: $((i++))
-start "merge feature with conflicting rebase"
-  take "$i"
-  { gf --init \
-    && gf --yes myfeature \
-    && echo a > a \
-    && git add . \
-    && git commit -am "change file a" \
-    && git checkout dev \
-    && echo b > a \
-    && git add . \
-    && git commit -am "change file a"
-  } >/dev/null 2>&1
-  debug "echo 'feature1' | gf -v --yes myfeature"
-  assert_equal $status 5
-  assert_equal "$(gsp)" "AA a"
 end
 #######################################
 : $((i++))
@@ -445,10 +406,10 @@ start "merge feature with uncommited changes and --force"
   assert_equal $status 0
   assert_contains "${outlines[0]}" "Stashing files"
   load_log
-  assert_contains "$log" "Version history updated"
-  assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'myfeature' into dev"
+  assert_contains "$log" "Update CHANGELOG.md"
+  assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'feature-myfeature' into dev"
   gref
-  assert_equal "$(echo "$ref" | grep /refs/heads/myfeature)" ""
+  assert_equal "$(echo "$ref" | grep /refs/heads/feature-myfeature)" ""
   assert_equal "$(gsp)" "A  b"
 end
 #######################################
@@ -474,13 +435,10 @@ start "create release"
     && git add . \
     && git commit -m "add file a"
   } >/dev/null
-  debug "gf -v --yes"
+  debug "gf -v --yes release"
   assert_equal $status 0
-  load_log
-  assert_contains "${loglines[0]}" "Merge branch 'release' into dev"
   gref
   assert_contains "$ref" "refs/heads/release"
-  assert_equal "$(cat VERSION)" "0.1.0"
   assert_equal "$(gsp)" ""
 end
 #######################################
@@ -491,15 +449,15 @@ start "try create two releases"
     && echo a > a \
     && git add . \
     && git commit -m "add file a" \
-    && gf --yes \
+    && gf --yes release \
     && git checkout dev \
     && echo b > b \
     && git add . \
     && git commit -m "add file b"
   } >/dev/null 2>&1
-  debug "gf -v --yes"
-  assert_equal $status 1
-  assert_equal "${errlines[0]}" "gf[error]: Destination branch 'release' already exists"
+  debug "gf -v --yes release"
+  assert_equal $status 0
+  assert_equal "$(git_current_branch)" "release"
   assert_equal "$(gsp)" ""
 end
 #######################################
@@ -512,33 +470,12 @@ start "release with uncommited changes and --force"
     && git commit -m "add file a" \
     && echo b > b
   } >/dev/null
-  debug "gf -v --yes --force"
+  debug "gf -v --yes --force release"
   assert_equal $status 0
   assert_contains "${outlines[0]}" "Stashing files"
-  load_log
-  assert_contains "${loglines[0]}" "Merge branch 'release' into dev"
   gref
   assert_contains "$ref" "refs/heads/release"
-  assert_equal "$(cat VERSION)" "0.1.0"
   assert_equal "$(gsp)" "A  b"
-end
-#######################################
-: $((i++))
-start "release by kw"
-  take "$i"
-  { gf --init \
-    && echo a > a \
-    && git add . \
-    && git commit -m "add file a"
-  } >/dev/null
-  debug "gf -v --yes release"
-  assert_equal $status 0
-  load_log
-  assert_contains "${loglines[0]}" "(dev) Merge branch 'release' into dev"
-  gref
-  assert_contains "$ref" "refs/heads/release"
-  assert_equal "$(cat VERSION)" "0.1.0"
-  assert_equal "$(gsp)" ""
 end
 #######################################
 : $((i++))
@@ -548,16 +485,16 @@ start "merge release"
     && echo a > a \
     && git add . \
     && git commit -m "add file a" \
-    && gf --yes
+    && gf --yes release
   } >/dev/null
-  debug "gf -v --yes"
+  debug "gf -v --yes release"
   assert_equal $status 0
   load_log
   assert_contains "$log" "(HEAD, dev) Merge branch 'release' into dev"
   gref
   assert_equal "$(echo "$ref" | grep /refs/heads/release)" ""
   load_changelog
-  assert_equal "${chgloglines[0]}" "0.1 | $(date '+%Y-%m-%d')"
+  assert_contains "$chglog" "## [0.1.0] - $(date "+%Y-%m-%d")"
   assert_equal "$(gsp)" ""
 end
 #######################################
@@ -568,7 +505,7 @@ start "merge release with conflict"
     && echo a > a \
     && git add . \
     && git commit -m "add file a" \
-    && gf --yes \
+    && gf --yes release \
     && git checkout dev \
     && echo 1.0.0 > VERSION \
     && git commit -am "bump dev VERSION" \
@@ -576,30 +513,9 @@ start "merge release with conflict"
     && echo 2.0.0 > VERSION \
     && git commit -am "bump release VERSION"
   } >/dev/null 2>&1
-  debug "gf -v --yes"
-  assert_equal $status 5
-  assert_equal "$(gsp)" "UU VERSION"
-end
-#######################################
-: $((i++))
-start "merge release by kw"
-  take "$i"
-  { gf --init \
-    && echo a > a \
-    && git add . \
-    && git commit -m "add file a" \
-    && gf --yes \
-    && git checkout master
-  } >/dev/null 2>&1
   debug "gf -v --yes release"
-  assert_equal $status 0
-  load_log
-  assert_contains "$log" "(HEAD, dev) Merge branch 'release' into dev"
-  gref
-  assert_equal "$(echo "$ref" | grep /refs/heads/release)" ""
-  load_changelog
-  assert_equal "${chgloglines[0]}" "0.1 | $(date '+%Y-%m-%d')"
-  assert_equal "$(gsp)" ""
+  assert_equal $status 5
+  assert_contains "$(gsp)" "UU VERSION"
 end
 #######################################
 : $((i++))
@@ -609,21 +525,22 @@ start "merge release with uncommited changes and --force"
     && echo a > a \
     && git add . \
     && git commit -m "add file a" \
-    && gf --yes \
+    && gf --yes release \
     && echo b > b
   } >/dev/null
-  debug "gf -v --yes --force"
+  debug "gf -v --yes --force release"
   assert_equal $status 0
   assert_contains "${outlines[0]}" "Stashing files"
+  load_log
   assert_contains "${loglines[0]}" "Merge branch 'release'"
   gref
   assert_equal "$(cat VERSION)" "0.1.0"
   assert_equal "$(gsp)" "A  b"
 end
 #######################################
-: $((i++))
+# : $((i++))
 # start "merge release with --request"
-  take "$i"
+#  take "$i"
 #   { gf --init \
 #     && gf --yes
 #   } >/dev/null
@@ -638,11 +555,9 @@ end
 start "hotfix master"
   take "$i"
   { gf -i; } >/dev/null
-  debug "gf -v --yes master"
+  debug "gf -v --yes hotfix myhotfix"
   assert_equal $status 0
-  load_log
-  assert_contains "${loglines[0]}" "(HEAD, hotfix-0.0.1) hotfix-0.0.1"
-  assert_equal "$(cat VERSION)" "0.0.1"
+  assert_equal "$(git_current_branch)" "hotfix-myhotfix"
   assert_equal "$(gsp)" ""
 end
 #######################################
@@ -653,113 +568,41 @@ start "hotfix stable"
    && echo a > a \
    && git add . \
    && git commit -m "add file a" \
-   && gf --yes \
-   && gf --yes \
+   && gf --yes release \
+   && gf --yes release \
    && git checkout v0.0.0
   } >/dev/null 2>&1
-  debug "gf -v --yes"
+  debug "gf -v --yes myhotfix"
   assert_equal $status 0
-  load_log
-  assert_contains "$log" "(HEAD, hotfix-0.0.1) hotfix-0.0.1"
-  assert_equal "$(cat VERSION)" "0.0.1"
+  assert_equal "$(git_current_branch)" "hotfix-myhotfix"
   assert_equal "$(gsp)" ""
 end
 #######################################
 : $((i++))
-start "hotfix master by kw"
-  take "$i"
-  { gf -i \
-    && git checkout dev
-  } >/dev/null 2>&1
-  debug "gf -v --yes hotfix"
-  assert_equal $status 0
-  load_log
-  assert_contains "${loglines[0]}" "(HEAD, hotfix-0.0.1) hotfix-0.0.1"
-  assert_equal "$(cat VERSION)" "0.0.1"
-  assert_equal "$(gsp)" ""
-end
-#######################################
-: $((i++))
-start "hotfix master by name of stable"
+start "hotfix master by branch name"
   take "$i"
   { gf -i; } >/dev/null
-  debug "gf -v --yes v0.0"
+  debug "gf -v --yes hotfix v0.0"
   assert_equal $status 0
   load_log
-  assert_contains "${loglines[0]}" "(HEAD, hotfix-0.0.1) hotfix-0.0.1"
-  assert_equal "$(cat VERSION)" "0.0.1"
+  assert_equal "$(git_current_branch)" "hotfix-$USER"
   assert_equal "$(gsp)" ""
 end
 #######################################
 : $((i++))
-start "hotfix stable by name of stable"
-  take "$i"
-  { gf -i \
-   && gf --yes \
-   && gf --yes
-  } >/dev/null 2>&1
-  debug "gf -v --yes v0.0"
-  assert_equal $status 0
-  load_log
-  assert_contains "${loglines[0]}" "(HEAD, hotfix-0.0.1) hotfix-0.0.1"
-  assert_equal "$(cat VERSION)" "0.0.1"
-  assert_equal "$(gsp)" ""
-end
-#######################################
-: $((i++))
-start "hotfix master by tag name"
-  take "$i"
-  { gf -i; } >/dev/null
-  debug "gf -v --yes v0.0.0"
-  assert_equal $status 0
-  load_log
-  assert_contains "${loglines[0]}" "(HEAD, hotfix-0.0.1) hotfix-0.0.1"
-  assert_equal "$(cat VERSION)" "0.0.1"
-  assert_equal "$(gsp)" ""
-end
-#######################################
-: $((i++))
-start "hotfix stable by tag name"
-  take "$i"
-  { gf -i \
-   && gf --yes \
-   && gf --yes
-  } >/dev/null 2>&1
-  debug "gf -v --yes v0.0.0"
-  assert_equal $status 0
-  load_log
-  assert_contains "${loglines[0]}" "(HEAD, hotfix-0.0.1) hotfix-0.0.1"
-  assert_equal "$(cat VERSION)" "0.0.1"
-  assert_equal "$(gsp)" ""
-end
-#######################################
-: $((i++))
-start "hotfix master by old tag"
-  take "$i"
-  { gf -i \
-   && gf --yes hotfix \
-   && gf --yes;
-  } >/dev/null
-  debug "gf -v --yes v0.0.0"
-  assert_equal $status 1
-  assert_equal "${errlines[0]}" "gf[error]: Current branch is already hotfixed"
-  assert_equal "$(gsp)" ""
-end
-#######################################
-: $((i++))
-start "hotfix stable by old tag"
+start "hotfix stable by branch name"
   take "$i"
   { gf -i \
    && echo a > a \
    && git add . \
    && git commit -m "add file a" \
-   && gf --yes \
-   && gf --yes \
-   && gf --yes v0.0.0 \
-   && gf --yes; } >/dev/null
-  debug "gf -v --yes v0.0.0"
-  assert_equal $status 1
-  assert_equal "${errlines[0]}" "gf[error]: Current branch is already hotfixed"
+   && gf --yes release \
+   && gf --yes release
+  } >/dev/null 2>&1
+  debug "gf -v --yes hotfix v0.0"
+  assert_equal $status 0
+  load_log
+  assert_equal "$(git_current_branch)" "hotfix-$USER"
   assert_equal "$(gsp)" ""
 end
 #######################################
@@ -769,29 +612,18 @@ end
 start "merge master hotfix"
   take "$i"
   { gf -i \
-   && gf --yes master; } >/dev/null
-  debug "gf -v --yes"
+   && gf --yes hotfix myhotfix \
+   && echo a > a \
+   && git add . \
+   && git commit -m "add file a";
+  } >/dev/null
+  debug "echo '' | gf -v --yes"
   assert_equal $status 0
   load_log
-  assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'hotfix-0.0.1' into dev"
+  assert_contains "${loglines[0]}" "(dev) Merge branch 'hotfix-myhotfix' into dev"
   assert_equal "$(cat VERSION)" "0.0.1"
   gref
-  assert_equal "$(echo "$ref" | grep /refs/heads/hotfix-0.0.1)" ""
-  assert_equal "$(gsp)" ""
-end
-#######################################
-: $((i++))
-start "merge master hotfix by kw"
-  take "$i"
-  { gf -i \
-   && gf --yes master; } >/dev/null
-  debug "gf -v --yes hotfix"
-  assert_equal $status 0
-  load_log
-  assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'hotfix-0.0.1' into dev"
-  assert_equal "$(cat VERSION)" "0.0.1"
-  gref
-  assert_equal "$(echo "$ref" | grep /refs/heads/hotfix-0.0.1)" ""
+  assert_equal "$(echo "$ref" | grep /refs/heads/hotfix-myhotfix)" ""
   assert_equal "$(gsp)" ""
 end
 #######################################
@@ -802,16 +634,18 @@ start "merge stable hotfix"
    && echo a > a \
    && git add . \
    && git commit -m "add file a" \
-   && gf --yes \
-   && gf --yes \
-   && gf --yes v0.0.0; } >/dev/null
-  debug "gf -v --yes"
+   && gf --yes release \
+   && gf --yes release \
+   && gf --yes hotfix v0.0 \
+   && echo b > b \
+   && git add . \
+   && git commit -m "add file b"; } >/dev/null
+  debug "echo '' | gf -v --yes"
   assert_equal $status 0
   load_log
-  assert_contains "$log" "(HEAD, tag: v0.0.1, v0.0) Merge branch 'hotfix-0.0.1' into v0.0"
-  assert_equal "$(cat VERSION)" "0.0.1"
+  assert_contains "$log" "(HEAD, tag: v0.0.1, v0.0) Merge branch 'hotfix-$USER' into v0.0"
   gref
-  assert_equal "$(echo "$ref" | grep /refs/heads/hotfix-0.0.1)" ""
+  assert_equal "$(echo "$ref" | grep /refs/heads/hotfix-$USER)" ""
   assert_equal "$(gsp)" ""
 end
 #######################################
