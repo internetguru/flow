@@ -67,6 +67,9 @@ start "gf version"
   debug "gf --version"
   echo "$stdout"
   echo "$stderr"
+  echo "$status"
+  gf --version
+  echo $?
   assert_equal $status 0
   assert_startwith "${outlines[0]}" "GNU gf "
 end
