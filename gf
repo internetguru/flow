@@ -775,7 +775,7 @@ function main {
     echo "* Please enter the $gf_branch description for $GF_CHANGELOG."
     echo "*"
     echo "* Keywords:"
-    echo "*   $(echo $CHANGELOG_KEYWORDS | sed 's/ /, /g;s/,/ (default),/')"
+    echo "*   $(echo "${CHANGELOG_KEYWORDS[@]}" | sed "s/ /, /g;s/${CHANGELOG_KEYWORDS[$1]}/${CHANGELOG_KEYWORDS[$1]} (default)/")"
     echo "*"
     echo "* Commits of '$gf_branch':"
     echo "$commits"
@@ -806,7 +806,7 @@ function main {
         fi
       else
         i=$1
-        keyword="${CHANGELOG_KEYWORDS[$1]}"
+        keyword="${CHANGELOG_KEYWORDS[$i]}"
       fi
       for ((index="$i+1"; index < ${#CHANGELOG_KEYWORDS[@]}; index++)); do
         next_keywords="$next_keywords|^### ${CHANGELOG_KEYWORDS[index]}"
