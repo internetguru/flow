@@ -69,13 +69,13 @@ start "gf version"
   assert_startwith "${outlines[0]}" "GNU gf "
 end
 #######################################
-: $((i++))
-start "man gf"
-  take "$i"
-  debug "man 2>/dev/null gf"
-  assert_equal $status 0
-  assert_startwith "${outlines[0]}" "GF(1)"
-end
+# : $((i++))
+# start "man gf"
+#   take "$i"
+#   debug "man 2>/dev/null gf"
+#   assert_equal $status 0
+#   assert_startwith "${outlines[0]}" "GF(1)"
+# end
 #######################################
 ## Error codes
 #######################################

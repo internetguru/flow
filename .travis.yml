@@ -7,7 +7,6 @@ addons:
     sources:
     - debian-sid # Needed for shellcheck
     packages:
-    - manpages
     - shellcheck
     - python-docutils # Needed for rst2man
 
