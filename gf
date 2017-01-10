@@ -978,28 +978,39 @@ function main {
   }
 
   function gf_usage {
-    local usage_file shift_left
-    usage_file="$GF_DATAPATH/${script_name}.usage"
-    [ -f "$usage_file" ] \
-      || err "Usage file not found" \
-      || return 1
-    head -n1 "$usage_file"
+    local usage_file shift_left first_line other_content
+    if [[ -z "${GF_USAGE+x}" ]]; then
+      usage_file="$GF_DATAPATH/${script_name}.usage"
+      [ -f "$usage_file" ] \
+        || err "Usage file not found" \
+        || return 1
+      first_line="$(head -n1 "$usage_file")"
+      other_content="$(tail -n+2 "$usage_file")"
+    else
+      first_line="$(echo "$GF_USAGE" | head -n1)"
+      other_content="$(echo "$GF_USAGE" | tail -n+2)"
+    fi
+    echo "$first_line"
     echo
     shift_left=0
     # shellcheck disable=SC2004
     [[ $COLUMNS -gt 1 ]] && shift_left=5 && export MANWIDTH=$((COLUMNS+$shift_left))
     # shellcheck disable=SC2005
-    echo "$(tail -n+2 "$usage_file")" | man --nj --nh -l - | sed "1,2d;/^[[:space:]]*$/d;\$d;s/^ \{$shift_left\}//"
+    echo "$other_content" | man --nj --nh -l - | sed "1,2d;/^[[:space:]]*$/d;\$d;s/^ \{$shift_left\}//"
   }
 
   function gf_version {
-    local version
-    version="$GF_DATAPATH/VERSION"
-    [ -f "$version" ] \
+    local ver prefix
+    prefix="GNU gf "
+    [[ -n "${GF_VERSION+x}" ]] \
+      && echo "$prefix$GF_VERSION" \
+      && return
+    ver="$GF_DATAPATH/VERSION"
+    [ -f "$ver" ] \
       || err "Version file not found" \
       || return 1
-    echo -n "GNU gf "
-    cat "$version"
+    echo -n "$prefix"
+    cat "$ver"
   }
 
   function gf_what_now {
