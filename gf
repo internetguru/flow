@@ -1001,7 +1001,7 @@ function main {
 
   function gf_version {
     local ver prefix
-    prefix="GNU gf "
+    prefix="omgf "
     [[ -n "${GF_VERNUM+x}" ]] \
       && echo "$prefix$GF_VERNUM" \
       && return
