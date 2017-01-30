@@ -1002,8 +1002,8 @@ function main {
   function gf_version {
     local ver prefix
     prefix="GNU gf "
-    [[ -n "${GF_VERSION+x}" ]] \
-      && echo "$prefix$GF_VERSION" \
+    [[ -n "${GF_VERNUM+x}" ]] \
+      && echo "$prefix$GF_VERNUM" \
       && return
     ver="$GF_DATAPATH/VERSION"
     [ -f "$ver" ] \
