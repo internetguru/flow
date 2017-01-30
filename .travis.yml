@@ -23,11 +23,11 @@ before_install:
 install:
   # Install latest release of BUTT for Bash testing
   - |
-    wget $(\
-      curl -s https://api.github.com/repos/Internetguru/butt/releases/latest \
+    latestReleaseURL=$(curl -s https://api.github.com/repos/Internetguru/butt/releases/latest \
       | jq -r ".assets[] \
       | .browser_download_url" \
-      | grep \.sh$) -O $PREFIX/bin/butt
+      | grep \.sh$)
+  - curl -L $latestReleaseURL > $PREFIX/bin/butt
   - chmod +x $PREFIX/bin/butt
 
 before_script:
