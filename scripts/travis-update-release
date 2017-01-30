@@ -1,0 +1,43 @@
+#!/usr/bin/env ruby
+###
+# Travis-CI script to set GitHub release description
+# as part of deployment process.
+#
+# Expects:
+# - octokit to be installed; this is handled by Travis by installing dpl
+# - GITHUB_TOKEN environment variable with GitHub API secret
+# - TRAVIS_REPO_SLUG environment variable set to GitHub repo name (e.g. username/repo)
+# - TRAVIS_TAG environment variable set to Git tag which triggered the build
+#
+# Reads STDIN as a description of the release.
+###
+require "octokit"
+
+gh_token = ENV.fetch("GITHUB_TOKEN")
+gh_slug = ENV.fetch("TRAVIS_REPO_SLUG")
+release_tag = ENV.fetch("TRAVIS_TAG")
+release_desc = STDIN.tty? ? '' : $stdin.read
+
+puts "Updating release details for #{gh_slug}, tag #{release_tag}"
+
+client = Octokit::Client.new(:access_token => gh_token)
+
+release = client.release_for_tag(gh_slug, release_tag)
+unless release
+  puts "Release not found, creating draft"
+  release = client.create_release(gh_slug, release_tag, {:draft => true})
+end
+
+release_url = release.rels[:self].href
+puts "Release URL: #{release_url}"
+
+release_attributes = {
+  :name => release_tag,
+  :body => release_desc,
+  :draft => false,
+  :prerelease => false,
+}
+puts "Setting attributes:"
+p release_attributes
+
+client.update_release(release_url, release_attributes)
