@@ -9,28 +9,46 @@ addons:
     packages:
     - shellcheck
     - python-docutils # Needed for rst2man
+    - jq # Needed for parsing response from GitHub API
+
+env:
+  - DIST=regular DEPLOY_FILE=gf-*.tar.gz
+  - DIST=single DEPLOY_FILE=gf.sh
 
 before_install:
   - export PREFIX=$HOME/opt
   - mkdir -p $PREFIX/bin
   - export PATH=$PREFIX/bin:$PATH
 
-
 install:
-  # Install BUTT for Bash testing
-  - wget https://github.com/InternetGuru/butt/archive/dev.tar.gz -O /tmp/butt.tar.gz
-  - tar -xvf /tmp/butt.tar.gz
-  - pushd butt-dev && ./configure && make && compiled/install && popd
+  # Install latest release of BUTT for Bash testing
+  - |
+    latestReleaseURL=$(curl -s https://api.github.com/repos/Internetguru/butt/releases/latest \
+      | jq -r ".assets[] \
+      | .browser_download_url" \
+      | grep \.sh$)
+  - curl -L $latestReleaseURL > $PREFIX/bin/butt
+  - chmod +x $PREFIX/bin/butt
 
 before_script:
- - git config --global user.email "test@test.cz"
- - git config --global user.name "test"
- - ./configure && make
- - cat compiled/install && compiled/install
+  - |
+    if [[ $DIST == regular ]]; then
+      ./configure \
+        && make \
+        && cat compiled/install \
+        && compiled/install \
+        && PREFIX=/usr/local make dist
+    fi
+  - |
+    if [[ $DIST == single ]]; then
+      ./configure \
+        && make distsingle \
+        && cp gf.sh $PREFIX/bin/gf
+    fi
 
 script:
  - shellcheck gf
- - butt -v test/test.butt
+ - butt test/test.butt
 
 matrix:
   fast_finish: true

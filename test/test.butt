@@ -66,7 +66,7 @@ start "gf version"
   take "$i"
   debug "gf --version"
   assert_equal $status 0
-  assert_startwith "${outlines[0]}" "GNU gf "
+  assert_startwith "${outlines[0]}" "omgf "
 end
 #######################################
 # : $((i++))

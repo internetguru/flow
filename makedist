@@ -1,7 +1,0 @@
-#!/bin/bash
-
-./configure \
-  && make dist \
-  && PREFIX=/usr SYSTEM=babun make dist \
-  && echo \
-  && echo "** Dist packages made **"
