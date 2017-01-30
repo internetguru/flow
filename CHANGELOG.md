@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
+ - automatic deployment into GitHub releases
  - `make distsingle` target compiles gf into a single file
 
 ## [1.0.1] - 2017-01-02
