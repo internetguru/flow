@@ -6,7 +6,7 @@ Oh My Git Flow
 SYNOPSIS
 ========
 
-gf [-cfhinrvVwy] [--color[=WHEN]] [KEYWORD] [NAME]
+omgf [-cfhinrvVwy] [--color[=WHEN]] [KEYWORD] [NAME]
 
 DESCRIPTION
 ===========
@@ -89,7 +89,7 @@ on release branch
 on hotfix branch
     default KEYWORD = hotfix
 if KEYWORD is hotfix and NAME matches v#.#
-    same as ``gf hotfix`` on stable branch v#.#
+    same as ``omgf hotfix`` on stable branch v#.#
 else
     switch to or create ``KEYWORD-NAME`` branch
 
@@ -125,7 +125,7 @@ BASIC FLOW EXAMPLES
 ===================
 
 Set default options as alias
-    -  ``alias gf="gf --verbose --what-now"``
+    -  ``alias gf="omgf --verbose --what-now"``
 
 Initialize **OMGF**
     -  ``gf --init``
@@ -176,7 +176,7 @@ ADVANCED EXAMPLES
 =================
 
 Assume YES by default as alias
-    -  ``alias gf="gf --verbose --yes"``
+    -  ``alias gf="omgf --verbose --yes"``
 
 New feature from uncommitted changes
     -  ``echo "feature force" >> myfile``
