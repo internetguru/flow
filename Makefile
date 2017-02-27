@@ -18,11 +18,11 @@ SYSTEM       ?= $(system)
 
 DIRNAME     := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 RST2MAN     := rst2man
-PROG        := gf
-PROGSINGLE  := gf.sh
-DATAPATHVAR := GF_DATAPATH
-USAGEVAR    := GF_USAGE
-VERSIONVAR  := GF_VERNUM
+PROG        := omgf
+PROGSINGLE  := omgf.sh
+DATAPATHVAR := OMGF_DATAPATH
+USAGEVAR    := OMGF_USAGE
+VERSIONVAR  := OMGF_VERNUM
 README      := README
 MANFILE     := $(PROG).1
 USAGEFILE   := $(PROG).usage
@@ -76,7 +76,7 @@ compile:
 	@ # Extract text from README between headers and convert it to troff syntax
 	@ echo -n "Compiling man file ..."
 	@ { \
-	echo -n ".TH \"GF\" \"1\" "; \
+	echo -n ".TH \"OMGF\" \"1\" "; \
 	echo -n "\""; echo -n $$(stat -c %z $(README).rst | cut -d" " -f1); echo -n "\" "; \
 	echo -n "\"User Manual\" "; \
 	echo -n "\"Version "; echo -n $$(cat $(VERFILE)); echo -n "\" "; \
