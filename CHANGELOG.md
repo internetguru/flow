@@ -10,12 +10,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
  - Rename gf to omgf
+ - Makefile uses BINDIR instead of EXEC_PREFIX
 
 ## [1.1.1] - 2017-01-30
 
 ## [1.1.0] - 2017-01-30
 ### Added
- - automatic deployment into GitHub releases
+ - Automatic deployment into GitHub releases
  - `make distsingle` target compiles gf into a single file
 
 ## [1.0.1] - 2017-01-02

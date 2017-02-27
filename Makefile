@@ -8,7 +8,7 @@ destdir      :=
 system       := linux
 # Fallback to defaults but allow to get the values from environment.
 PREFIX       ?= $(prefix)
-EXEC_PREFIX  ?= $(PREFIX)
+BINDIR       ?= $(PREFIX)/bin
 DESTDIR      ?= $(destdir)
 SYSTEM       ?= $(system)
 
@@ -29,7 +29,7 @@ USAGEFILE   := $(PROG).usage
 VERFILE     := VERSION
 CHLOGFILE   := CHANGELOG.md
 DESTPATH    := $(DESTDIR)$(PREFIX)
-BINPATH     := $(DESTDIR)$(EXEC_PREFIX)/bin
+BINPATH     := $(DESTDIR)$(BINDIR)
 SHAREPATH   := $(DESTPATH)/share
 MANDIR      := man/man1
 DISTNAME    := $(PROG)-$$(cat $(VERFILE))-$(SYSTEM)
