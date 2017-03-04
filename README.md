@@ -3,10 +3,9 @@
 [![Build Status](https://travis-ci.org/InternetGuru/omgf.svg?branch=master)](https://travis-ci.org/InternetGuru/omgf)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 
-> TODO short description
+> It supports file structure and content organisation following extended [Git Flow branching model][model] including changelog and version history.
 
-[Oh My Git Flow][omgf] (hereinafter referred as the 'OMGF') applies [git flow branching model][model] according to KEYWORD and NAME parameters. Both parameters are
-optional (TODO see PARAMETERS below).
+Based on few or none parameters Oh My Git Flow (hereinafter referred as the 'OMGF') can proceed within given git branching model. It detects current state and executes appropriate commands.
 
 OMGF is an alternative to [git-flow cheatsheet][cheatsheet] command with following improvements:
 -  even simpler usage (no parameters are required),
@@ -37,30 +36,55 @@ Basic OMGF feature list:
 
 ## Install
 
-> TODO short description
-
 ### Single file script
 
 ```shell
-TODO single file url
+# Download newest single file script from https://github.com/InternetGuru/omgf/releases/latest
+GF_VERSION="$(curl https://api.github.com/repos/InternetGuru/omgf/releases/latest -s | sed 's/.*"tag_name":"\([^"]\+\)".*/\1/')"
+wget https://github.com/InternetGuru/omgf/releases/download/$GF_VERSION/omgf.sh
+
+# Make file executable
+chmod +x omgf.sh
 ```
 
 ### From distribution package
 
 ```shell
+# Download newest distribution from https://github.com/InternetGuru/omgf/releases/latest
+GF_VERSION="$(curl https://api.github.com/repos/InternetGuru/omgf/releases/latest -s | sed 's/.*"tag_name":"\([^"]\+\)".*/\1/')"
+wget https://github.com/InternetGuru/omgf/releases/download/$GF_VERSION/omgf-${GF_VERSION:1}-linux.tar.gz
+
+# Extract files and install omgf
+tar -xvzf omgf-${GF_VERSION:1}-linux.tar.gz
+pushd omgf-${GF_VERSION:1}-linux
 ./install
-./uninstall
+popd
 ```
 
 ### From source
 
 ```shell
+git clone https://github.com/InternetGuru/omgf.git
+pushd omgf
 ./configure && make && compiled/install
+popd
 ```
+
+- Make dist package from source
+
+   `./configure && make dist`
+
+- Tip: Specify variables
+
+   E.g. `./configure && PREFIX=/usr SYSTEM=ubuntu make dist`
+
+- Tip: Install rst2man
+
+   `apt-get install python-docutils` or `pip install docutils`
 
 ## Usage
 
-> TODO short description
+> See [man page][man] for more informations and examples.
 
 ```shell
 # Set default options
@@ -84,7 +108,6 @@ gf
 ## Maintainers
 
 -  Pavel Petržela pavel.petrzela@internetguru.cz
-
 -  Jiří Pavelka jiri.pavelka@internetguru.cz
 
 ## Contribute
@@ -123,6 +146,7 @@ GNU Public License version 3, see [LICENSE][license]
 
 [omgf]: https://github.com/InternetGuru/omgf
 [license]: https://raw.githubusercontent.com/InternetGuru/omgf/master/LICENSE
+[man]: https://raw.githubusercontent.com/InternetGuru/omgf/master/man.1.rst
 [model]: http://nvie.com/posts/a-successful-git-branching-model/
 [cheatsheet]: http://danielkummer.github.io/git-flow-cheatsheet/
 [semver]: http://semver.org/
