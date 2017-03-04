@@ -89,7 +89,7 @@ gf
 
 ## Contribute
 
-PRs accepted.
+Pull requests are wellcome, don't hesitate contribute.
 
 Small note: If editing the README, please conform to the [standard-readme](https://github.com/RichardLitt/standard-readme) specification.
 
