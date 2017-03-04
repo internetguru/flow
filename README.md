@@ -61,6 +61,10 @@ pushd omgf-${GF_VERSION:1}-linux
 popd
 ```
 
+- Tip: Specify installation variables
+
+   E.g. `PREFIX="~/.omgf" ./install`
+
 ### From source
 
 ```shell
