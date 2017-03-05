@@ -15,8 +15,8 @@ env:
   global:
     - secure: "dFVeGQy4ngj5IgSyvZZpHn1r+AycBR6v8UMMQ/COkXfsPNuiTjAoO5VeVc2RibOT7TCs5w5pp5z/uRE8GBAif+Lrpt2KPkDr1eIoq6epgBi5LhF68wWLnLZVTNir3Tba0QFU4auO68PRbLQvjujkql3u8NIH6EStF03ypuwQzr8/jddTxW0sFqSBkC1O3EE5kgzY8GvW/UOI9PD+2ebEUBSCJBvpYqmpEnL9NOcUHvITWhJXT0q0qulJau1BbmMUT5uIHBnQ0A5HCcMJmRPfDOF/qYnhg4pKOjWsSOwA5itSKgdVxuAIabQ4L3FIKOGmw5mDGTsh1PpQwLD2Bfj0vjw/WhZNgXKzh5BRx/sBzh6tyZ9xfAd9eKWaMsG3shvJfPlCMGCgQGLc/+4fVRl/VNPyjFg1nEGa1wM9UwHc7J2wPn6GDQwmXCViKs/exvfkdJtm3CqnnE/4U+1jWAjbArmBWgDd/G71ytWgG3tPnrG9mQZfS+NgM61BxmMLkTh1zTYrdv6UoLrJXXW2atSkRPiV6GpcRegmW939RJ0Ymb4tosH6OrbE0vHAEtRKAzygNM9njRYkx4hO0tmPTaTpRDF/JCg7mu9OkgwfmK9L5ouJ3SfwxKnKZE/dY4KxJq8+asYJ2VNic70cz4Aq2X6/mZ4vDurPBv6/wdtre/9zc5g="
   matrix:
-    - DIST=regular DEPLOY_FILE=gf-*.tar.gz
-    - DIST=single DEPLOY_FILE=gf.sh
+    - DIST=regular DEPLOY_FILE=omgf-*.tar.gz
+    - DIST=single DEPLOY_FILE=omgf.sh
 
 before_install:
   - export PREFIX=$HOME/opt
@@ -26,11 +26,11 @@ before_install:
 install:
   # Install latest release of BUTT for Bash testing
   - |
-    latestReleaseURL=$(curl -s https://api.github.com/repos/Internetguru/butt/releases/latest \
+    latestReleaseURL=$(curl -s -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/Internetguru/butt/releases/latest \
       | jq -r ".assets[] \
       | .browser_download_url" \
       | grep \.sh$)
-  - curl -L $latestReleaseURL > $PREFIX/bin/butt
+  - curl -sL $latestReleaseURL > $PREFIX/bin/butt
   - chmod +x $PREFIX/bin/butt
 
 before_script:
@@ -46,11 +46,11 @@ before_script:
     if [[ $DIST == single ]]; then
       ./configure \
         && make distsingle \
-        && cp gf.sh $PREFIX/bin/gf
+        && cp omgf.sh $PREFIX/bin/omgf
     fi
 
 script:
- - shellcheck gf
+ - shellcheck omgf
  - butt test/test.butt
 
 deploy:
