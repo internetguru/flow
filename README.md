@@ -88,7 +88,7 @@ popd
 
 ## Usage
 
-> See [man page][man] for more informations and examples.
+> See man page for more informations and examples.
 
 ```shell
 # Set default options
