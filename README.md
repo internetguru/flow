@@ -38,7 +38,7 @@ Basic OMGF feature list:
 
 ### Single file script
 
-1. Download latest distribution `omgf.sh` [manually][latest] or use following commands (it requires `jq` nad `curl`)
+1. Download latest distribution `omgf.sh` [manually][latest] or use following commands (it requires `jq` and `curl`)
 
    ```shell
    GF_VERSION="$(curl https://api.github.com/repos/InternetGuru/omgf/releases/latest -s | jq -r .tag_name)"
@@ -53,7 +53,7 @@ Basic OMGF feature list:
 
 ### From distribution package
 
-1. Download latest distribution `omgf-[version]-linux.tar.gz` [manually][latest] or use following commands (it requires `jq` nad `curl`)
+1. Download latest distribution `omgf-[version]-linux.tar.gz` [manually][latest] or use following commands (it requires `jq` and `curl`)
 
    ```shell
    GF_VERSION="$(curl https://api.github.com/repos/InternetGuru/omgf/releases/latest -s | jq -r .tag_name)"
