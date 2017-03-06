@@ -156,7 +156,7 @@ GNU Public License version 3, see [LICENSE][license]
 [omgf]: https://github.com/InternetGuru/omgf
 [latest]: https://github.com/InternetGuru/omgf/releases/latest
 [license]: https://raw.githubusercontent.com/InternetGuru/omgf/master/LICENSE
-[man]: https://github.com/InternetGuru/omgf/blob/master/man.1.rst
+[man]: https://github.com/InternetGuru/omgf/blob/master/omgf.1.rst
 [model]: http://nvie.com/posts/a-successful-git-branching-model/
 [cheatsheet]: http://danielkummer.github.io/git-flow-cheatsheet/
 [semver]: http://semver.org/
