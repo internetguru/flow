@@ -215,38 +215,6 @@ Hotfix obsolete stable branch
     -  ``git commit -am "add old hotfix"``
     -  ``gf``
 
-INSTALL
-=======
-
-From dist package
------------------
-
-``./install``, resp. ``./uninstall``
-
-Tip: Specify destination directories
-    E.g. ``MANPATH=/usr/share/man/man1 ./install``
-
-From source
------------
-
-``./configure && make && compiled/install``
-
-Make dist package from source
-    ``./configure && make dist``
-Tip: Specify variables
-    E.g. ``./configure && PREFIX=/usr SYSTEM=babun make dist``
-Tip: Install rst2man
-    ``apt-get install python-docutils`` or
-    ``pip install docutils``
-
-HISTORY
-=======
-
-Actual version
-    see file VERSION
-Actual change log
-    see file CHANGELOG.md
-
 EXIT STATUS
 ===========
 
