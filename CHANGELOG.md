@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
+## [Unreleased]
+### Fixed
+ - Fix `make dist`
+ - Fix README.md Install section
+
 ## [2.0.0] - 2017-03-05
 
 ### Added
@@ -25,6 +30,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [1.0.0] - 2016-12-22
 
+[Unreleased]: https://github.com/InternetGuru/omgf/compare/dev...master
 [2.0.0]: https://github.com/InternetGuru/omgf.git/compare/v1.1.1...v2.0.0
 [1.1.1]: https://github.com/InternetGuru/omgf/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/InternetGuru/omgf/compare/v1.0.1...v1.1.0
