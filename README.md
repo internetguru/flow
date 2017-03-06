@@ -38,32 +38,38 @@ Basic OMGF feature list:
 
 ### Single file script
 
-```shell
-# Download newest single file script from https://github.com/InternetGuru/omgf/releases/latest
-GF_VERSION="$(curl https://api.github.com/repos/InternetGuru/omgf/releases/latest -s | sed 's/.*"tag_name":"\([^"]\+\)".*/\1/')"
-wget https://github.com/InternetGuru/omgf/releases/download/$GF_VERSION/omgf.sh
+1. Download latest distribution `omgf.sh` [manually][latest] or use following commands (it requires `jq` nad `curl`)
 
-# Make file executable
-chmod +x omgf.sh
-```
+   ```shell
+   GF_VERSION="$(curl https://api.github.com/repos/InternetGuru/omgf/releases/latest -s | jq -r .tag_name)"
+   curl -OL https://github.com/InternetGuru/omgf/releases/download/$GF_VERSION/omgf.sh
+   ```
+
+2. Make file executable
+
+   ```shell
+   chmod +x omgf.sh
+   ```
 
 ### From distribution package
 
-```shell
-# Download newest distribution from https://github.com/InternetGuru/omgf/releases/latest
-GF_VERSION="$(curl https://api.github.com/repos/InternetGuru/omgf/releases/latest -s | sed 's/.*"tag_name":"\([^"]\+\)".*/\1/')"
-wget https://github.com/InternetGuru/omgf/releases/download/$GF_VERSION/omgf-${GF_VERSION:1}-linux.tar.gz
+1. Download latest distribution `omgf-[version]-linux.tar.gz` [manually][latest] or use following commands (it requires `jq` nad `curl`)
 
-# Extract files and install omgf
-tar -xvzf omgf-${GF_VERSION:1}-linux.tar.gz
-pushd omgf-${GF_VERSION:1}-linux
-./install
-popd
-```
+   ```shell
+   GF_VERSION="$(curl https://api.github.com/repos/InternetGuru/omgf/releases/latest -s | jq -r .tag_name)"
+   curl -OL https://github.com/InternetGuru/omgf/releases/download/$GF_VERSION/omgf-${GF_VERSION:1}-linux.tar.gz
+   ```
 
-- Tip: Specify installation variables
+2. Extract files and install omgf
 
-   E.g. `PREFIX="~/.omgf" ./install`
+   ```shell
+   tar -xvzf omgf-${GF_VERSION:1}-linux.tar.gz
+   pushd omgf-${GF_VERSION:1}-linux
+   ./install
+   popd
+   ```
+
+Tip: Specify installation variables. E.g. `PREFIX="~/.omgf" ./install`
 
 ### From source
 
@@ -88,7 +94,7 @@ popd
 
 ## Usage
 
-> See man page for more informations and examples.
+> See [man page][man] for more informations and examples.
 
 ```shell
 # Set default options
@@ -142,15 +148,15 @@ Thanks for your support!
 - [WebExpo Conference, Prague](https://webexpo.net/)
 - [DATAMOLE, data mining & machine learning](https://www.datamole.cz/)
 
-
 ## License
 
 GNU Public License version 3, see [LICENSE][license]
 
 
 [omgf]: https://github.com/InternetGuru/omgf
+[latest]: https://github.com/InternetGuru/omgf/releases/latest
 [license]: https://raw.githubusercontent.com/InternetGuru/omgf/master/LICENSE
-[man]: https://raw.githubusercontent.com/InternetGuru/omgf/master/man.1.rst
+[man]: https://github.com/InternetGuru/omgf/blob/master/man.1.rst
 [model]: http://nvie.com/posts/a-successful-git-branching-model/
 [cheatsheet]: http://danielkummer.github.io/git-flow-cheatsheet/
 [semver]: http://semver.org/
