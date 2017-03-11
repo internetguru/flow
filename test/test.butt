@@ -49,6 +49,8 @@ log=
 loglines=()
 chglog=
 chgloglines=()
+outlines=()
+user="$(echo "$USER" | tr '[:upper:]' '[:lower:]')"
 
 #######################################
 ## Integration
@@ -502,7 +504,7 @@ start "merge release"
   gref
   assert_equal "$(echo "$ref" | grep /refs/heads/release)" ""
   load_changelog
-  assert_contains "$chglog" "## [0.1.0] - $(date "+%Y-%m-%d")"
+  assert_equal "${chgloglines[4]}" "## [0.1.0] - $(date "+%Y-%m-%d")"
   assert_equal "$(gsp)" ""
 end
 #######################################
@@ -593,7 +595,7 @@ start "hotfix master by branch name"
   debug "omgf -v --yes hotfix v0.0"
   assert_equal $status 0
   load_log
-  assert_equal "$(git_current_branch)" "hotfix-$USER"
+  assert_equal "$(git_current_branch)" "hotfix-$user"
   assert_equal "$(gsp)" ""
 end
 #######################################
@@ -610,7 +612,7 @@ start "hotfix stable by branch name"
   debug "omgf -v --yes hotfix v0.0"
   assert_equal $status 0
   load_log
-  assert_equal "$(git_current_branch)" "hotfix-$USER"
+  assert_equal "$(git_current_branch)" "hotfix-$user"
   assert_equal "$(gsp)" ""
 end
 #######################################
@@ -651,9 +653,9 @@ start "merge stable hotfix"
   debug "echo '' | omgf -v --yes"
   assert_equal $status 0
   load_log
-  assert_contains "$log" "(HEAD, tag: v0.0.1, v0.0) Merge branch 'hotfix-$USER' into v0.0"
+  assert_contains "$log" "(HEAD, tag: v0.0.1, v0.0) Merge branch 'hotfix-$user' into v0.0"
   gref
-  assert_equal "$(echo "$ref" | grep /refs/heads/hotfix-$USER)" ""
+  assert_equal "$(echo "$ref" | grep /refs/heads/hotfix-$user)" ""
   assert_equal "$(gsp)" ""
 end
 #######################################
