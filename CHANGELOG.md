@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [2.0.2] - 2017-03-11
 ### Fixed
  - Fix load user options to be case-sensitive
+ - `make clean` and `make distclean` does not check existence of files
 
 ## [2.0.1] - 2017-03-06
 ### Fixed
@@ -15,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [2.0.0] - 2017-03-05
 
 ### Added
- - add [EditorConfig](http://editorconfig.org/) file to enforce standard formatting
+ - Add [EditorConfig](http://editorconfig.org/) file to enforce standard formatting
 
 ### Changed
  - Rename gf to omgf
