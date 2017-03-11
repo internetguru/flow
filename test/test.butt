@@ -62,9 +62,17 @@ start "omgf help"
 end
 #######################################
 : $((i++))
-start "omgf version"
+start "omgf --version shows version"
   take "$i"
   debug "omgf --version"
+  assert_equal $status 0
+  assert_startwith "${outlines[0]}" "omgf "
+end
+#######################################
+: $((i++))
+start "omgf -V shows version"
+  take "$i"
+  debug "omgf -V"
   assert_equal $status 0
   assert_startwith "${outlines[0]}" "omgf "
 end
