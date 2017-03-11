@@ -154,8 +154,8 @@ distsingle:
 clean:
 	@ rm -rf $(COMPILEDIR)
 	@ rm -rf $(DISTNAME)
-	@ rm $(USAGEFILE)
+	@ rm -f $(USAGEFILE)
 
 distclean:
-	@ rm *.tar.gz
-	@ rm $(PROGSINGLE)
+	@ rm -f *.tar.gz
+	@ rm -f $(PROGSINGLE)
