@@ -1,7 +1,6 @@
 #!/bin/bash
 
 shopt -s extglob
-shopt -s nocasematch
 set -u
 
 # shellcheck disable=SC2086
@@ -1126,6 +1125,8 @@ function main {
        *) break ;;
     esac
   done
+
+  shopt -s nocasematch
 
   # constants
   # TODO $OMGF_{HOTFIX,RELEASE,FEATURE} ?
