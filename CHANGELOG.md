@@ -5,8 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [2.0.2] - 2017-03-11
 ### Fixed
- - Fix load user options to be case-sensitive
- - `make clean` and `make distclean` does not check existence of files
+ - Fix load user options to be case-sensitive #27
+ - `make clean` and `make distclean` force removes files #28
 
 ## [2.0.1] - 2017-03-06
 ### Fixed
