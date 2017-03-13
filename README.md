@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/InternetGuru/omgf.svg?branch=master)](https://travis-ci.org/InternetGuru/omgf)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 
-> Use Git Flow with ease. OMGF helps you maintain branches, semantic versioning, releases, and changelog file with a single command.
+> Use Git Flow with ease – maintain branches, semantic versioning, releases, and changelog with a single command.
 
 Oh My Git Flow (aka _OMGF_) is the simplest way to use [Git Flow branching model][model]. When you run OMGF in a git repository, the tool will check the current state of your repo and executes appropriate commands.
 
