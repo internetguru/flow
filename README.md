@@ -21,13 +21,23 @@ OMGF can:
 
 ## Table of Contents
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+
 - [Install](#install)
+  - [Single file script](#single-file-script)
+  - [From distribution package](#from-distribution-package)
+  - [From source](#from-source)
 - [Usage](#usage)
 - [Maintainers](#maintainers)
 - [Contribute](#contribute)
-- [Donations](#donations)
+- [Donation](#donation)
   - [Donors](#donors)
 - [License](#license)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 
 ## Install
 
