@@ -1,7 +1,6 @@
 # Oh My Git Flow _(OMGF)_
 
 [![Build Status](https://travis-ci.org/InternetGuru/omgf.svg?branch=master)](https://travis-ci.org/InternetGuru/omgf)
-[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 
 > Use Git Flow with ease – maintain branches, semantic versioning, releases, and changelog with a single command.
 
@@ -242,8 +241,6 @@ See the [man page][man] for more information and examples.
 ## Contributing
 
 Pull requests are welcome, don't hesitate to contribute.
-
-When editing the README file, please conform to the [standard-readme](https://github.com/RichardLitt/standard-readme) specification.
 
 ## Donation
 
