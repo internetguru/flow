@@ -93,26 +93,118 @@ You can specify following variables for make command which will affect default p
 
 ## Usage
 
-> See [man page][man] for more informations and examples.
+The following examples assume you have `omgf` alias to `gf` (see [Setup](#setup)).
 
+Initialize Git Flow in the existing repo:
 ```shell
-# Set default options
-alias gf="omgf --verbose --what-now"
-
-# Initialize OMGF
 gf --init
+```
 
-# Create a feature
-gf
+```
+***
+* Current branch 'dev' is considered as developing branch.
+* - Do some bugfixes...
+* - Run 'omgf MYFEATURE' to create new feature.
+* - Run 'omgf release' to create release branch.
+***
+```
+</details>
 
-# Develop new feature
-echo "new feature code" >> myfile
-git add myfile
-git commit -m "insert myfeature function"
+On `dev` branch, start a feature branch:
+```shell
+gf my-new-feature
+```
+```
+* Create branch 'feature-my-new-feature' from branch 'dev'? [YES/No] y
+***
+* Current branch 'feature-my-new-feature' is considered as feature branch.
+* - Develop current feature...
+* - Run 'omgf' to merge it into 'dev'.
+***
+```
 
-# Merge feature
+Develop new feature:
+```
+$ echo "new feature code" > myfile
+$ git add myfile
+$ git commit -m "insert myfeature function"
+```
+
+Merge feature branch to `dev` with entry to Changelog:
+```shell
 gf
 ```
+```
+* Merge feature 'feature-my-new-feature' into 'dev'? [YES/No] y
+
+***
+* Please enter the feature-my-new-feature description for CHANGELOG.md.
+*
+* Keywords:
+*   Added (default), Changed, Deprecated, Removed, Fixed, Security
+*
+* Commits of 'feature-my-new-feature':
+*   f0690b5 insert myfeature function
+*
+Type "Keyword: Message", empty line to end:
+My new feature
+f: Project was empty
+```
+
+On `dev`, start a release branch:
+```shell
+gf release
+```
+```
+* Create branch 'release' from current HEAD? [YES/No] y
+***
+* Current branch 'release' is considered as release branch.
+* - Do some bugfixes...
+* - Run 'omgf' to merge only into 'dev'.
+* - Run 'omgf release' to create stable branch.
+***
+```
+
+Make a stable release from `release` branch:
+```shell
+gf release
+```
+```
+gf release
+* Create stable branch from release? [YES/No] y
+***
+* Current branch 'dev' is considered as developing branch.
+* - Do some bugfixes...
+* - Run 'omgf MYFEATURE' to create new feature.
+* - Run 'omgf release' to create release branch.
+***
+```
+
+<details>
+<summary>Resulting Git history graph</summary>
+```
+*   Merge branch 'release' into dev  (HEAD -> dev)
+|\  
+| | *   Merge branch 'release'  (tag: v0.1.0, master)
+| | |\  
+| | |/  
+| |/|   
+| * | Update CHANGELOG.md header 
+| * | Increment version number 
+|/ /  
+* |   Merge branch 'feature-my-new-feature' into dev 
+|\ \  
+| |/  
+|/|   
+| * Update CHANGELOG.md 
+| * insert myfeature function 
+|/  
+* Initializing 'CHANGELOG.md' file  (tag: v0.0.0)
+* Initializing 'VERSION' file 
+```
+</details>
+
+See the [man page][man] for more informations and examples.
 
 ## Maintainers
 
