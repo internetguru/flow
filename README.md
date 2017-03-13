@@ -141,9 +141,9 @@ gf my-new-feature
 
 Develop new feature:
 ```
-$ echo "new feature code" > myfile
-$ git add myfile
-$ git commit -m "insert myfeature function"
+echo "new feature code" > myfile
+git add myfile
+git commit -m "insert myfeature function"
 ```
 
 Merge feature branch to `dev` with entry to Changelog:
