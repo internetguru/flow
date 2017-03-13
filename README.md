@@ -25,10 +25,10 @@ OMGF can:
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 
-- [Install](#install)
+- [Installation](#installation)
   - [Single file script](#single-file-script)
-  - [From distribution package](#from-distribution-package)
-  - [From source](#from-source)
+  - [Compiled distribution package](#compiled-distribution-package)
+  - [Building from source](#building-from-source)
 - [Usage](#usage)
 - [Maintainers](#maintainers)
 - [Contribute](#contribute)
@@ -39,63 +39,57 @@ OMGF can:
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 
-## Install
+## Installation
+
+Download the [latest release from GitHub](https://github.com/InternetGuru/omgf/releases/latest).
+
+You can install OMGF as a single file (easiest), with compiled distribution package (useful for system-wide install) or from source.
 
 ### Single file script
 
-1. Download latest distribution `omgf.sh` [manually][latest] or use following commands (it requires `jq` and `curl`)
-
-   ```shell
-   GF_VERSION="$(curl https://api.github.com/repos/InternetGuru/omgf/releases/latest -s | jq -r .tag_name)"
-   curl -OL https://github.com/InternetGuru/omgf/releases/download/$GF_VERSION/omgf.sh
+1. Place `omgf.sh` into your `$PATH` (e.g. `~/bin`),
+2. make the script executable:
    ```
-
-2. Make file executable
-
-   ```shell
    chmod +x omgf.sh
    ```
+3. optionally rename the file to `omgf` or `gf` (unless you wish to [setup alias](#setup-alias)).
 
-### From distribution package
+### Compiled distribution package
 
-1. Download latest distribution `omgf-[version]-linux.tar.gz` [manually][latest] or use following commands (it requires `jq` and `curl`)
+1. Extract `omgf-*-linux.tar.gz`,
+2. run `./install` script as root; this will install OMGF system-wide into `/usr/local`
 
-   ```shell
-   GF_VERSION="$(curl https://api.github.com/repos/InternetGuru/omgf/releases/latest -s | jq -r .tag_name)"
-   curl -OL https://github.com/InternetGuru/omgf/releases/download/$GF_VERSION/omgf-${GF_VERSION:1}-linux.tar.gz
-   ```
+You can also override installation paths using environment variables:
 
-2. Extract files and install omgf
+- `BINPATH`: where `omgf` script will be placed; `/usr/local/bin` by default
+- `SHAREPATH`: where folder for support files will be placed;  `/usr/local/share` by default
+- `USRMANPATH`: where manpage will be placed; `$SHAREPATH/man/man1` by default.
 
-   ```shell
-   tar -xvzf omgf-${GF_VERSION:1}-linux.tar.gz
-   pushd omgf-${GF_VERSION:1}-linux
-   ./install
-   popd
-   ```
+For example to install OMGF without root permissions, use this:
 
-Tip: Specify installation variables. E.g. `PREFIX="~/.omgf" ./install`
+```shell
+BINPATH=~/bin SHAREPATH=~/.local/share ./install
+```
 
-### From source
+### Building from source
+
+You will need the following dependencies:
+
+- GNU Make
+- `rst2man` (available in Docutils, e.g. `apt-get install python-docutils` or `pip install docutils`)
 
 ```shell
 git clone https://github.com/InternetGuru/omgf.git
-pushd omgf
-./configure && make && compiled/install
-popd
+cd omgf
+./configure        # Checks for build dependencies
+make               # Creates distribution package into compiled/
+compiled/install   # Installs distribution
 ```
 
-- Make dist package from source
+You can specify following variables for make command which will affect default parameters of `install` script:
 
-   `./configure && make dist`
-
-- Tip: Specify variables
-
-   E.g. `./configure && PREFIX=/usr SYSTEM=ubuntu make dist`
-
-- Tip: Install rst2man
-
-   `apt-get install python-docutils` or `pip install docutils`
+- `PREFIX`: Installation prefix; `/usr/local` by default
+- `BINDIR`: Location for `omgf` script; `$PREFIX/bin` by default
 
 ## Usage
 
