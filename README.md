@@ -26,9 +26,9 @@ OMGF can:
 
 
 - [Installation](#installation)
-  - [Single file script](#single-file-script)
-  - [Compiled distribution package](#compiled-distribution-package)
-  - [Building from source](#building-from-source)
+  - [Single File Script](#single-file-script)
+  - [Compiled Distribution Package](#compiled-distribution-package)
+  - [Building From Source](#building-from-source)
 - [Setup](#setup)
 - [Usage](#usage)
 - [Alternatives](#alternatives)
@@ -47,7 +47,7 @@ Download the [latest release from GitHub](https://github.com/InternetGuru/omgf/r
 
 You can install OMGF as a single file (easiest), with compiled distribution package (useful for system-wide install) or from source.
 
-### Single file script
+### Single File Script
 
 1. Place `omgf.sh` into your `$PATH` (e.g. `~/bin`),
 2. make the script executable:
@@ -56,7 +56,7 @@ You can install OMGF as a single file (easiest), with compiled distribution pack
    ```
 3. optionally rename the file to `omgf` or `gf` (unless you wish to [setup alias](#setup)).
 
-### Compiled distribution package
+### Compiled Distribution Package
 
 1. Extract `omgf-*-linux.tar.gz`,
 2. run `./install` script as root; this will install OMGF system-wide into `/usr/local`
@@ -73,7 +73,7 @@ For example to install OMGF without root permissions, use this:
 BINPATH=~/bin SHAREPATH=~/.local/share ./install
 ```
 
-### Building from source
+### Building From Source
 
 You will need the following dependencies:
 
