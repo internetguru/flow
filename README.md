@@ -29,6 +29,7 @@ OMGF can:
   - [Single file script](#single-file-script)
   - [Compiled distribution package](#compiled-distribution-package)
   - [Building from source](#building-from-source)
+- [Setup](#setup)
 - [Usage](#usage)
 - [Maintainers](#maintainers)
 - [Contribute](#contribute)
@@ -90,6 +91,21 @@ You can specify following variables for make command which will affect default p
 
 - `PREFIX`: Installation prefix; `/usr/local` by default
 - `BINDIR`: Location for `omgf` script; `$PREFIX/bin` by default
+
+## Setup
+
+It is generally useful to alias `omgf` to `gf` in your shell to set default parameters.
+
+Place the following in your shell configuration file (e.g. `~/.bash_aliases`, `~/.bashrc` or `~/.zshrc`):
+```
+alias gf="omgf --what-now"
+```
+
+You can find more options in the [man page][man], though the generally useful defaults are:
+
+* `--request`: Current branch won't be merged but prepared for a pull request and pushed to origin.
+* `--what-now`: OMGF will display what you can do on current branch after performing an operation.
+* `--yes`: OMGF won't ask you to confirm operations (only recommended for advanced users).
 
 ## Usage
 
