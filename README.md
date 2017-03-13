@@ -3,26 +3,21 @@
 [![Build Status](https://travis-ci.org/InternetGuru/omgf.svg?branch=master)](https://travis-ci.org/InternetGuru/omgf)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 
-> It supports file structure and content organisation following extended [Git Flow branching model][model] including changelog and version history.
+> Use Git Flow with ease. OMGF helps you maintain branches, semantic versioning, releases, and changelog file with a single command.
 
-Based on few or none parameters Oh My Git Flow (hereinafter referred as the 'OMGF') can proceed within given git branching model. It detects current state and executes appropriate commands.
+Oh My Git Flow (aka _OMGF_) is the simplest way to use [Git Flow branching model][model]. When you run OMGF in a git repository, the tool will check the current state of your repo and executes appropriate commands.
 
-OMGF is an alternative to [git-flow cheatsheet][cheatsheet] command with following improvements:
--  even simpler usage (no parameters are required),
--  push and pull all main branches,
--  pull request support,
--  validate and repair project to conform the model,
--  automatic [semantic version numbering][semver] (file VERSION),
--  version history update support (file CHANGELOG.md),
--  version history follows [Keep a CHANGELOG][keepachangelog] principle,
--  tips how to proceed with development on current state,
--  independent production branches support,
--  parallel hotfix branches support.
-
-Basic OMGF feature list:
-- creating and merging standard branches,
-- creating standard tags.
-
+OMGF can:
+- initialize new or existing Git repository for Git Flow,
+- automatically create and merge feature, hotfix and release branches,
+- create version tags for releases,
+- maintain a [semantic version numbering][semver] for releases and `VERSION` file,
+- push and pull all main branches,
+- give you a pull request link,
+- help you maintain a human-readable `CHANGELOG.md` file following the [Keep a CHANGELOG][keepachangelog] format,
+- recommend you how to proceed with development from the current state,
+- maintain multiple hotfix branches,
+- maintain independent production branches.
 
 ## Table of Contents
 
