@@ -54,7 +54,7 @@ You can install OMGF as a single file (easiest), with compiled distribution pack
    ```
    chmod +x omgf.sh
    ```
-3. optionally rename the file to `omgf` or `gf` (unless you wish to [setup alias](#setup-alias)).
+3. optionally rename the file to `omgf` or `gf` (unless you wish to [setup alias](#setup)).
 
 ### Compiled distribution package
 
