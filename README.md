@@ -33,7 +33,7 @@ OMGF can:
 - [Usage](#usage)
 - [Alternatives](#alternatives)
 - [Maintainers](#maintainers)
-- [Contribute](#contribute)
+- [Contributing](#contributing)
 - [Donation](#donation)
   - [Donors](#donors)
 - [License](#license)
@@ -221,7 +221,7 @@ gf release
 ```
 </details>
 
-See the [man page][man] for more informations and examples.
+See the [man page][man] for more information and examples.
 
 ## Alternatives
 
@@ -239,11 +239,11 @@ See the [man page][man] for more informations and examples.
 -  Pavel Petržela pavel.petrzela@internetguru.cz
 -  Jiří Pavelka jiri.pavelka@internetguru.cz
 
-## Contribute
+## Contributing
 
-Pull requests are wellcome, don't hesitate contribute.
+Pull requests are welcome, don't hesitate to contribute.
 
-Small note: If editing the README, please conform to the [standard-readme](https://github.com/RichardLitt/standard-readme) specification.
+When editing the README file, please conform to the [standard-readme](https://github.com/RichardLitt/standard-readme) specification.
 
 ## Donation
 
@@ -269,12 +269,11 @@ Thanks for your support!
 
 ## License
 
-GNU Public License version 3, see [LICENSE][license]
+GNU General Public License version 3, see the [LICENSE file](LICENSE).
 
 
 [omgf]: https://github.com/InternetGuru/omgf
 [latest]: https://github.com/InternetGuru/omgf/releases/latest
-[license]: https://raw.githubusercontent.com/InternetGuru/omgf/master/LICENSE
 [man]: https://github.com/InternetGuru/omgf/blob/master/omgf.1.rst
 [model]: http://nvie.com/posts/a-successful-git-branching-model/
 [cheatsheet]: http://danielkummer.github.io/git-flow-cheatsheet/
