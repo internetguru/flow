@@ -31,6 +31,7 @@ OMGF can:
   - [Building from source](#building-from-source)
 - [Setup](#setup)
 - [Usage](#usage)
+- [Alternatives](#alternatives)
 - [Maintainers](#maintainers)
 - [Contribute](#contribute)
 - [Donation](#donation)
@@ -221,6 +222,17 @@ gf release
 </details>
 
 See the [man page][man] for more informations and examples.
+
+## Alternatives
+
+- [git-flow](https://github.com/nvie/gitflow) – The original Vincent Driessen's tools.
+- [git-flow (AVH Edition)](https://github.com/petervanderdoes/gitflow-avh) – Maintained fork of the original tools.
+  - See also [cheatsheet](https://danielkummer.github.io/git-flow-cheatsheet/)
+- [HubFlow](https://datasift.github.io/gitflow/) – Git Flow for GitHub by DataSift.
+- [gitflow4idea](https://github.com/OpherV/gitflow4idea/) – Plugin for JetBrains IDEs.
+- [GitKraken](https://www.gitkraken.com/) – Cross-platform Git GUI with [Git Flow operations](https://support.gitkraken.com/repositories/git-flow).
+- [SourceTree](https://www.sourcetreeapp.com/) – Git GUI for macOS and Windows with Git Flow support.
+- [GitFlow for Visual Studio](https://marketplace.visualstudio.com/items?itemName=vs-publisher-57624.GitFlowforVisualStudio2017)
 
 ## Maintainers
 
