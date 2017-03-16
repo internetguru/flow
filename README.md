@@ -14,7 +14,7 @@ OMGF can:
 - push and pull all main branches,
 - give you a pull request link,
 - help you maintain a human-readable `CHANGELOG.md` file following the [Keep a CHANGELOG][keepachangelog] format,
-- recommend how to proceed with development from the current state,
+- describe current branch and recommend, how to proceed with development,
 - maintain multiple hotfix branches,
 - maintain independent production branches.
 
