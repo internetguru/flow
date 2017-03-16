@@ -87,9 +87,7 @@ You will need the following dependencies:
 ```shell
 git clone https://github.com/InternetGuru/omgf.git
 cd omgf
-./configure && \
-  make && \
-  compiled/install
+./configure && make && compiled/install
 ```
 
 You can specify following variables for `make` command which will affect default parameters of `install` script:
