@@ -14,7 +14,7 @@ OMGF can:
 - push and pull all main branches,
 - give you a pull request link,
 - help you maintain a human-readable `CHANGELOG.md` file following the [Keep a CHANGELOG][keepachangelog] format,
-- recommend you how to proceed with development from the current state,
+- recommend how to proceed with development from the current state,
 - maintain multiple hotfix branches,
 - maintain independent production branches.
 
@@ -42,9 +42,7 @@ OMGF can:
 
 ## Installation
 
-Download the [latest release from GitHub](https://github.com/InternetGuru/omgf/releases/latest).
-
-You can install OMGF as a single file (easiest), with compiled distribution package (useful for system-wide install) or from source.
+Download the [latest release from GitHub](https://github.com/InternetGuru/omgf/releases/latest). You can install OMGF as a single file (easiest), with compiled distribution package (useful for system-wide install) or from source.
 
 ### Single File Script
 
@@ -57,8 +55,15 @@ You can install OMGF as a single file (easiest), with compiled distribution pack
 
 ### Compiled Distribution Package
 
-1. Extract `omgf-*-linux.tar.gz`,
-2. run `./install` script as root; this will install OMGF system-wide into `/usr/local`
+1. Extract the archive:
+   ```
+   tar -xvzf omgf-*-linux.tar.gz
+   ```
+2. run `install` script as root; this will install OMGF system-wide into `/usr/local`:
+   ```
+   cd omgf-*-linux
+   sudo ./install
+   ```
 
 You can also override installation paths using environment variables:
 
@@ -82,15 +87,21 @@ You will need the following dependencies:
 ```shell
 git clone https://github.com/InternetGuru/omgf.git
 cd omgf
-./configure        # Checks for build dependencies
-make               # Creates distribution package into compiled/
-compiled/install   # Installs distribution
+./configure &&\
+make &&\
+compiled/install
 ```
 
-You can specify following variables for make command which will affect default parameters of `install` script:
+You can specify following variables for `make` command which will affect default parameters of `install` script:
 
 - `PREFIX`: Installation prefix; `/usr/local` by default
 - `BINDIR`: Location for `omgf` script; `$PREFIX/bin` by default
+
+For example:
+
+```shell
+PREFIX=/usr make
+```
 
 ## Setup
 
@@ -101,10 +112,11 @@ Place the following in your shell configuration file (e.g. `~/.bash_aliases`, `~
 alias gf="omgf --what-now"
 ```
 
-You can find more options in the [man page][man], though the generally useful defaults are:
+Note: You can find more options in the [man page][man], though the generally useful defaults are:
 
 * `--request`: Current branch won't be merged but prepared for a pull request and pushed to origin.
 * `--what-now`: OMGF will display what you can do on current branch after performing an operation.
+* `--verbose`: Print commands before executing, especially useful for OMGF development.
 * `--yes`: OMGF won't ask you to confirm operations (only recommended for advanced users).
 
 ## Usage
@@ -124,7 +136,6 @@ gf --init
 * - Run 'omgf release' to create release branch.
 ***
 ```
-</details>
 
 On `dev` branch, start a feature branch:
 ```shell
@@ -152,7 +163,6 @@ gf
 ```
 ```
 * Merge feature 'feature-my-new-feature' into 'dev'? [YES/No] y
-
 ***
 * Please enter the feature-my-new-feature description for CHANGELOG.md.
 *
@@ -186,7 +196,6 @@ Make a stable release from `release` branch:
 gf release
 ```
 ```
-gf release
 * Create stable branch from release? [YES/No] y
 ***
 * Current branch 'dev' is considered as developing branch.
