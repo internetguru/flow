@@ -205,6 +205,7 @@ gf release
 
 <details>
 <summary>Resulting Git history graph</summary>
+
 ```
 *   Merge branch 'release' into dev  (HEAD -> dev)
 |\  
