@@ -25,6 +25,7 @@ OMGF can:
 
 
 - [Installation](#installation)
+  - [Requirements](#requirements)
   - [Single File Script](#single-file-script)
   - [Compiled Distribution Package](#compiled-distribution-package)
   - [Building From Source](#building-from-source)
@@ -43,6 +44,11 @@ OMGF can:
 ## Installation
 
 Download the [latest release from GitHub](https://github.com/InternetGuru/omgf/releases/latest). You can install OMGF as a single file (easiest), with compiled distribution package (useful for system-wide install) or from source.
+
+### Requirements
+
+- [Bash](https://www.gnu.org/software/bash/), version 3.2
+- [Git](https://github.com/git/git/) version 1.8.0
 
 ### Single File Script
 
