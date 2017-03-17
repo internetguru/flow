@@ -1,4 +1,4 @@
-#!/bin/env butt
+#!/usr/bin/env butt
 
 function take {
   cd "$curdir"
