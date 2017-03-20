@@ -126,27 +126,32 @@ Initialize Git Flow in the existing repo:
 gf --init
 ```
 
-```
+<blockquote>
+<pre>
 ***
 * Current branch 'dev' is considered as developing branch.
 * - Do some bugfixes...
 * - Run 'omgf MYFEATURE' to create new feature.
 * - Run 'omgf release' to create release branch.
 ***
-```
+</pre>
+</blockquote>
 
 On `dev` branch, start a feature branch:
 ```shell
 gf my-new-feature
 ```
-```
+
+<blockquote>
+<pre>
 * Create branch 'feature-my-new-feature' from branch 'dev'? [YES/No] y
 ***
 * Current branch 'feature-my-new-feature' is considered as feature branch.
 * - Develop current feature...
 * - Run 'omgf' to merge it into 'dev'.
 ***
-```
+</pre>
+</blockquote>
 
 Develop new feature:
 ```
@@ -155,11 +160,14 @@ git add myfile
 git commit -m "insert myfeature function"
 ```
 
+
 Merge feature branch to `dev` with entry to Changelog:
 ```shell
 gf
 ```
-```
+
+<blockquote>
+<pre>
 * Merge feature 'feature-my-new-feature' into 'dev'? [YES/No] y
 ***
 * Please enter the feature-my-new-feature description for CHANGELOG.md.
@@ -173,7 +181,8 @@ gf
 Type "Keyword: Message", empty line to end:
 My new feature
 f: Project was empty
-```
+</pre>
+</blockquote>
 
 On `dev`, start a release branch:
 ```shell
@@ -193,7 +202,9 @@ Make a stable release from `release` branch:
 ```shell
 gf release
 ```
-```
+
+<blockquote>
+<pre>
 * Create stable branch from release? [YES/No] y
 ***
 * Current branch 'dev' is considered as developing branch.
@@ -201,7 +212,9 @@ gf release
 * - Run 'omgf MYFEATURE' to create new feature.
 * - Run 'omgf release' to create release branch.
 ***
-```
+</pre>
+</blockquote>
+
 
 <details>
 <summary>Resulting Git history graph</summary>
