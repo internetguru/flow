@@ -5,8 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
- - Add reqirements section into README
- - Check minimal requirements
+ - Add reqirements section into README #30
+ - Check minimal requirements #30
 
 ### Changed
  - Improve README: add Setup and Alternatives, add OMGF's output and simplify intallation instructions.
