@@ -346,6 +346,27 @@ function main {
     msg_end "$DONE"
   }
 
+  function get_version {
+    echo "$1" | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p'
+  }
+
+  function verlte {
+    [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
+  }
+
+  function validate_requirements {
+    bash_min_version=3.2
+    git_min_version=1.8.0
+    bash_version="$(get_version "$(bash --version)")"
+    git_version="$(get_version "$(git --version)")"
+    verlte "$bash_min_version" "$bash_version" \
+      || err "Require bash version $bash_min_version and later" \
+      || return 1
+    verlte "$git_min_version" "$git_version" \
+      || err "Require git version $git_min_version and later" \
+      || return 1
+  }
+
   # 1) validate repository existence
   # 2) validate repository consistency:
   # - at least one commit
@@ -421,6 +442,7 @@ function main {
   }
 
   function gf_validate {
+    validate_requirements || return $?
     validate_git_repository || return $?
     validate_gf_files || return $?
     validate_master_tag "$gf_branch" || return $?
