@@ -715,10 +715,10 @@ function main {
   function gf_write_changelog_line {
     local tmpfile compare_url
     tmpfile="$(mktemp)"
-    compare_url="$(gf_get_compare_url "$OMGF_DEV" master)"
+    compare_url="$(gf_get_compare_url master "$OMGF_DEV")"
     [[ -n "$compare_url" ]] \
       && compare_url="[Unreleased]: $compare_url" \
-      || compare_url="[Unreleased]: $OMGF_DEV..master"
+      || compare_url="[Unreleased]: master..$OMGF_DEV"
     awk -v keyword="$1" -v next_keywords="$2" -v message="$3" -v compare_url="$compare_url" '
       function print_unreleased () { print "## [Unreleased]" }
       function print_keyword () { print "### " keyword }
