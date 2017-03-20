@@ -346,7 +346,7 @@ function main {
     msg_end "$DONE"
   }
 
-  function get_version {
+  function parse_version {
     echo "$1" | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p'
   }
 
@@ -357,8 +357,8 @@ function main {
   function validate_requirements {
     bash_min_version=3.2
     git_min_version=1.8.0
-    bash_version="$(get_version "$(bash --version)")"
-    git_version="$(get_version "$(git --version)")"
+    bash_version="$(parse_version "$(bash --version)")"
+    git_version="$(parse_version "$(git --version)")"
     verlte "$bash_min_version" "$bash_version" \
       || err "Require bash version $bash_min_version and later" \
       || return 1
