@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Changed
+ - Quote README examples
  - Improve README: add Setup and Alternatives, add OMGF's output and simplify intallation instructions.
  - Use `env` instead of harcoded path to Bash in shebang
 
