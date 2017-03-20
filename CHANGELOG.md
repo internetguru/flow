@@ -8,9 +8,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
  - Improve README: add Setup and Alternatives, add OMGF's output and simplify intallation instructions.
  - Use `env` instead of harcoded path to Bash in shebang
 
-### Fixed
- - Select butt version manually
-
 ## [2.0.2] - 2017-03-11
 ### Fixed
  - Fix load user options to be case-sensitive #27
