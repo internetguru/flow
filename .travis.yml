@@ -25,12 +25,7 @@ before_install:
 
 install:
   # Install latest release of BUTT for Bash testing
-  - |
-    latestReleaseURL=$(curl -s -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/Internetguru/butt/releases/latest \
-      | jq -r ".assets[] \
-      | .browser_download_url" \
-      | grep \.sh$)
-  - curl -sL $latestReleaseURL > $PREFIX/bin/butt
+  - curl -sL https://github.com/InternetGuru/butt/releases/download/v0.2.0/butt.sh > $PREFIX/bin/butt
   - chmod +x $PREFIX/bin/butt
 
 before_script:
