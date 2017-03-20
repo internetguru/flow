@@ -160,7 +160,6 @@ git add myfile
 git commit -m "insert myfeature function"
 ```
 
-
 Merge feature branch to `dev` with entry to Changelog:
 ```shell
 gf
@@ -214,7 +213,6 @@ gf release
 ***
 </pre>
 </blockquote>
-
 
 <details>
 <summary>Resulting Git history graph</summary>
