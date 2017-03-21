@@ -360,10 +360,10 @@ function main {
     bash_version="$(parse_version "$(bash --version)")"
     git_version="$(parse_version "$(git --version)")"
     verlte "$bash_min_version" "$bash_version" \
-      || err "Require bash version $bash_min_version and later" \
+      || err "OMGF requires Bash version $bash_min_version or later (you have $bash_version)" \
       || return 1
     verlte "$git_min_version" "$git_version" \
-      || err "Require git version $git_min_version and later" \
+      || err "OMGF requires Git version $git_min_version or later (you have $git_version)" \
       || return 1
   }
 
