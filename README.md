@@ -127,14 +127,12 @@ gf --init
 ```
 
 <blockquote>
-<pre>
-***
+<pre><code>***
 * Current branch 'dev' is considered as developing branch.
 * - Do some bugfixes...
 * - Run 'omgf MYFEATURE' to create new feature.
 * - Run 'omgf release' to create release branch.
-***
-</pre>
+***</code></pre>
 </blockquote>
 
 On `dev` branch, start a feature branch:
@@ -143,14 +141,12 @@ gf my-new-feature
 ```
 
 <blockquote>
-<pre>
-* Create branch 'feature-my-new-feature' from branch 'dev'? [YES/No] y
+<pre><code>* Create branch 'feature-my-new-feature' from branch 'dev'? [YES/No] y
 ***
 * Current branch 'feature-my-new-feature' is considered as feature branch.
 * - Develop current feature...
 * - Run 'omgf' to merge it into 'dev'.
-***
-</pre>
+***</code></pre>
 </blockquote>
 
 Develop new feature:
@@ -166,8 +162,7 @@ gf
 ```
 
 <blockquote>
-<pre>
-* Merge feature 'feature-my-new-feature' into 'dev'? [YES/No] y
+<pre><code>* Merge feature 'feature-my-new-feature' into 'dev'? [YES/No] y
 ***
 * Please enter the feature-my-new-feature description for CHANGELOG.md.
 *
@@ -179,8 +174,7 @@ gf
 *
 Type "Keyword: Message", empty line to end:
 My new feature
-f: Project was empty
-</pre>
+f: Project was empty</code></pre>
 </blockquote>
 
 On `dev`, start a release branch:
@@ -203,15 +197,13 @@ gf release
 ```
 
 <blockquote>
-<pre>
-* Create stable branch from release? [YES/No] y
+<pre><code>* Create stable branch from release? [YES/No] y
 ***
 * Current branch 'dev' is considered as developing branch.
 * - Do some bugfixes...
 * - Run 'omgf MYFEATURE' to create new feature.
 * - Run 'omgf release' to create release branch.
-***
-</pre>
+***</code></pre>
 </blockquote>
 
 <details>
