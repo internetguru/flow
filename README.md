@@ -48,7 +48,7 @@ Download the [latest release from GitHub](https://github.com/InternetGuru/omgf/r
 ### Requirements
 
 - [Bash](https://www.gnu.org/software/bash/), version 3.2 and later
-- [Git](https://github.com/git/git/), version 1.8.0 and later
+- [Git](https://git-scm.com/), version 1.8.0 and later
 
 ### Single File Script
 
