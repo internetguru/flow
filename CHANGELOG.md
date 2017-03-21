@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
  - Use `env` instead of harcoded path to Bash in shebang
 
 ### Fixed
- - Fix CHANGELOG unreleased URL
+ - Fix Unreleased URL generated for CHANGELOG
 
 ## [2.0.2] - 2017-03-11
 ### Fixed
