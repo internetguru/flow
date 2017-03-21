@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
  - Improve README: add Setup and Alternatives, add OMGF's output and simplify intallation instructions.
  - Use `env` instead of harcoded path to Bash in shebang
 
+### Fixed
+ - Fix Unreleased URL generated for CHANGELOG
+
 ## [2.0.2] - 2017-03-11
 ### Fixed
  - Fix load user options to be case-sensitive #27
@@ -40,7 +43,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [1.0.0] - 2016-12-22
 
-[Unreleased]: https://github.com/InternetGuru/omgf/compare/dev...master
+[Unreleased]: https://github.com/InternetGuru/omgf/compare/master...dev
 [2.0.2]: https://github.com/InternetGuru/omgf/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/InternetGuru/omgf/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/InternetGuru/omgf.git/compare/v1.1.1...v2.0.0
