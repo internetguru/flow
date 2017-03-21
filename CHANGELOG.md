@@ -6,7 +6,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
  - Add Requirements section to README #30
- - Check minimal requirements #30
 
 ### Changed
  - Improve README: add Setup and Alternatives, add OMGF's output and simplify intallation instructions.
