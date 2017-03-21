@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
- - Add reqirements section into README #30
+ - Add Requirements section to README #30
  - Check minimal requirements #30
 
 ### Changed
