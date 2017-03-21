@@ -357,13 +357,13 @@ function main {
   function validate_requirements {
     bash_min_version=3.2
     git_min_version=1.8.0
-    bash_version="$(parse_version "$(bash --version)")"
-    git_version="$(parse_version "$(git --version)")"
+    bash_version="$(parse_version "$(bash --version 2>/dev/null)")"
+    git_version="$(parse_version "$(git --version 2>/dev/null)")"
     verlte "$bash_min_version" "$bash_version" \
-      || err "OMGF requires Bash version $bash_min_version or later (you have $bash_version)" \
+      || err "OMGF requires Bash version $bash_min_version or later (you have ${bash_version:-no Bash})" \
       || return 1
     verlte "$git_min_version" "$git_version" \
-      || err "OMGF requires Git version $git_min_version or later (you have $git_version)" \
+      || err "OMGF requires Git version $git_min_version or later (you have ${git_version:-no Git})" \
       || return 1
   }
 
