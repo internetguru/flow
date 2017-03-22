@@ -132,27 +132,28 @@ Initialize Git Flow in the existing repo:
 gf --init
 ```
 
-```
-***
+<blockquote>
+<pre><code>***
 * Current branch 'dev' is considered as developing branch.
 * - Do some bugfixes...
 * - Run 'omgf MYFEATURE' to create new feature.
 * - Run 'omgf release' to create release branch.
-***
-```
+***</code></pre>
+</blockquote>
 
 On `dev` branch, start a feature branch:
 ```shell
 gf my-new-feature
 ```
-```
-* Create branch 'feature-my-new-feature' from branch 'dev'? [YES/No] y
+
+<blockquote>
+<pre><code>* Create branch 'feature-my-new-feature' from branch 'dev'? [YES/No] y
 ***
 * Current branch 'feature-my-new-feature' is considered as feature branch.
 * - Develop current feature...
 * - Run 'omgf' to merge it into 'dev'.
-***
-```
+***</code></pre>
+</blockquote>
 
 Develop new feature:
 ```
@@ -165,8 +166,9 @@ Merge feature branch to `dev` with entry to Changelog:
 ```shell
 gf
 ```
-```
-* Merge feature 'feature-my-new-feature' into 'dev'? [YES/No] y
+
+<blockquote>
+<pre><code>* Merge feature 'feature-my-new-feature' into 'dev'? [YES/No] y
 ***
 * Please enter the feature-my-new-feature description for CHANGELOG.md.
 *
@@ -178,8 +180,8 @@ gf
 *
 Type "Keyword: Message", empty line to end:
 My new feature
-f: Project was empty
-```
+f: Project was empty</code></pre>
+</blockquote>
 
 On `dev`, start a release branch:
 ```shell
@@ -199,15 +201,16 @@ Make a stable release from `release` branch:
 ```shell
 gf release
 ```
-```
-* Create stable branch from release? [YES/No] y
+
+<blockquote>
+<pre><code>* Create stable branch from release? [YES/No] y
 ***
 * Current branch 'dev' is considered as developing branch.
 * - Do some bugfixes...
 * - Run 'omgf MYFEATURE' to create new feature.
 * - Run 'omgf release' to create release branch.
-***
-```
+***</code></pre>
+</blockquote>
 
 <details>
 <summary>Resulting Git history graph</summary>
