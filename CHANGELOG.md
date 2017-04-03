@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
+ - Support for macOS #41
  - Check for requirements upon start, document requirements in README #30
 
 ### Changed
