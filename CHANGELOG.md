@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
+### Added
+ - Check for requirements upon start, document requirements in README #30
+
 ### Changed
  - Improve README: add Setup and Alternatives, add OMGF's output and simplify intallation instructions.
  - Use `env` instead of harcoded path to Bash in shebang
