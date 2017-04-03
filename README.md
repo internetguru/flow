@@ -49,6 +49,8 @@ Download the [latest release from GitHub](https://github.com/InternetGuru/omgf/r
 
 - [Bash](https://www.gnu.org/software/bash/), version 3.2 and later
 - [Git](https://git-scm.com/), version 1.8.0 and later
+- [GNU getopt](http://frodo.looijaard.name/project/getopt)
+  - On macOS install with Homebrew ([`gnu-getopt`](http://braumeister.org/formula/gnu-getopt)) or with [MacPorts](https://www.macports.org/) (`getopt`)
 
 ### Single File Script
 
