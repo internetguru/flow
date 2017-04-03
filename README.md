@@ -1,130 +1,269 @@
-# Oh My Git Flow
+# Oh My Git Flow _(OMGF)_
 
 [![Build Status](https://travis-ci.org/InternetGuru/omgf.svg?branch=master)](https://travis-ci.org/InternetGuru/omgf)
-[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 
-> It supports file structure and content organisation following extended [Git Flow branching model][model] including changelog and version history.
+> Use Git Flow with ease – maintain branches, semantic versioning, releases, and changelog with a single command.
 
-Based on few or none parameters Oh My Git Flow (hereinafter referred as the 'OMGF') can proceed within given git branching model. It detects current state and executes appropriate commands.
+Oh My Git Flow (aka _OMGF_) is the simplest way to use [Git Flow branching model][model]. When you run OMGF in a git repository, the tool will check the current state of your repo and executes appropriate commands.
 
-OMGF is an alternative to [git-flow cheatsheet][cheatsheet] command with following improvements:
--  even simpler usage (no parameters are required),
--  push and pull all main branches,
--  pull request support,
--  validate and repair project to conform the model,
--  automatic [semantic version numbering][semver] (file VERSION),
--  version history update support (file CHANGELOG.md),
--  version history follows [Keep a CHANGELOG][keepachangelog] principle,
--  tips how to proceed with development on current state,
--  independent production branches support,
--  parallel hotfix branches support.
-
-Basic OMGF feature list:
-- creating and merging standard branches,
-- creating standard tags.
-
+OMGF can:
+- initialize new or existing Git repository for Git Flow,
+- automatically create and merge feature, hotfix and release branches,
+- create version tags for releases,
+- maintain a [semantic version numbering][semver] for releases and `VERSION` file,
+- push and pull all main branches,
+- give you a pull request link,
+- help you maintain a human-readable `CHANGELOG.md` file following the [Keep a CHANGELOG][keepachangelog] format,
+- describe current branch and recommend how to proceed with development,
+- maintain multiple hotfix branches,
+- maintain independent production branches.
 
 ## Table of Contents
 
-- [Install](#install)
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+
+- [Installation](#installation)
+  - [Requirements](#requirements)
+  - [Single File Script](#single-file-script)
+  - [Compiled Distribution Package](#compiled-distribution-package)
+  - [Building From Source](#building-from-source)
+- [Setup](#setup)
 - [Usage](#usage)
+- [Alternatives](#alternatives)
 - [Maintainers](#maintainers)
-- [Contribute](#contribute)
-- [Donations](#donations)
+- [Contributing](#contributing)
+- [Donation](#donation)
   - [Donors](#donors)
 - [License](#license)
 
-## Install
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-### Single file script
 
-1. Download latest distribution `omgf.sh` [manually][latest] or use following commands (it requires `jq` and `curl`)
+## Installation
 
-   ```shell
-   GF_VERSION="$(curl https://api.github.com/repos/InternetGuru/omgf/releases/latest -s | jq -r .tag_name)"
-   curl -OL https://github.com/InternetGuru/omgf/releases/download/$GF_VERSION/omgf.sh
+Download the [latest release from GitHub](https://github.com/InternetGuru/omgf/releases/latest). You can install OMGF as a single file (easiest), with compiled distribution package (useful for system-wide install) or from source.
+
+### Requirements
+
+- [Bash](https://www.gnu.org/software/bash/), version 3.2 and later
+- [Git](https://git-scm.com/), version 1.8.0 and later
+- [GNU getopt](http://frodo.looijaard.name/project/getopt)
+  - On macOS install with Homebrew ([`gnu-getopt`](http://braumeister.org/formula/gnu-getopt)) or with [MacPorts](https://www.macports.org/) (`getopt`)
+- [GNU sed](https://www.gnu.org/software/sed/)
+  - On macOS install with Homebrew [`gnu-sed`](http://braumeister.org/formula/gnu-sed)
+- [GNU awk](https://www.gnu.org/software/gawk/)
+  - On macOS install with Homebrew [`homebrew/dupes/grep`](https://github.com/Homebrew/homebrew-dupes)
+
+### Single File Script
+
+1. Place `omgf.sh` into your `$PATH` (e.g. `~/bin`),
+2. make the script executable:
    ```
-
-2. Make file executable
-
-   ```shell
    chmod +x omgf.sh
    ```
+3. optionally rename the file to `omgf` or `gf` (unless you wish to [setup alias](#setup)).
 
-### From distribution package
+### Compiled Distribution Package
 
-1. Download latest distribution `omgf-[version]-linux.tar.gz` [manually][latest] or use following commands (it requires `jq` and `curl`)
-
-   ```shell
-   GF_VERSION="$(curl https://api.github.com/repos/InternetGuru/omgf/releases/latest -s | jq -r .tag_name)"
-   curl -OL https://github.com/InternetGuru/omgf/releases/download/$GF_VERSION/omgf-${GF_VERSION:1}-linux.tar.gz
+1. Extract the archive:
+   ```
+   tar -xvzf omgf-*-linux.tar.gz
+   ```
+2. run `install` script as root; this will install OMGF system-wide into `/usr/local`:
+   ```
+   cd omgf-*-linux
+   sudo ./install
    ```
 
-2. Extract files and install omgf
+You can also override installation paths using environment variables:
 
-   ```shell
-   tar -xvzf omgf-${GF_VERSION:1}-linux.tar.gz
-   pushd omgf-${GF_VERSION:1}-linux
-   ./install
-   popd
-   ```
+- `BINPATH`: where `omgf` script will be placed; `/usr/local/bin` by default
+- `SHAREPATH`: where folder for support files will be placed;  `/usr/local/share` by default
+- `USRMANPATH`: where manpage will be placed; `$SHAREPATH/man/man1` by default.
 
-Tip: Specify installation variables. E.g. `PREFIX="~/.omgf" ./install`
+For example to install OMGF without root permissions, use this:
 
-### From source
+```shell
+BINPATH=~/bin SHAREPATH=~/.local/share ./install
+```
+
+### Building From Source
+
+You will need the following dependencies:
+
+- GNU Make
+- `rst2man` (available in Docutils, e.g. `apt-get install python-docutils` or `pip install docutils`)
 
 ```shell
 git clone https://github.com/InternetGuru/omgf.git
-pushd omgf
+cd omgf
 ./configure && make && compiled/install
-popd
 ```
 
-- Make dist package from source
+You can specify following variables for `make` command which will affect default parameters of `install` script:
 
-   `./configure && make dist`
+- `PREFIX`: Installation prefix; `/usr/local` by default
+- `BINDIR`: Location for `omgf` script; `$PREFIX/bin` by default
 
-- Tip: Specify variables
+For example:
 
-   E.g. `./configure && PREFIX=/usr SYSTEM=ubuntu make dist`
+```shell
+PREFIX=/usr make
+```
 
-- Tip: Install rst2man
+## Setup
 
-   `apt-get install python-docutils` or `pip install docutils`
+It is generally useful to alias `omgf` to `gf` in your shell to set default parameters.
+
+Place the following in your shell configuration file (e.g. `~/.bash_aliases`, `~/.bashrc` or `~/.zshrc`):
+```
+alias gf="omgf --what-now"
+```
+
+Note: You can find more options in the [man page][man], though the generally useful defaults are:
+
+* `--request`: Current branch won't be merged but prepared for a pull request and pushed to origin.
+* `--what-now`: OMGF will display what you can do on current branch after performing an operation.
+* `--verbose`: Print commands before executing, especially useful for OMGF development.
+* `--yes`: OMGF won't ask you to confirm operations (only recommended for advanced users).
 
 ## Usage
 
-> See [man page][man] for more informations and examples.
+The following examples assume you have `omgf` alias to `gf` (see [Setup](#setup)).
 
+Initialize Git Flow in the existing repo:
 ```shell
-# Set default options
-alias gf="omgf --verbose --what-now"
-
-# Initialize OMGF
 gf --init
+```
 
-# Create a feature
-gf
+<blockquote>
+<pre><code>***
+* Current branch 'dev' is considered as developing branch.
+* - Do some bugfixes...
+* - Run 'omgf MYFEATURE' to create new feature.
+* - Run 'omgf release' to create release branch.
+***</code></pre>
+</blockquote>
 
-# Develop new feature
-echo "new feature code" >> myfile
+On `dev` branch, start a feature branch:
+```shell
+gf my-new-feature
+```
+
+<blockquote>
+<pre><code>* Create branch 'feature-my-new-feature' from branch 'dev'? [YES/No] y
+***
+* Current branch 'feature-my-new-feature' is considered as feature branch.
+* - Develop current feature...
+* - Run 'omgf' to merge it into 'dev'.
+***</code></pre>
+</blockquote>
+
+Develop new feature:
+```
+echo "new feature code" > myfile
 git add myfile
 git commit -m "insert myfeature function"
+```
 
-# Merge feature
+Merge feature branch to `dev` with entry to Changelog:
+```shell
 gf
 ```
+
+<blockquote>
+<pre><code>* Merge feature 'feature-my-new-feature' into 'dev'? [YES/No] y
+***
+* Please enter the feature-my-new-feature description for CHANGELOG.md.
+*
+* Keywords:
+*   Added (default), Changed, Deprecated, Removed, Fixed, Security
+*
+* Commits of 'feature-my-new-feature':
+*   f0690b5 insert myfeature function
+*
+Type "Keyword: Message", empty line to end:
+My new feature
+f: Project was empty</code></pre>
+</blockquote>
+
+On `dev`, start a release branch:
+```shell
+gf release
+```
+```
+* Create branch 'release' from current HEAD? [YES/No] y
+***
+* Current branch 'release' is considered as release branch.
+* - Do some bugfixes...
+* - Run 'omgf' to merge only into 'dev'.
+* - Run 'omgf release' to create stable branch.
+***
+```
+
+Make a stable release from `release` branch:
+```shell
+gf release
+```
+
+<blockquote>
+<pre><code>* Create stable branch from release? [YES/No] y
+***
+* Current branch 'dev' is considered as developing branch.
+* - Do some bugfixes...
+* - Run 'omgf MYFEATURE' to create new feature.
+* - Run 'omgf release' to create release branch.
+***</code></pre>
+</blockquote>
+
+<details>
+<summary>Resulting Git history graph</summary>
+
+```
+*   Merge branch 'release' into dev  (HEAD -> dev)
+|\  
+| | *   Merge branch 'release'  (tag: v0.1.0, master)
+| | |\  
+| | |/  
+| |/|   
+| * | Update CHANGELOG.md header 
+| * | Increment version number 
+|/ /  
+* |   Merge branch 'feature-my-new-feature' into dev 
+|\ \  
+| |/  
+|/|   
+| * Update CHANGELOG.md 
+| * insert myfeature function 
+|/  
+* Initializing 'CHANGELOG.md' file  (tag: v0.0.0)
+* Initializing 'VERSION' file 
+```
+</details>
+
+See the [man page][man] for more information and examples.
+
+## Alternatives
+
+- [git-flow](https://github.com/nvie/gitflow) – The original Vincent Driessen's tools.
+- [git-flow (AVH Edition)](https://github.com/petervanderdoes/gitflow-avh) – Maintained fork of the original tools.
+  - See also [cheatsheet](https://danielkummer.github.io/git-flow-cheatsheet/)
+- [HubFlow](https://datasift.github.io/gitflow/) – Git Flow for GitHub by DataSift.
+- [gitflow4idea](https://github.com/OpherV/gitflow4idea/) – Plugin for JetBrains IDEs.
+- [GitKraken](https://www.gitkraken.com/) – Cross-platform Git GUI with [Git Flow operations](https://support.gitkraken.com/repositories/git-flow).
+- [SourceTree](https://www.sourcetreeapp.com/) – Git GUI for macOS and Windows with Git Flow support.
+- [GitFlow for Visual Studio](https://marketplace.visualstudio.com/items?itemName=vs-publisher-57624.GitFlowforVisualStudio2017)
 
 ## Maintainers
 
 -  Pavel Petržela pavel.petrzela@internetguru.cz
 -  Jiří Pavelka jiri.pavelka@internetguru.cz
 
-## Contribute
+## Contributing
 
-Pull requests are wellcome, don't hesitate contribute.
-
-Small note: If editing the README, please conform to the [standard-readme](https://github.com/RichardLitt/standard-readme) specification.
+Pull requests are welcome, don't hesitate to contribute.
 
 ## Donation
 
@@ -150,13 +289,12 @@ Thanks for your support!
 
 ## License
 
-GNU Public License version 3, see [LICENSE][license]
+GNU General Public License version 3, see the [LICENSE file](LICENSE).
 
 
 [omgf]: https://github.com/InternetGuru/omgf
 [latest]: https://github.com/InternetGuru/omgf/releases/latest
-[license]: https://raw.githubusercontent.com/InternetGuru/omgf/master/LICENSE
-[man]: https://github.com/InternetGuru/omgf/blob/master/man.1.rst
+[man]: https://github.com/InternetGuru/omgf/blob/master/omgf.1.rst
 [model]: http://nvie.com/posts/a-successful-git-branching-model/
 [cheatsheet]: http://danielkummer.github.io/git-flow-cheatsheet/
 [semver]: http://semver.org/

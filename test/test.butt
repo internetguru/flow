@@ -1,4 +1,4 @@
-#!/bin/env butt
+#!/usr/bin/env butt
 
 function take {
   cd "$curdir"
@@ -17,6 +17,10 @@ function gsp {
 
 function gref {
   ref="$(git show-ref)"
+}
+
+function arrowToComma {
+  echo "${1// ->/,}"
 }
 
 function checkInitRefs {
@@ -51,6 +55,9 @@ chglog=
 chgloglines=()
 outlines=()
 user="$(echo "$USER" | tr '[:upper:]' '[:lower:]')"
+
+git config --global user.email "travis@test.com"
+git config --global user.name "travis"
 
 #######################################
 ## Integration
@@ -382,7 +389,7 @@ start "merge feature"
   assert_equal $status 0
   load_log
   assert_contains "$log" "Update CHANGELOG.md"
-  assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'feature-myfeature' into dev"
+  assert_contains "$(arrowToComma "${loglines[0]}")" "(HEAD, dev) Merge branch 'feature-myfeature' into dev"
   gref
   assert_equal "$(echo "$ref" | grep /refs/heads/feature-myfeature)" ""
   load_changelog
@@ -417,7 +424,7 @@ start "merge feature with uncommited changes and --force"
   assert_contains "${outlines[0]}" "Stashing files"
   load_log
   assert_contains "$log" "Update CHANGELOG.md"
-  assert_contains "${loglines[0]}" "(HEAD, dev) Merge branch 'feature-myfeature' into dev"
+  assert_contains "$(arrowToComma "${loglines[0]}")" "(HEAD, dev) Merge branch 'feature-myfeature' into dev"
   gref
   assert_equal "$(echo "$ref" | grep /refs/heads/feature-myfeature)" ""
   assert_equal "$(gsp)" "A  b"
@@ -500,7 +507,7 @@ start "merge release"
   debug "omgf -v --yes release"
   assert_equal $status 0
   load_log
-  assert_contains "$log" "(HEAD, dev) Merge branch 'release' into dev"
+  assert_contains "$(arrowToComma "$log")" "(HEAD, dev) Merge branch 'release' into dev"
   gref
   assert_equal "$(echo "$ref" | grep /refs/heads/release)" ""
   load_changelog
@@ -653,7 +660,9 @@ start "merge stable hotfix"
   debug "echo '' | omgf -v --yes"
   assert_equal $status 0
   load_log
-  assert_contains "$log" "(HEAD, tag: v0.0.1, v0.0) Merge branch 'hotfix-$user' into v0.0"
+  assert_contains "$log" "tag: v0.0.1"
+  assert_contains "$log" "v0.0"
+  assert_contains "$log" "Merge branch 'hotfix-$user' into v0.0"
   gref
   assert_equal "$(echo "$ref" | grep /refs/heads/hotfix-$user)" ""
   assert_equal "$(gsp)" ""
