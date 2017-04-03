@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
  - Check for requirements upon start, document requirements in README #30
 
 ### Changed
- - Improve README: add Setup and Alternatives, add OMGF's output and simplify intallation instructions.
- - Use `env` instead of harcoded path to Bash in shebang
+ - Improve README: add Setup and Alternatives, add OMGF's output and simplify installation instructions.
+ - Use `env` instead of hardcoded path to Bash in shebang
 
 ### Fixed
  - Fix Unreleased URL generated for CHANGELOG
