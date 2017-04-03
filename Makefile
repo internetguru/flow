@@ -13,9 +13,10 @@ DESTDIR      ?= $(destdir)
 SYSTEM       ?= $(system)
 
 #-------------------------------------------------------------------------------
-# Installation paths
+# Installation paths and defaults
 #-------------------------------------------------------------------------------
 
+SHELL       := /bin/bash
 DIRNAME     := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 RST2MAN     := rst2man
 PROG        := omgf

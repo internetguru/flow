@@ -707,7 +707,7 @@ function main {
       && compare_url="[$major.$minor.$patch]: $compare_url" \
       || compare_url="[$major.$minor.$patch]: $prev_tag..$master.$patch"
     tmpfile="$(mktemp)"
-    awk -v header="$header" -v compare_url="$compare_url" '
+    gawk -v header="$header" -v compare_url="$compare_url" '
       BEGIN {
         writemsg=1
         writeurl=1
@@ -741,7 +741,7 @@ function main {
     [[ -n "$compare_url" ]] \
       && compare_url="[Unreleased]: $compare_url" \
       || compare_url="[Unreleased]: master..$OMGF_DEV"
-    awk -v keyword="$1" -v next_keywords="$2" -v message="$3" -v compare_url="$compare_url" '
+    gawk -v keyword="$1" -v next_keywords="$2" -v message="$3" -v compare_url="$compare_url" '
       function print_unreleased () { print "## [Unreleased]" }
       function print_keyword () { print "### " keyword }
       function print_message () { print " - " message }
@@ -1005,11 +1005,11 @@ function main {
       [ -f "$usage_file" ] \
         || err "Usage file not found" \
         || return 1
-      first_line="$(head -n1 "$usage_file")"
-      other_content="$(tail -n+2 "$usage_file")"
+      first_line="$(head -n -1 "$usage_file")"
+      other_content="$(tail -n +2 "$usage_file")"
     else
-      first_line="$(echo "$OMGF_USAGE" | head -n1)"
-      other_content="$(echo "$OMGF_USAGE" | tail -n+2)"
+      first_line="$(echo "$OMGF_USAGE" | head -n -1)"
+      other_content="$(echo "$OMGF_USAGE" | tail -n +2)"
     fi
     echo "$first_line"
     echo
