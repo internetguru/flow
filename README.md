@@ -51,6 +51,10 @@ Download the [latest release from GitHub](https://github.com/InternetGuru/omgf/r
 - [Git](https://git-scm.com/), version 1.8.0 and later
 - [GNU getopt](http://frodo.looijaard.name/project/getopt)
   - On macOS install with Homebrew ([`gnu-getopt`](http://braumeister.org/formula/gnu-getopt)) or with [MacPorts](https://www.macports.org/) (`getopt`)
+- [GNU sed](https://www.gnu.org/software/sed/)
+  - On macOS install with Homebrew [`gnu-sed`](http://braumeister.org/formula/gnu-sed)
+- [GNU awk](https://www.gnu.org/software/gawk/)
+  - On macOS install with Homebrew [`homebrew/dupes/grep`](https://github.com/Homebrew/homebrew-dupes)
 
 ### Single File Script
 
