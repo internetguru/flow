@@ -84,7 +84,7 @@ compile:
 	echo -n "\"Version "; echo -n $$(cat $(VERFILE)); echo -n "\" "; \
 	echo; \
 	} > $(COMPILEDIR)/$(MANFILE)
-	@ cat $(MANRST) | $(RST2MAN) | tail -n+8 >> $(COMPILEDIR)/$(MANFILE)
+	@ sed 's/`\([^`]\+\)<\([^>]\+\)>`__/\1\n  \2/g' $(MANRST) | $(RST2MAN) | tail -n+8 >> $(COMPILEDIR)/$(MANFILE)
 	@ echo DONE
 
 	@ # Copy README and MAN rst into COMPILEDIR
