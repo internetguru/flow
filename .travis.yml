@@ -62,7 +62,7 @@ before_script:
 
 script:
  - shellcheck omgf
- - butt test/test.butt
+ - butt -v test/test.butt
 
 deploy:
   - provider: releases
