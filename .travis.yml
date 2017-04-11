@@ -63,7 +63,12 @@ before_script:
 
 script:
  - shellcheck omgf
- - butt -v test/test.butt
+ - |
+    if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      butt -vs1 test/test.butt
+    else
+      butt -v test/test.butt
+    fi
 
 deploy:
   - provider: releases
