@@ -272,14 +272,20 @@ function main {
   function merge_branches {
     local prev_branch
     prev_branch="$(git_current_branch)"
-    msg_start "Merging '$1' into branch '$2'" \
-      && git_checkout "$2" \
+    msg_start "Merging '$1' into branch '$2'"
+    [[ -z "$(git log "$2".."$1")" ]] \
+      && msg_end "$SKIP" \
+      && return
+    git_checkout "$2" \
       && { git_merge "$1" "${3:---no-ff}" || return 5; } \
-      && git_checkout "$prev_branch" \
+      && { [[ -n "${4:-}" ]] || git_checkout "$prev_branch"; } \
       && msg_end "$DONE"
   }
 
   function delete_gf_branch {
+    [[ "$(git_current_branch)" != "$gf_branch" ]] \
+      || git_checkout "$OMGF_DEV" \
+      || return $?
     if git_remote_branch_exists >/dev/null 2>&1; then
       msg_start "Deleting remote branch '$gf_branch'"
       local out
@@ -613,6 +619,12 @@ function main {
     [[ $confirmed == 0 ]] \
       && { confirm "* Create branch '$RELEASE' from current HEAD?" || return 0; }
     git_checkout_branch "$RELEASE"
+    ((minor++))
+    patch=0
+    gf_commit_version \
+      && load_version \
+      || return $?
+    gf_update_changelog_header || return $?
   }
 
   function gf_feature {
@@ -669,14 +681,6 @@ function main {
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     confirm "* Create stable branch from release$confirm_suffix?" || return 0
     merge_branches master "$gf_branch" || return $?
-    if ! git_version_diff "$OMGF_DEV" "$major.$minor"; then
-      ((minor++))
-      patch=0
-      gf_commit_version \
-        && load_version \
-        || return $?
-    fi
-    gf_update_changelog_header || return $?
     [[ $request == 1 ]] && { gf_request master; return $?; }
     git_checkout master \
       && merge_branches "$gf_branch" "$OMGF_DEV" \
@@ -897,27 +901,50 @@ function main {
       into="$master"
       confirm "* Merge hotfix into stable branch '$master'$confirm_suffix?" || return 0
     fi
-    [[ -n "$(git log "$into".."$gf_branch")" ]] \
-      || err "Nothing to merge - hotfix branch '$gf_branch' is empty" \
-      || return 1
-    gf_prepare_to_merge "$into" \
-      && patch=$((patch+1)) \
-      && gf_commit_version \
-      && gf_update_changelog 4 \
-      && gf_update_changelog_header \
-      || return $?
-    [[ $request == 1 ]] && { gf_request master; return $?; }
-    merge_branches "$gf_branch" "$into" \
-      && git_checkout "$into" \
-      && git_tag "$master.$patch" \
-      || return $?
+    if [[ -n "$(git log "$into".."$gf_branch")" ]]; then
+      gf_prepare_to_merge "$into" \
+        && patch=$((patch+1)) \
+        && gf_commit_version \
+        && gf_update_changelog 4 \
+        && gf_update_changelog_header \
+        || return $?
+      [[ $request == 1 ]] && { gf_request master; return $?; }
+      merge_branches "$gf_branch" "$into" \
+        && git_checkout "$into" \
+        && git_tag "$master.$patch" \
+        || return $?
+    fi
     if [[ "$into" == master ]]; then
-      merge_branches "$gf_branch" "$OMGF_DEV" || return $?
+      # assume conflicts, ignore changes in VERSION file
       if git_branch_exists "$RELEASE"; then
-        merge_branches "$gf_branch" "$RELEASE" || return $?
+        gf_version_ignore_merge "$OMGF_DEV" \
+          && gf_version_ignore_merge "$RELEASE" \
+          || return $?
+      else
+        merge_branches "$gf_branch" "$OMGF_DEV" || return $?
       fi
     fi
     delete_gf_branch
+  }
+
+  function gf_version_ignore_merge {
+    local ecode merged
+    merged=0
+    [[ -z "$(git log "$1".."$gf_branch")" ]] \
+      && merged=1
+    merge_branches "$gf_branch" "$1" "--no-ff" "--no-commit" || return $?
+    [[ $merged == 1 ]] && return
+    ecode=$?
+    git reset "$OMGF_VERSION" >/dev/null \
+      && git_checkout "$OMGF_VERSION" \
+      || return $?
+    if [[ $ecode == 0 ]]; then
+      git_status_empty \
+        && { git commit -am "Merge branch '$gf_branch' into $1" || return $?; }
+      git_checkout "$gf_branch" \
+        || return $?
+    fi
+    return $ecode
   }
 
   function gf_pull {
