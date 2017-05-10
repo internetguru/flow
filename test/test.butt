@@ -7,6 +7,13 @@ function take {
   cd "$1"
 }
 
+# make git return only error to stderr
+function git_checkout {
+  local out
+  out="$(git checkout "$@" 2>&1)" \
+    || err "$out"
+}
+
 function git_current_branch {
   git rev-parse --abbrev-ref HEAD
 }
@@ -442,8 +449,6 @@ end
 #   debug "echo 'feature1' | omgf -v --yes --request"
 # fi
 #######################################
-# TODO: 7.h
-#######################################
 ## RELEASE
 #######################################
 : $((i++))
@@ -456,6 +461,9 @@ start "create release"
   } >/dev/null
   debug "omgf -v --yes release"
   assert_equal $status 0
+  load_changelog
+  assert_equal "${chgloglines[4]:-}" "## [0.1.0] - $(date "+%Y-%m-%d")"
+  assert_equal "$(cat VERSION)" "0.1.0"
   gref
   assert_contains "$ref" "refs/heads/release"
   assert_equal "$(gsp)" ""
@@ -512,8 +520,6 @@ start "merge release"
   assert_contains "$(arrowToComma "$log")" "(HEAD, dev) Merge branch 'release' into dev"
   gref
   assert_equal "$(echo "$ref" | grep /refs/heads/release)" ""
-  load_changelog
-  assert_equal "${chgloglines[4]}" "## [0.1.0] - $(date "+%Y-%m-%d")"
   assert_equal "$(gsp)" ""
 end
 #######################################
@@ -527,10 +533,10 @@ start "merge release with conflict"
     && omgf --yes release \
     && git checkout dev \
     && echo 1.0.0 > VERSION \
-    && git commit -am "bump dev VERSION" \
+    && git commit -am "bump dev major VERSION" \
     && git checkout release \
     && echo 2.0.0 > VERSION \
-    && git commit -am "bump release VERSION"
+    && git commit -am "bump release major VERSION"
   } >/dev/null 2>&1
   debug "omgf -v --yes release"
   assert_equal $status 5
@@ -565,8 +571,6 @@ end
 #   } >/dev/null
 #   debug "omgf -v --yes --request"
 # fi
-#######################################
-# TODO: 8.i
 #######################################
 ## HOTFIX
 #######################################
@@ -625,8 +629,6 @@ start "hotfix stable by branch name"
   assert_equal "$(gsp)" ""
 end
 #######################################
-# TODO: 9.f – 9.g
-#######################################
 : $((i++))
 start "merge master hotfix"
   take "$i"
@@ -639,11 +641,43 @@ start "merge master hotfix"
   debug "echo '' | omgf -v --yes"
   assert_equal $status 0
   load_log
+  assert_contains "$log" "tag: v0.0.1"
   assert_contains "${loglines[0]}" "(dev) Merge branch 'hotfix-myhotfix' into dev"
   assert_equal "$(cat VERSION)" "0.0.1"
   gref
   assert_equal "$(echo "$ref" | grep /refs/heads/hotfix-myhotfix)" ""
   assert_equal "$(gsp)" ""
+end
+#######################################
+: $((i++))
+start "merge master hotfix (release branch exists)"
+  take "$i"
+  { omgf -i \
+   && omgf --yes hotfix myhotfix \
+   && echo a > a \
+   && git add . \
+   && git commit -m "add file a" \
+   && git_checkout dev \
+   && echo b > b \
+   && git add . \
+   && git commit -m "add file b" \
+   && omgf --yes release \
+   && git_checkout hotfix-myhotfix;
+  } >/dev/null
+  debug "echo '' | omgf -v --yes"
+  assert_equal $status 0
+  load_log
+  assert_contains "$log" "tag: v0.0.1"
+  assert_contains "$(arrowToComma "${loglines[0]}")" "(release) Merge branch 'hotfix-myhotfix' into release"
+  assert_contains "${loglines[2]}" "(dev) Merge branch 'hotfix-myhotfix' into dev"
+  assert_equal "$(cat VERSION)" "0.0.1"
+  gref
+  assert_equal "$(echo "$ref" | grep /refs/heads/hotfix-myhotfix)" ""
+  assert_equal "$(gsp)" ""
+  git_checkout release
+  assert_equal "$(cat VERSION)" "0.1.0"
+  load_changelog
+  assert_equal "${chgloglines[4]:-}" "## [0.1.0] - $(date "+%Y-%m-%d")"
 end
 #######################################
 : $((i++))
@@ -669,8 +703,4 @@ start "merge stable hotfix"
   assert_equal "$(echo "$ref" | grep /refs/heads/hotfix-$user)" ""
   assert_equal "$(gsp)" ""
 end
-#######################################
-# TODO: 9.i – 9.m
-#######################################
-# TODO: 10
 #######################################
