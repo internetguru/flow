@@ -62,12 +62,14 @@ git config --global user.name "travis"
 #######################################
 ## Integration
 #######################################
+# TODO test omgf help on macOs, now it is skipped due to issue https://github.com/InternetGuru/omgf/issues/66
 : $((i++))
 start "omgf help"
   take "$i"
   debug "omgf --help 2>/dev/null"
   assert_equal $status 0
   assert_startwith "${outlines[0]}" "Usage: omgf [-"
+  assert_startwith "${outlines[1]}" "  -c, --conform"
 end
 #######################################
 : $((i++))
