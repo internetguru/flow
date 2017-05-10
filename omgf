@@ -1005,11 +1005,11 @@ function main {
       [ -f "$usage_file" ] \
         || err "Usage file not found" \
         || return 1
-      first_line="$(head -n -1 "$usage_file")"
-      other_content="$(tail -n +2 "$usage_file")"
+      first_line="$(head -n1 "$usage_file")"
+      other_content="$(tail -n+2 "$usage_file")"
     else
-      first_line="$(echo "$OMGF_USAGE" | head -n -1)"
-      other_content="$(echo "$OMGF_USAGE" | tail -n +2)"
+      first_line="$(echo "$OMGF_USAGE" | head -n1)"
+      other_content="$(echo "$OMGF_USAGE" | tail -n+2)"
     fi
     echo "$first_line"
     echo
@@ -1137,7 +1137,7 @@ function main {
      -h|-\?|--help) gf_usage; return $? ;;
      -i|--init) init=1; conform=1; shift ;;
      -n|--dry-run) dry=1; shift ;;
-     -r|--request) request=1; shift;;
+     -r|--request) request=1; shift ;;
      -v|--verbose) verbose=1; shift ;;
      -V|--version) gf_version; return $? ;;
      -w|--what-now) what_now=1; shift ;;
