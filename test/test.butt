@@ -62,6 +62,7 @@ git config --global user.name "travis"
 #######################################
 ## Integration
 #######################################
+# TODO test omgf help on macOs, now it is skipped due to issue https://github.com/InternetGuru/omgf/issues/66
 : $((i++))
 start "omgf help"
   take "$i"
