@@ -277,7 +277,7 @@ function main {
       && msg_end "$SKIP" \
       && return
     git_checkout "$2" \
-      && { git_merge "$1" "${3:---no-ff}" || return 5; } \
+      && { git_merge "${3:---no-ff}" "${4:---commit}" "$1" || return 5; } \
       && { [[ -n "${4:-}" ]] || git_checkout "$prev_branch"; } \
       && msg_end "$DONE"
   }
@@ -916,7 +916,7 @@ function main {
         || return $?
     fi
     if [[ "$into" == master ]]; then
-      # assume conflicts, ignore changes in VERSION file
+      # ignore changes in VERSION file iff conflict occured
       if git_branch_exists "$RELEASE"; then
         gf_version_ignore_merge "$OMGF_DEV" \
           && gf_version_ignore_merge "$RELEASE" \
@@ -929,20 +929,21 @@ function main {
   }
 
   function gf_version_ignore_merge {
-    local ecode merged
-    merged=0
+    local ecode
     [[ -z "$(git log "$1".."$gf_branch")" ]] \
-      && merged=1
-    merge_branches "$gf_branch" "$1" "--no-ff" "--no-commit" || return $?
-    [[ $merged == 1 ]] && return
+      && return
+    merge_branches "$gf_branch" "$1" "--no-ff" "--no-commit"
     ecode=$?
-    git reset "$OMGF_VERSION" >/dev/null \
-      && git_checkout "$OMGF_VERSION" \
-      || return $?
+    # ignore version iff conflict occurred
+    if [[ $ecode == 5 ]]; then
+      git reset "$OMGF_VERSION" >/dev/null \
+        && git_checkout "$OMGF_VERSION" \
+        || return $?
+    fi
+    # no conflicts, proceed merge
     if [[ $ecode == 0 ]]; then
-      git_status_empty \
-        && { git commit -am "Merge branch '$gf_branch' into $1" || return $?; }
-      git_checkout "$gf_branch" \
+      git commit -am "Merge branch '$gf_branch' into $1" >/dev/null \
+        && git_checkout "$gf_branch" \
         || return $?
     fi
     return $ecode
