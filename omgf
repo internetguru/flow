@@ -590,7 +590,8 @@ function main {
 
   function gf_confirm_checkout {
     local msg
-    msg="${2:-* \'$1\' already exists, checkout?}"
+    # shellcheck disable=SC2016
+    msg="${2:-* Branch '$1' already exists, checkout?}"
     confirm "$msg" || return 1
     gf_checkout "$1"
   }
