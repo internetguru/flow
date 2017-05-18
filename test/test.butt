@@ -664,14 +664,6 @@ start "merge master hotfix (release branch exists)"
    && omgf --yes release \
    && git_checkout hotfix-myhotfix
   } >/dev/null
-  exit 1
-  debug "echo '' | omgf -v --yes"
-  assert_equal $status 5
-  # resolve dev conflicts
-  { git add . \
-    && git commit -m "Merge branch 'hotfix-myhotfix' into dev" \
-    && git_checkout hotfix-myhotfix
-  } >/dev/null
   debug "echo '' | omgf -v --yes"
   assert_equal $status 5
   # resolve release conflicts
@@ -682,15 +674,15 @@ start "merge master hotfix (release branch exists)"
   debug "echo '' | omgf -v --yes"
   load_log
   assert_contains "$log" "tag: v0.0.1"
-  assert_contains "$(arrowToComma "${loglines[0]:-}")" "(HEAD, release) Merge branch 'hotfix-myhotfix' into release"
-  assert_contains "${loglines[4]:-}" "(dev) Merge branch 'hotfix-myhotfix' into dev"
-  assert_equal "$(cat VERSION)" "0.1.0"
+  assert_contains "${loglines[0]:-}" "(release) Merge branch 'hotfix-myhotfix' into release"
+  assert_contains "$(arrowToComma "${loglines[4]:-}")" "(HEAD, dev) Merge branch 'hotfix-myhotfix' into dev"
+  assert_equal "$(cat VERSION)" "0.0.1"
   gref
   assert_equal "$(echo "$ref" | grep /refs/heads/hotfix-myhotfix)" ""
   assert_equal "$(gsp)" ""
   load_changelog
-  assert_equal "${chgloglines[5]:-}" "## [0.1.0] - $(date "+%Y-%m-%d")"
-  git_checkout dev
+  assert_equal "${chgloglines[4]:-}" "## [0.0.1] - $(date "+%Y-%m-%d")"
+  git_checkout release
   assert_equal "$(cat VERSION)" "0.1.0"
 end
 #######################################
