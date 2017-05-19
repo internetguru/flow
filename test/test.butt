@@ -63,9 +63,6 @@ chgloglines=()
 outlines=()
 user="$(echo "$USER" | tr '[:upper:]' '[:lower:]')"
 
-git config --global user.email "travis@test.com"
-git config --global user.name "travis"
-
 #######################################
 ## Integration
 #######################################
