@@ -921,18 +921,23 @@ function main {
     delete_gf_branch
   }
 
+  function gf_pull_branch {
+    git_remote_branch_exists "$1" \
+      || return
+    git_fetch "$OMGF_ORIGIN" "$1:$1"
+  }
+
   function gf_pull {
     git_remote_exists \
       && git_fetch --tags \
-      && git_fetch "$OMGF_ORIGIN" "$OMGF_DEV:$OMGF_DEV" \
-      && git_fetch "$OMGF_ORIGIN" master:master \
+      && gf_pull_branch "$OMGF_DEV" \
+      && gf_pull_branch master \
+      && gf_pull_branch "$RELEASE" \
       || return $?
-    git_branch_exists "$RELEASE" \
-      && { git_fetch "$OMGF_ORIGIN" "$RELEASE:$RELEASE" || return $?; }
     local stable
     for stable in $(git branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
-      git_branch_exists "$stable" || continue
-      git_fetch "$OMGF_ORIGIN" "$stable:$stable" || return $?
+      gf_pull_branch "$stable" \
+        || return $?
     done
   }
 
