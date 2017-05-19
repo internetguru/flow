@@ -915,6 +915,7 @@ function main {
         && git_tag "$master.$patch" \
         || return $?
     fi
+    [[ $request == 1 ]] && { gf_request master; return $?; }
     if [[ "$into" == master ]]; then
       # ignore changes in VERSION file iff conflict occured
       if git_branch_exists "$RELEASE"; then
