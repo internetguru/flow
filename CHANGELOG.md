@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Fixed
  - Initialization checks only local branches #73
- - `omgf pull` skip local branches without remote branch #59
+ - `omgf pull` updates only local branches with remote branch #59
 
 ## [2.1.2] - 2017-04-10
 ### Fixed
