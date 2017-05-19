@@ -191,15 +191,24 @@ function main {
   function git_branch_create {
     local to
     to="${2:-HEAD}"
+    git_remote_branch_exists "$1" \
+      && to="$OMGF_ORIGIN/$1"
     msg_start "Creating branch '$1' on '$to'"
-    git branch "$1" "$to"
+    git branch "$1" "$to" >/dev/null
     msg_end "$DONE"
   }
 
   function git_branch_exists {
-    git rev-parse --verify "$1" >/dev/null 2>&1 && return 0
-    git rev-parse --verify "$OMGF_ORIGIN/$1" >/dev/null 2>&1 \
-      && git branch "$1" "$OMGF_ORIGIN/$1" >/dev/null 2>&1 || return 1
+    git_local_branch_exists "$1" && return
+    git_remote_branch_exists "$1"
+  }
+
+  function git_local_branch_exists {
+    git rev-parse --verify "$1" >/dev/null 2>&1
+  }
+
+  function git_remote_branch_exists {
+    git ls-remote --heads "$OMGF_ORIGIN" 2>/dev/null | grep -q "$REFSHEADS/$1"$
   }
 
   function git_tag_exists {
@@ -218,14 +227,6 @@ function main {
     git config remote."$OMGF_ORIGIN".url >/dev/null \
       || err "Remote url for '$OMGF_ORIGIN' does not exist" \
       || return 1
-  }
-
-  function git_remote_branch_exists {
-    msg_start "Checking if '$gf_branch' exists on remote '$OMGF_ORIGIN'"
-    git ls-remote --heads "$OMGF_ORIGIN" | grep -q "$REFSHEADS/$gf_branch"$ \
-      || err "Remote branch '$gf_branch' does not exist" \
-      || return 1
-    msg_end "$DONE"
   }
 
   function git_commit_diff {
@@ -280,7 +281,7 @@ function main {
   }
 
   function delete_gf_branch {
-    if git_remote_branch_exists >/dev/null 2>&1; then
+    if git_remote_branch_exists "$gf_branch"; then
       msg_start "Deleting remote branch '$gf_branch'"
       local out
       out="$(git push "$OMGF_ORIGIN" ":$REFSHEADS/$gf_branch" 2>&1)" \
@@ -381,7 +382,7 @@ function main {
     if ! git_has_commits; then
       [[ $conform == 0 ]] && { err "Git repository without commits" || return 3; }
       initial_commit || return $?
-    elif ! git_branch_exists master; then
+    elif ! git_local_branch_exists master; then
       [[ $conform == 0 ]] && { err "Missing branch 'master'" || return 3; }
       git_branch_create master || return 1
     fi
@@ -406,7 +407,7 @@ function main {
   # 1) validate $OMGF_DEV branch
   # 2) validate $OMGF_DEV is up to date with master
   function validate_dev {
-    if ! git_branch_exists "$OMGF_DEV"; then
+    if ! git_local_branch_exists "$OMGF_DEV"; then
       [[ $conform == 0 ]] && { err "Missing branch '$OMGF_DEV'" || return 3; }
       git_branch_create dev master || return 1
     fi
@@ -941,10 +942,10 @@ function main {
       && git_push "$OMGF_ORIGIN" "$OMGF_DEV" \
       && git_push "$OMGF_ORIGIN" master \
       || return $?
-    git_branch_exists "$RELEASE" \
+    git_local_branch_exists "$RELEASE" \
       && { git_push "$OMGF_ORIGIN" "$RELEASE" || return $?; }
     for stable in $(git branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
-      git_branch_exists "$stable" \
+      git_local_branch_exists "$stable" \
         && { git_push "$OMGF_ORIGIN" "$stable" || return $?; }
     done
   }
