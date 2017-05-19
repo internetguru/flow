@@ -59,7 +59,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [1.0.0] - 2016-12-22
 
-[Unreleased]: https://github.com/petrzpav/omgf/compare/master...dev
+[Unreleased]: https://github.com/InternetGuru/omgf/compare/master...dev
 [2.1.2]: https://github.com/InternetGuru/omgf/compare/v2.1.1...v2.1.2
 [2.1.1]: https://github.com/InternetGuru/omgf/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/InternetGuru/omgf/compare/v2.0.2...v2.1.0
