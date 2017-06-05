@@ -4,8 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
+
 ### Changed
  - Increment minor version when release is created #31
+ 
+### Fixed
+ - Initialization checks only local branches #73
+ - `omgf pull` updates only local branches with remote branch #59
 
 ## [2.1.2] - 2017-04-10
 ### Fixed
