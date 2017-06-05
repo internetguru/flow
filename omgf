@@ -280,6 +280,7 @@ function main {
     [[ -z "$(additional_commits "$2" "$1")" ]] \
       && msg_end "$SKIP" \
       && return
+    # $4 can be --no-commit if explicitly given
     git_checkout "$2" \
       && { git_merge "${3:---no-ff}" "${4:---commit}" "$1" || return 5; } \
       && { [[ -n "${4:-}" ]] || git_checkout "$prev_branch"; } \
@@ -628,8 +629,7 @@ function main {
     patch=0
     gf_commit_version \
       && load_version \
-      || return $?
-    gf_update_changelog_header || return $?
+      && gf_update_changelog_header
   }
 
   function gf_feature {
