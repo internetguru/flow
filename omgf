@@ -269,11 +269,15 @@ function main {
     git log >/dev/null 2>&1
   }
 
+  function additional_commits {
+    git log "$1".."${2:-gf_branch}" "${3:-}"
+  }
+
   function merge_branches {
     local prev_branch
     prev_branch="$(git_current_branch)"
     msg_start "Merging '$1' into branch '$2'"
-    [[ -z "$(git log "$2".."$1")" ]] \
+    [[ -z "$(additional_commits "$2" "$1")" ]] \
       && msg_end "$SKIP" \
       && return
     git_checkout "$2" \
@@ -794,7 +798,7 @@ function main {
 
   function gf_update_changelog {
     local commits
-    commits="$(git log "$OMGF_DEV".."$gf_branch" --pretty=format:"*   %h %s")"
+    commits="$(additional_commits "$OMGF_DEV" '--pretty=format:"*   %h %s"')"
     stdout_verbose
     echo
     echo "***"
@@ -851,7 +855,7 @@ function main {
   }
 
   function gf_merge_feature {
-    [[ -n "$(git log "$OMGF_DEV".."$gf_branch")" ]] \
+    [[ -n "$(additional_commits "$OMGF_DEV")" ]] \
       || err "Nothing to merge - feature branch '$gf_branch' is empty" \
       || return 1
     local confirm_suffix
@@ -902,7 +906,7 @@ function main {
       into="$master"
       confirm "* Merge hotfix into stable branch '$master'$confirm_suffix?" || return 0
     fi
-    if [[ -n "$(git log "$into".."$gf_branch")" ]]; then
+    if [[ -n "$(additional_commits "$into")" ]]; then
       gf_prepare_to_merge "$into" \
         && patch=$((patch+1)) \
         && gf_commit_version \
@@ -931,7 +935,7 @@ function main {
 
   function gf_version_ignore_merge {
     local ecode
-    [[ -z "$(git log "$1".."$gf_branch")" ]] \
+    [[ -z "$(additional_commits "$1")" ]] \
       && return
     merge_branches "$gf_branch" "$1" "--no-ff" "--no-commit"
     ecode=$?
