@@ -913,13 +913,13 @@ function main {
         && gf_update_changelog 4 \
         && gf_update_changelog_header \
         || return $?
-      [[ $request == 1 ]] && { gf_request master; return $?; }
+      [[ $request == 1 ]] && { gf_request "$into"; return $?; }
       merge_branches "$gf_branch" "$into" \
         && git_checkout "$into" \
         && git_tag "$master.$patch" \
         || return $?
     fi
-    [[ $request == 1 ]] && { gf_request master; return $?; }
+    [[ $request == 1 ]] && { gf_request "$into"; return $?; }
     if [[ "$into" == master ]]; then
       # ignore changes in VERSION file iff conflict occured
       if git_branch_exists "$RELEASE"; then
