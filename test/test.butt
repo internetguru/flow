@@ -661,6 +661,7 @@ start "merge master hotfix (release branch exists)"
    && omgf --yes release \
    && git_checkout hotfix-myhotfix
   } >/dev/null
+  # assume conflicts
   debug "echo '' | omgf -v --yes"
   assert_equal $status 5
   # resolve release conflicts
@@ -668,7 +669,9 @@ start "merge master hotfix (release branch exists)"
     && git commit -m "Merge branch 'hotfix-myhotfix' into release" \
     && git_checkout hotfix-myhotfix
   } >/dev/null
+  # assume success
   debug "echo '' | omgf -v --yes"
+  assert_equal $status 0
   load_log
   assert_contains "$log" "tag: v0.0.1"
   assert_contains "$log" "Merge branch 'hotfix-myhotfix' into release"
