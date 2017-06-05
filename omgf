@@ -191,15 +191,24 @@ function main {
   function git_branch_create {
     local to
     to="${2:-HEAD}"
+    git_remote_branch_exists "$1" \
+      && to="$OMGF_ORIGIN/$1"
     msg_start "Creating branch '$1' on '$to'"
-    git branch "$1" "$to"
+    git branch "$1" "$to" >/dev/null
     msg_end "$DONE"
   }
 
   function git_branch_exists {
-    git rev-parse --verify "$1" >/dev/null 2>&1 && return 0
-    git rev-parse --verify "$OMGF_ORIGIN/$1" >/dev/null 2>&1 \
-      && git branch "$1" "$OMGF_ORIGIN/$1" >/dev/null 2>&1 || return 1
+    git_local_branch_exists "$1" && return
+    git_remote_branch_exists "$1"
+  }
+
+  function git_local_branch_exists {
+    git rev-parse --verify "$1" >/dev/null 2>&1
+  }
+
+  function git_remote_branch_exists {
+    git ls-remote --heads "$OMGF_ORIGIN" 2>/dev/null | grep -q "$REFSHEADS/$1"$
   }
 
   function git_tag_exists {
@@ -218,14 +227,6 @@ function main {
     git config remote."$OMGF_ORIGIN".url >/dev/null \
       || err "Remote url for '$OMGF_ORIGIN' does not exist" \
       || return 1
-  }
-
-  function git_remote_branch_exists {
-    msg_start "Checking if '$gf_branch' exists on remote '$OMGF_ORIGIN'"
-    git ls-remote --heads "$OMGF_ORIGIN" | grep -q "$REFSHEADS/$gf_branch"$ \
-      || err "Remote branch '$gf_branch' does not exist" \
-      || return 1
-    msg_end "$DONE"
   }
 
   function git_commit_diff {
@@ -269,18 +270,29 @@ function main {
     git log >/dev/null 2>&1
   }
 
+  function additional_commits {
+    git log "$1".."${2:-$gf_branch}"
+  }
+
   function merge_branches {
     local prev_branch
     prev_branch="$(git_current_branch)"
-    msg_start "Merging '$1' into branch '$2'" \
-      && git_checkout "$2" \
-      && { git_merge "$1" "${3:---no-ff}" || return 5; } \
-      && git_checkout "$prev_branch" \
+    msg_start "Merging '$1' into branch '$2'"
+    [[ -z "$(additional_commits "$2" "$1")" ]] \
+      && msg_end "$SKIP" \
+      && return
+    # $4 can be --no-commit if explicitly given
+    git_checkout "$2" \
+      && { git_merge "${3:---no-ff}" "${4:---commit}" "$1" || return 5; } \
+      && { [[ -n "${4:-}" ]] || git_checkout "$prev_branch"; } \
       && msg_end "$DONE"
   }
 
   function delete_gf_branch {
-    if git_remote_branch_exists >/dev/null 2>&1; then
+    [[ "$(git_current_branch)" != "$gf_branch" ]] \
+      || git_checkout "$OMGF_DEV" \
+      || return $?
+    if git_remote_branch_exists "$gf_branch"; then
       msg_start "Deleting remote branch '$gf_branch'"
       local out
       out="$(git push "$OMGF_ORIGIN" ":$REFSHEADS/$gf_branch" 2>&1)" \
@@ -381,7 +393,7 @@ function main {
     if ! git_has_commits; then
       [[ $conform == 0 ]] && { err "Git repository without commits" || return 3; }
       initial_commit || return $?
-    elif ! git_branch_exists master; then
+    elif ! git_local_branch_exists master; then
       [[ $conform == 0 ]] && { err "Missing branch 'master'" || return 3; }
       git_branch_create master || return 1
     fi
@@ -406,7 +418,7 @@ function main {
   # 1) validate $OMGF_DEV branch
   # 2) validate $OMGF_DEV is up to date with master
   function validate_dev {
-    if ! git_branch_exists "$OMGF_DEV"; then
+    if ! git_local_branch_exists "$OMGF_DEV"; then
       [[ $conform == 0 ]] && { err "Missing branch '$OMGF_DEV'" || return 3; }
       git_branch_create dev master || return 1
     fi
@@ -584,7 +596,8 @@ function main {
 
   function gf_confirm_checkout {
     local msg
-    msg="${2:-* \'$1\' already exists, checkout?}"
+    # shellcheck disable=SC2016
+    msg="${2:-* Branch '$1' already exists, checkout?}"
     confirm "$msg" || return 1
     gf_checkout "$1"
   }
@@ -613,6 +626,11 @@ function main {
     [[ $confirmed == 0 ]] \
       && { confirm "* Create branch '$RELEASE' from current HEAD?" || return 0; }
     git_checkout_branch "$RELEASE"
+    ((minor++))
+    patch=0
+    gf_commit_version \
+      && load_version \
+      && gf_update_changelog_header
   }
 
   function gf_feature {
@@ -669,14 +687,6 @@ function main {
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     confirm "* Create stable branch from release$confirm_suffix?" || return 0
     merge_branches master "$gf_branch" || return $?
-    if ! git_version_diff "$OMGF_DEV" "$major.$minor"; then
-      ((minor++))
-      patch=0
-      gf_commit_version \
-        && load_version \
-        || return $?
-    fi
-    gf_update_changelog_header || return $?
     [[ $request == 1 ]] && { gf_request master; return $?; }
     git_checkout master \
       && merge_branches "$gf_branch" "$OMGF_DEV" \
@@ -846,7 +856,7 @@ function main {
   }
 
   function gf_merge_feature {
-    [[ -n "$(git log "$OMGF_DEV".."$gf_branch")" ]] \
+    [[ -n "$(additional_commits "$OMGF_DEV")" ]] \
       || err "Nothing to merge - feature branch '$gf_branch' is empty" \
       || return 1
     local confirm_suffix
@@ -897,41 +907,72 @@ function main {
       into="$master"
       confirm "* Merge hotfix into stable branch '$master'$confirm_suffix?" || return 0
     fi
-    [[ -n "$(git log "$into".."$gf_branch")" ]] \
-      || err "Nothing to merge - hotfix branch '$gf_branch' is empty" \
-      || return 1
-    gf_prepare_to_merge "$into" \
-      && patch=$((patch+1)) \
-      && gf_commit_version \
-      && gf_update_changelog 4 \
-      && gf_update_changelog_header \
-      || return $?
-    [[ $request == 1 ]] && { gf_request master; return $?; }
-    merge_branches "$gf_branch" "$into" \
-      && git_checkout "$into" \
-      && git_tag "$master.$patch" \
-      || return $?
+    if [[ -n "$(additional_commits "$into")" ]]; then
+      gf_prepare_to_merge "$into" \
+        && patch=$((patch+1)) \
+        && gf_commit_version \
+        && gf_update_changelog 4 \
+        && gf_update_changelog_header \
+        || return $?
+      [[ $request == 1 ]] && { gf_request "$into"; return $?; }
+      merge_branches "$gf_branch" "$into" \
+        && git_checkout "$into" \
+        && git_tag "$master.$patch" \
+        || return $?
+    fi
+    [[ $request == 1 ]] && { gf_request "$into"; return $?; }
     if [[ "$into" == master ]]; then
-      merge_branches "$gf_branch" "$OMGF_DEV" || return $?
+      # ignore changes in VERSION file iff conflict occured
       if git_branch_exists "$RELEASE"; then
-        merge_branches "$gf_branch" "$RELEASE" || return $?
+        gf_version_ignore_merge "$OMGF_DEV" \
+          && gf_version_ignore_merge "$RELEASE" \
+          || return $?
+      else
+        merge_branches "$gf_branch" "$OMGF_DEV" || return $?
       fi
     fi
     delete_gf_branch
   }
 
+
+  function gf_version_ignore_merge {
+    local ecode
+    [[ -z "$(additional_commits "$1")" ]] \
+      && return
+    merge_branches "$gf_branch" "$1" "--no-ff" "--no-commit"
+    ecode=$?
+    # ignore version iff conflict occurred
+    if [[ $ecode == 5 ]]; then
+      git reset "$OMGF_VERSION" >/dev/null \
+        && git_checkout "$OMGF_VERSION" \
+        || return $?
+    fi
+    # no conflicts, proceed merge
+    if [[ $ecode == 0 ]]; then
+      git commit -am "Merge branch '$gf_branch' into $1" >/dev/null \
+        && git_checkout "$gf_branch" \
+        || return $?
+    fi
+    return $ecode
+  }
+
+  function gf_pull_branch {
+    git_remote_branch_exists "$1" \
+      || return
+    git_fetch "$OMGF_ORIGIN" "$1:$1"
+  }
+
   function gf_pull {
     git_remote_exists \
       && git_fetch --tags \
-      && git_fetch "$OMGF_ORIGIN" "$OMGF_DEV:$OMGF_DEV" \
-      && git_fetch "$OMGF_ORIGIN" master:master \
+      && gf_pull_branch "$OMGF_DEV" \
+      && gf_pull_branch master \
+      && gf_pull_branch "$RELEASE" \
       || return $?
-    git_branch_exists "$RELEASE" \
-      && { git_fetch "$OMGF_ORIGIN" "$RELEASE:$RELEASE" || return $?; }
     local stable
     for stable in $(git branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
-      git_branch_exists "$stable" || continue
-      git_fetch "$OMGF_ORIGIN" "$stable:$stable" || return $?
+      gf_pull_branch "$stable" \
+        || return $?
     done
   }
 
@@ -941,10 +982,10 @@ function main {
       && git_push "$OMGF_ORIGIN" "$OMGF_DEV" \
       && git_push "$OMGF_ORIGIN" master \
       || return $?
-    git_branch_exists "$RELEASE" \
+    git_local_branch_exists "$RELEASE" \
       && { git_push "$OMGF_ORIGIN" "$RELEASE" || return $?; }
     for stable in $(git branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
-      git_branch_exists "$stable" \
+      git_local_branch_exists "$stable" \
         && { git_push "$OMGF_ORIGIN" "$stable" || return $?; }
     done
   }

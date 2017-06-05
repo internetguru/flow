@@ -45,6 +45,8 @@ install:
   - chmod +x $PREFIX/bin/butt
 
 before_script:
+  - git config --global user.email "travis@test.com"
+  - git config --global user.name "travis"
   - |
     if [[ $DIST == regular ]]; then
       ./configure \

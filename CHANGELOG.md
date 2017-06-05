@@ -3,6 +3,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
+## [2.2.0] - 2017-06-05
+
+### Changed
+ - Increment minor version when release is created #31
+ 
+### Fixed
+ - Initialization checks only local branches #73
+ - `omgf pull` updates only local branches with remote branch #59
+
 ## [2.1.2] - 2017-04-10
 ### Fixed
  - Repair --help option #64
@@ -55,6 +64,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [1.0.0] - 2016-12-22
 
+[2.2.0]: https://github.com/InternetGuru/omgf/compare/v2.1.2...v2.2.0
 [2.1.2]: https://github.com/InternetGuru/omgf/compare/v2.1.1...v2.1.2
 [2.1.1]: https://github.com/InternetGuru/omgf/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/InternetGuru/omgf/compare/v2.0.2...v2.1.0
