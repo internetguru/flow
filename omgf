@@ -892,6 +892,7 @@ function main {
   function gf_commit_version {
     msg_start "Increment version number to '$major.$minor.$patch'"
     echo "$major.$minor.$patch" > "$OMGF_VERSION"
+    [[ -s configure.ac ]] && autoreconf -f
     git commit -am "Increment version number" >/dev/null || return 1
     msg_end "$DONE"
   }
