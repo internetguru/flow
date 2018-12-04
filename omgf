@@ -702,6 +702,7 @@ function main {
     url="$(trim_url "$url")"
     case "$url" in
       *"$GITHUB"*) echo "https://$url/compare/$1...$2" ;;
+      *"$GITLAB"*) echo "https://$url/compare/$1...$2" ;;
       *"$BITBUCKET"*) echo "https://$url/compare/$2..$1" ;;
       *) echo "" ;;
     esac
@@ -1024,6 +1025,12 @@ function main {
           && echo "https://$url/compare/$to...$gf_branch?expand=1" \
           || echo "https://$upstream_url/compare/$to...$(echo "$url" | cut -d'/' -f2)%3A$gf_branch?expand=1"
       ;;
+      *"$GITLAB"*)
+        # shellcheck disable=SC1003
+        [[ "$url" == "$upstream_url" ]] \
+          && echo "https://$url/compare/$to...$gf_branch" \
+          || echo "https://$upstream_url/compare/$to...$(echo "$url" | cut -d'/' -f2)"
+      ;;
       *"$BITBUCKET"*)
         # shellcheck disable=SC1003
         [[ "$url" == "$upstream_url" ]] \
@@ -1198,6 +1205,7 @@ function main {
     GREEN=2 \
     BLUE=4 \
     GITHUB="github.com" \
+    GITLAB="gitlab.com" \
     BITBUCKET="bitbucket.org" \
     HOTFIX="hotfix" \
     RELEASE="release" \
