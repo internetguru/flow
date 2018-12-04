@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
+## [Unreleased]
+### Added
+ - `gf -r` can generate request URL for projects hosted by gitlab.com
+
 ## [2.2.0] - 2017-06-05
 
 ### Changed
