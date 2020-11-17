@@ -626,11 +626,14 @@ function main {
     [[ $confirmed == 0 ]] \
       && { confirm "* Create branch '$RELEASE' from current HEAD?" || return 0; }
     git_checkout_branch "$RELEASE"
+    gf_update_changelog_header \
+      || return $?
+    git_checkout "$OMGF_DEV"
     ((minor++))
     patch=0
     gf_commit_version \
       && load_version \
-      && gf_update_changelog_header
+      && git_checkout "$RELEASE"
   }
 
   function gf_feature {
