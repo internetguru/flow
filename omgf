@@ -626,11 +626,6 @@ function main {
     [[ $confirmed == 0 ]] \
       && { confirm "* Create branch '$RELEASE' from current HEAD?" || return 0; }
     git_checkout_branch "$RELEASE"
-    ((minor++))
-    patch=0
-    gf_commit_version \
-      && load_version \
-      && gf_update_changelog_header
   }
 
   function gf_feature {
@@ -682,11 +677,21 @@ function main {
     merge_branches "$gf_branch" "$OMGF_DEV" || return $?
   }
 
+  function gf_increment_minor {
+    ((minor++))
+    patch=0
+    gf_commit_version \
+      && load_version
+  }
+
   function gf_release_release {
     local confirm_suffix
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     confirm "* Create stable branch from release$confirm_suffix?" || return 0
-    merge_branches master "$gf_branch" || return $?
+    gf_update_changelog_header \
+      && merge_branches master "$gf_branch" \
+      && gf_increment_minor \
+      || return $?
     [[ $request == 1 ]] && { gf_request master; return $?; }
     git_checkout master \
       && merge_branches "$gf_branch" "$OMGF_DEV" \
