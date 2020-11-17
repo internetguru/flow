@@ -37,7 +37,7 @@ function checkInitRefs {
   assert_contains "$ref" "refs/tags/v0.0.0"
 }
 function checkInitFiles {
-  assert_equal "$(cat VERSION)" "0.0.0"
+  assert_equal "$(cat VERSION)" "0.1.0"
   assert_equal "$(head -n1 CHANGELOG.md)" "# Change Log"
 }
 function load_log {
@@ -151,7 +151,7 @@ start "dev is behind master error code"
     && git commit -am "add file a" \
     && omgf release --yes \
     && omgf release --yes \
-    && git reset --hard HEAD~1
+    && git reset --hard HEAD~2
   } >/dev/null
   debug "omgf -v"
   assert_equal $status 3
