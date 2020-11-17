@@ -420,7 +420,9 @@ function main {
   function validate_dev {
     if ! git_local_branch_exists "$OMGF_DEV"; then
       [[ $conform == 0 ]] && { err "Missing branch '$OMGF_DEV'" || return 3; }
-      git_branch_create dev master || return 1
+      git_branch_create dev master \
+        && gf_increment_minor \
+        || return 1
     fi
     local last_change
     last_change="$(master_last_change)"
