@@ -935,12 +935,11 @@ function main {
           && gf_version_ignore_merge "$RELEASE" \
           || return $?
       else
-        merge_branches "$gf_branch" "$OMGF_DEV" || return $?
+        gf_version_ignore_merge "$gf_branch" "$OMGF_DEV" || return $?
       fi
     fi
     delete_gf_branch
   }
-
 
   function gf_version_ignore_merge {
     local ecode
