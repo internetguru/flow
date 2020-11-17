@@ -688,17 +688,16 @@ function main {
     local confirm_suffix
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     confirm "* Create stable branch from release$confirm_suffix?" || return 0
-    gf_update_changelog_header \
-      && merge_branches master "$gf_branch" \
-      && gf_increment_minor \
-      || return $?
+    merge_branches master "$gf_branch" || return $?
     [[ $request == 1 ]] && { gf_request master; return $?; }
     git_checkout master \
+      && gf_update_changelog_header \
       && merge_branches "$gf_branch" "$OMGF_DEV" \
       && merge_branches "$gf_branch" master \
       && git_tag "$master".0 \
       && delete_gf_branch \
       && git_checkout "$OMGF_DEV" \
+      && gf_increment_minor \
       || return $?
   }
 
