@@ -690,8 +690,8 @@ function main {
     confirm "* Create stable branch from release$confirm_suffix?" || return 0
     merge_branches master "$gf_branch" || return $?
     [[ $request == 1 ]] && { gf_request master; return $?; }
-    git_checkout master \
-      && gf_update_changelog_header \
+    gf_update_changelog_header \
+      && git_checkout master \
       && merge_branches "$gf_branch" "$OMGF_DEV" \
       && merge_branches "$gf_branch" master \
       && git_tag "$master".0 \
