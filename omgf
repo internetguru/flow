@@ -234,7 +234,7 @@ function main {
   }
 
   function git_version_diff {
-    [[ "$(git show "$1":"$OMGF_VERSION" | cut -d. -f1-2)" != "$2" ]]
+    [[ "$(git show "$1":"$OMGF_VERSION" | cut -d. -f1-2)." != "$2" ]]
   }
 
   function git_current_branch {
@@ -430,6 +430,29 @@ function main {
     fi
   }
 
+  function validate_release {
+    if ! git_local_branch_exists "$RELEASE"; then
+      [[ $conform == 0 ]] && { err "Missing branch '$RELEASE'" || return 3; }
+      git_branch_create "$RELEASE" "$OMGF_DEV" || return 1
+    fi
+  }
+
+  function validate_dev_version {
+    if [[ "$(git show "$OMGF_DEV":"$OMGF_VERSION")" == "$(git show "$RELEASE":"$OMGF_VERSION")" ]]; then
+      [[ $conform == 0 ]] && { err "Branch $OMGF_DEV has same version as $RELEASE" || return 3; }
+      local prev_branch
+      prev_branch="$(git_current_branch)"
+      git_checkout "$OMGF_DEV" || return $?
+      load_version
+      ((minor++))
+      patch=0
+      gf_commit_version \
+        && git_checkout "$prev_branch" \
+        && load_version \
+        || return $?
+    fi
+  }
+
   # validate git status
   function validate_status_empty {
     if [[ $force == 1 ]]; then
@@ -459,6 +482,8 @@ function main {
     validate_gf_files || return $?
     validate_master_tag "$gf_branch" || return $?
     validate_dev || return $?
+    validate_release || return $?
+    validate_dev_version || return $?
     validate_status_empty || return $?
     validate_changelog_heading || return $?
     # load and validate user params
@@ -603,10 +628,10 @@ function main {
   }
 
   function gf_release {
-    if git_branch_exists "$RELEASE"; then
-      gf_confirm_checkout "$RELEASE"
-      return $?
-    fi
+    # if git_branch_exists "$RELEASE"; then
+    #   gf_confirm_checkout "$RELEASE"
+    #   return $?
+    # fi
     local last_merge valid_commits confirmed
     confirmed=0
     last_merge="$(git reflog show dev --format="%h:%gs" | grep -m1 ":merge release:" | cut -d: -f1)"
@@ -625,7 +650,11 @@ function main {
       || return 1
     [[ $confirmed == 0 ]] \
       && { confirm "* Create branch '$RELEASE' from current HEAD?" || return 0; }
-    git_checkout_branch "$RELEASE"
+    git_checkout "$RELEASE" 2>/dev/null \
+      || git_checkout_branch "$RELEASE"
+    # use --keep-theirs if conflicting
+    merge_branches "$OMGF_DEV" "$RELEASE"
+    git_checkout "$OMGF_DEV"
     ((minor++))
     patch=0
     gf_commit_version \
@@ -683,16 +712,18 @@ function main {
   }
 
   function gf_release_release {
+    git_version_diff master "$major.$minor." \
+      || err 'Already released'
     local confirm_suffix
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     confirm "* Create stable branch from release$confirm_suffix?" || return 0
+    gf_update_changelog_header
     merge_branches master "$gf_branch" || return $?
     [[ $request == 1 ]] && { gf_request master; return $?; }
     git_checkout master \
       && merge_branches "$gf_branch" "$OMGF_DEV" \
       && merge_branches "$gf_branch" master \
       && git_tag "$master".0 \
-      && delete_gf_branch \
       && git_checkout "$OMGF_DEV" \
       || return $?
   }
@@ -900,7 +931,7 @@ function main {
     local confirm_suffix into
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     # master -> merge hotfix into master and dev
-    if ! git_version_diff master "$major.$minor"; then
+    if ! git_version_diff master "$major.$minor."; then
       into=master
       confirm "* Merge hotfix into master and '$OMGF_DEV'$confirm_suffix?" || return 0
     else
