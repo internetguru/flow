@@ -655,11 +655,12 @@ function main {
     # use --keep-theirs if conflicting
     merge_branches "$OMGF_DEV" "$RELEASE"
     git_checkout "$OMGF_DEV"
+    gf_update_changelog_header
     ((minor++))
     patch=0
     gf_commit_version \
-      && load_version \
-      && gf_update_changelog_header
+      && git_checkout "$RELEASE" \
+      && load_version
   }
 
   function gf_feature {
@@ -954,13 +955,9 @@ function main {
     [[ $request == 1 ]] && { gf_request "$into"; return $?; }
     if [[ "$into" == master ]]; then
       # ignore changes in VERSION file iff conflict occured
-      if git_branch_exists "$RELEASE"; then
-        gf_version_ignore_merge "$OMGF_DEV" \
-          && gf_version_ignore_merge "$RELEASE" \
-          || return $?
-      else
-        merge_branches "$gf_branch" "$OMGF_DEV" || return $?
-      fi
+      gf_version_ignore_merge "$OMGF_DEV" \
+        && gf_version_ignore_merge "$RELEASE" \
+        || return $?
     fi
     delete_gf_branch
   }
@@ -976,6 +973,8 @@ function main {
     if [[ $ecode == 5 ]]; then
       git reset "$OMGF_VERSION" >/dev/null \
         && git_checkout "$OMGF_VERSION" \
+        && git -c core.editor=/bin/true merge --continue >/dev/null \
+        && return 0 \
         || return $?
     fi
     # no conflicts, proceed merge
