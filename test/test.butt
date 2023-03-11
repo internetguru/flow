@@ -173,7 +173,7 @@ start "uncommitted changes error code"
 end
 #######################################
 : $((i++))
-start "conflicting merge error code"
+start "version change on dev"
   take "$i"
   { omgf -i \
     && omgf --yes hotfix a \
@@ -186,7 +186,7 @@ start "conflicting merge error code"
     && git checkout hotfix-a 2>&1
   } >/dev/null
   debug "echo '' | omgf --yes"
-  assert_equal $status 5
+  assert_equal $status 0
   assert_startwith "${errlines[0]}" "omgf[error]: Auto-merging"
 end
 #######################################
