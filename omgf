@@ -3,25 +3,25 @@
 shopt -s extglob
 set -u
 
-# shellcheck disable=SC2086
+# shellcheck disable=SC2223
 : ${OMGF_DATAPATH:=.}
-# shellcheck disable=SC2086
+# shellcheck disable=SC2223
 : ${OMGF_CHANGELOG:=CHANGELOG.md}
-# shellcheck disable=SC2086
+# shellcheck disable=SC2223
 : ${OMGF_VERSION:=VERSION}
-# shellcheck disable=SC2086
+# shellcheck disable=SC2223
 : ${OMGF_DEV:=dev}
-# shellcheck disable=SC2086
+# shellcheck disable=SC2223
 : ${OMGF_ORIGIN:=origin}
-# shellcheck disable=SC2086
+# shellcheck disable=SC2223
 : ${OMGF_UPSTREAM:=$OMGF_ORIGIN}
-# shellcheck disable=SC2086
+# shellcheck disable=SC2223
 : ${OMGF_CHANGELOG_HEADER:=# Change Log
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).}
-# shellcheck disable=SC2086
+# shellcheck disable=SC2223
 : ${OMGF_NOPREFIX:=}
 : ${COLUMNS:=$(tput cols)}
 : ${LINES:=$(tput lines)}
@@ -1184,7 +1184,7 @@ function main {
   pr_suffix=" (push and get pull request URL)"
 
   # process options
-  # shellcheck disable=SC2086
+  # shellcheck disable=SC2223
   # shellcheck disable=SC2048
   if ! line=$(
     IFS=" " getopt -n "$0" \
