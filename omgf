@@ -12,6 +12,10 @@ set -u
 # shellcheck disable=SC2223
 : ${OMGF_DEV:=dev}
 # shellcheck disable=SC2223
+: ${OMGF_RELEASE:=release}
+# shellcheck disable=SC2223
+: ${OMGF_MASTER:=master}
+# shellcheck disable=SC2223
 : ${OMGF_ORIGIN:=origin}
 # shellcheck disable=SC2223
 : ${OMGF_UPSTREAM:=$OMGF_ORIGIN}
@@ -57,6 +61,7 @@ function main {
     return 0
   }
 
+  #TODO: exit with $2 ?
   function err {
     echo "$(basename "${0}")[error]: $*" >&2
     return 1
@@ -215,7 +220,7 @@ function main {
     git tag | grep -q "^$1"
   }
 
-  function git_tag_here {
+  function has_tag {
     git tag --points-at HEAD | grep -q "^$1$"
   }
 
@@ -277,13 +282,13 @@ function main {
 
   # idea:
   # merge upwards preserving conflicts
-  # merge downwards ignoring conflicts
+  # merge downwards ignoring VERSION and CHANGELOG conflicts
   # upwards: feature->dev->release->master, hotfix->master
   # downwards: master->release->dev
   function merge_fromto {
     local stream
     stream='upwards'
-    [[ "$1" == 'master' || "$2" == "${OMGF_DEV}" ]] \
+    [[ "$1" == "${OMGF_MASTER}" || "$2" == "${OMGF_DEV}" ]] \
       && stream='downwards'
     msg_start "Merging ${stream} from '$1' to '$2'"
     [[ -z "$(additional_commits "$2" "$1")" ]] \
@@ -341,7 +346,7 @@ function main {
   }
 
   function master_last_change {
-    git cherry -v "$OMGF_DEV" master | tail -n1 | cut -d" " -f2
+    git cherry -v "$OMGF_DEV" "${OMGF_MASTER}" | tail -n1 | cut -d" " -f2
   }
 
   # $1 filepath
@@ -411,9 +416,9 @@ function main {
     if ! git_has_commits; then
       [[ $conform == 0 ]] && { err "Git repository without commits" || return 3; }
       initial_commit || return $?
-    elif ! git_local_branch_exists master; then
-      [[ $conform == 0 ]] && { err "Missing branch 'master'" || return 3; }
-      git_branch_create master || return 1
+    elif ! git_local_branch_exists "${OMGF_MASTER}"; then
+      [[ $conform == 0 ]] && { err "Missing branch '${OMGF_MASTER}'" || return 3; }
+      git_branch_create "${OMGF_MASTER}" || return 1
     fi
   }
 
@@ -427,10 +432,12 @@ function main {
 
   # validate tag on ($)master
   function validate_master_tag {
-    if ([[ $1 == master ]] || [[ $1 == "$master" ]]) && ! git_tag_here "$master.$patch"; then
-      [[ $conform == 0 ]] && { err "Missing tag '$master.$patch' on current HEAD" || return 3; }
-      git_tag "$master.$patch";
-    fi
+    [[ "$1" != "${OMGF_MASTER}" ]] && [[ "$1" != "$master" ]] \
+      && return
+    has_tag "$master.$patch" \
+      && return
+    [[ $conform == 0 ]] && { err "Missing tag '$master.$patch' on current HEAD" || return 3; }
+    git_tag "$master.$patch";
   }
 
   # 1) validate $OMGF_DEV branch
@@ -438,12 +445,12 @@ function main {
   function validate_dev {
     if ! git_local_branch_exists "$OMGF_DEV"; then
       [[ $conform == 0 ]] && { err "Missing branch '$OMGF_DEV'" || return 3; }
-      git_branch_create dev master || return 1
+      git_branch_create "${OMGF_DEV}" "${OMGF_MASTER}" || return 1
     fi
     local last_change
     last_change="$(master_last_change)"
     if [[ -n "$last_change" ]] && ! git branch --contains "$last_change" | grep -q "$OMGF_DEV"; then
-      [[ $conform == 0 ]] && { err "Branch master is not merged with '$OMGF_DEV'" || return 3; }
+      [[ $conform == 0 ]] && { err "Branch '${OMGF_MASTER}' is not merged with '$OMGF_DEV'" || return 3; }
       merge_fromto "$last_change" "$OMGF_DEV" || return $?
     fi
   }
@@ -561,8 +568,8 @@ function main {
   }
 
   function create_stable_branch {
-    git_commit_diff "$gf_branch" master \
-      || { git_checkout master; return $?; }
+    git_commit_diff "$gf_branch" "${OMGF_MASTER}" \
+      || { git_checkout "${OMGF_MASTER}"; return $?; }
     if git_branch_exists "$master"; then
       git_commit_diff "$gf_branch" "$master" \
         || { git_checkout "$master"; return $?; }
@@ -579,7 +586,7 @@ function main {
     # action according to current branch
     if [[ $arg_count -eq 0 ]]; then
       case "${gf_branch%%-*}" in
-        HEAD|master|$prefix+([0-9]).+([0-9]))
+        HEAD|${OMGF_MASTER}|$prefix+([0-9]).+([0-9]))
           branch_name="$(prefix_branch "$HOTFIX" "$(strtolower "$(whoami)")" )"
           gf_hotfix "$branch_name"
         ;;
@@ -615,7 +622,7 @@ function main {
     # action according to given name and kw
     if [[ -z "$par_kw" ]]; then
       case "${gf_branch%%-*}" in
-        HEAD|master|$prefix+([0-9]).+([0-9])|$RELEASE|$HOTFIX) par_kw="$HOTFIX" ;;
+        HEAD|${OMGF_MASTER}|$prefix+([0-9]).+([0-9])|$RELEASE|$HOTFIX) par_kw="$HOTFIX" ;;
         $OMGF_DEV|$FEATURE) par_kw="$FEATURE" ;;
         *) err "Current branch '$gf_branch' is not recognized" || return 1 ;;
       esac
@@ -663,8 +670,8 @@ function main {
       confirmed=1
     fi
     # HEAD and master has no diff, nothing to do
-    [[ -n "$(git diff HEAD master)" ]] \
-      || err "Current HEAD is same as branch 'master', nothing to do" \
+    [[ -n "$(git diff HEAD "${OMGF_MASTER}")" ]] \
+      || err "Current HEAD is same as branch '${OMGF_MASTER}', nothing to do" \
       || return 1
     [[ $confirmed == 0 ]] \
       && { confirm "* Create branch '$RELEASE' from current HEAD?" || return 0; }
@@ -710,7 +717,7 @@ function main {
       hotfix_name="$1"
     fi
     to="$( git tag | grep -e ^"$master". | sort -V | tail -n1 )"
-    [ -z "$to" ] && to="master"
+    [ -z "$to" ] && to="${OMGF_MASTER}"
     if git_branch_exists "$hotfix_name"; then
       gf_confirm_checkout "$hotfix_name"
       return $?
@@ -719,7 +726,7 @@ function main {
     gf_checkout "$to" \
       && load_version \
       || return $?
-    if [[ "$gf_branch" != master ]]; then
+    if [[ "$gf_branch" != "${OMGF_MASTER}" ]]; then
       create_stable_branch || return $?
     fi
     git_checkout_branch "$hotfix_name" || return $?
@@ -731,17 +738,17 @@ function main {
   }
 
   function gf_release_release {
-    git_version_diff master "$major.$minor." \
+    git_version_diff "${OMGF_MASTER}" "$major.$minor." \
       || err 'Already released'
     local confirm_suffix
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     confirm "* Create stable branch from release$confirm_suffix?" || return 0
     gf_update_changelog_header
-    merge_fromto master "$gf_branch" || return $?
-    [[ $request == 1 ]] && { gf_request master; return $?; }
-    git_checkout master \
+    merge_fromto "${OMGF_MASTER}" "$gf_branch" || return $?
+    [[ $request == 1 ]] && { gf_request "${OMGF_MASTER}"; return $?; }
+    git_checkout "${OMGF_MASTER}" \
       && merge_fromto "$gf_branch" "$OMGF_DEV" \
-      && merge_fromto "$gf_branch" master \
+      && merge_fromto "$gf_branch" "${OMGF_MASTER}" \
       && git_tag "$master".0 \
       && git_checkout "$OMGF_DEV" \
       || return $?
@@ -797,10 +804,10 @@ function main {
   function gf_write_changelog_line {
     local tmpfile compare_url
     tmpfile="$(mktemp)"
-    compare_url="$(gf_get_compare_url master "$OMGF_DEV")"
+    compare_url="$(gf_get_compare_url "${OMGF_MASTER}" "$OMGF_DEV")"
     [[ -n "$compare_url" ]] \
       && compare_url="[Unreleased]: $compare_url" \
-      || compare_url="[Unreleased]: master..$OMGF_DEV"
+      || compare_url="[Unreleased]: ${OMGF_MASTER}..$OMGF_DEV"
     gawk -v keyword="$1" -v next_keywords="$2" -v message="$3" -v compare_url="$compare_url" '
       function print_unreleased () { print "## [Unreleased]" }
       function print_keyword () { print "### " keyword }
@@ -949,9 +956,9 @@ function main {
     local confirm_suffix into
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     # master -> merge hotfix into master and dev
-    if ! git_version_diff master "$major.$minor."; then
-      into=master
-      confirm "* Merge hotfix into master and '$OMGF_DEV'$confirm_suffix?" || return 0
+    if ! git_version_diff "${OMGF_MASTER}" "$major.$minor."; then
+      into=${OMGF_MASTER}
+      confirm "* Merge hotfix into ${OMGF_MASTER} and '$OMGF_DEV'$confirm_suffix?" || return 0
     else
       into="$master"
       confirm "* Merge hotfix into stable branch '$master'$confirm_suffix?" || return 0
@@ -970,10 +977,10 @@ function main {
         || return $?
     fi
     [[ $request == 1 ]] && { gf_request "$into"; return $?; }
-    if [[ "$into" == master ]]; then
+    if [[ "$into" == "${OMGF_MASTER}" ]]; then
       # ignore changes in VERSION file iff conflict occured
-      merge_fromto master "$RELEASE" \
-        && merge_fromto master "$OMGF_DEV" \
+      merge_fromto "${OMGF_MASTER}" "$RELEASE" \
+        && merge_fromto "${OMGF_MASTER}" "$OMGF_DEV" \
         || return $?
     fi
     delete_gf_branch
@@ -989,7 +996,7 @@ function main {
     git_remote_exists \
       && git_fetch --tags \
       && gf_pull_branch "$OMGF_DEV" \
-      && gf_pull_branch master \
+      && gf_pull_branch "${OMGF_MASTER}" \
       && gf_pull_branch "$RELEASE" \
       || return $?
     local stable
@@ -1003,7 +1010,7 @@ function main {
     git_remote_exists \
       && git_push --tags \
       && git_push "$OMGF_ORIGIN" "$OMGF_DEV" \
-      && git_push "$OMGF_ORIGIN" master \
+      && git_push "$OMGF_ORIGIN" "${OMGF_MASTER}" \
       || return $?
     git_local_branch_exists "$RELEASE" \
       && { git_push "$OMGF_ORIGIN" "$RELEASE" || return $?; }
@@ -1113,7 +1120,7 @@ function main {
     gcb=$(git_current_branch)
     echo -n "* Current branch '$gcb' is considered as "
     case $gcb in
-      HEAD|master|$prefix+([0-9]).+([0-9]))
+      HEAD|${OMGF_MASTER}|$prefix+([0-9]).+([0-9]))
         if gf_hotfixable 2>/dev/null; then
           echo "hotfixable stable branch."
           echo "* - Run '$script_name' to create hotfix or leave :)"

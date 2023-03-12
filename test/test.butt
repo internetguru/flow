@@ -167,7 +167,7 @@ start "dev is behind master error code"
   } >/dev/null
   debug "omgf -v"
   assert_equal "${status}" 3
-  assert_startwith "${errlines[0]}" "omgf[error]: Branch master is not merged with 'dev'"
+  assert_startwith "${errlines[0]}" "omgf[error]: Branch 'master' is not merged with 'dev'"
 end
 #######################################
 : $((i++))
