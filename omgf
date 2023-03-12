@@ -18,7 +18,7 @@ set -u
 # shellcheck disable=SC2223
 : ${OMGF_ORIGIN:=origin}
 # shellcheck disable=SC2223
-: ${OMGF_UPSTREAM:=$OMGF_ORIGIN}
+: ${OMGF_UPSTREAM:=${OMGF_ORIGIN}}
 # shellcheck disable=SC2223
 : ${OMGF_CHANGELOG_HEADER:=# Change Log
 All notable changes to this project will be documented in this file.
@@ -33,35 +33,35 @@ and this project adheres to [Semantic Versioning](http://semver.org/).}
 function main {
 
   function msg_start {
-    [[ $verbose -eq 0 ]] && return
-    if stdoutpipe || [[ $COLUMNS -lt 41 ]]; then
-      echo -n "$1" && return 0
+    [[ ${verbose} -eq 0 ]] && return
+    if stdoutpipe || [[ ${COLUMNS} -lt 41 ]]; then
+      echo -n "${1}" && return 0
     fi
     echo -n "[ "
     save_cursor_position
-    echo " ....  ] $1"
+    echo " ....  ] ${1}"
   }
 
   function msg_end {
-    [[ $verbose -eq 0 ]] && return
-    if stdoutpipe || [[ $COLUMNS -lt 41 ]]; then
-      echo " [ $1 ]" && return 0
+    [[ ${verbose} -eq 0 ]] && return
+    if stdoutpipe || [[ ${COLUMNS} -lt 41 ]]; then
+      echo " [ ${1} ]" && return 0
     fi
     set_cursor_position
-    echo "$1"
+    echo "${1}"
   }
 
   function stdout_silent {
-    [[ $verbose == 0 ]] && exec 5<&1 && exec 1>/dev/null
+    [[ ${verbose} == 0 ]] && exec 5<&1 && exec 1>/dev/null
     return 0
   }
 
   function stdout_verbose {
-    [[ $verbose == 0 ]] && exec 1<&5
+    [[ ${verbose} == 0 ]] && exec 1<&5
     return 0
   }
 
-  #TODO: exit with $2 ?
+  #TODO: exit with ${2} ?
   function err {
     echo "$(basename "${0}")[error]: $*" >&2
     return 1
@@ -70,9 +70,9 @@ function main {
   function setcolor {
     local c
     c=${1:-always}
-    case $c in
+    case ${c} in
       always|never|auto)
-        color=$c
+        color=${c}
         return 0
       ;;
     esac
@@ -84,12 +84,12 @@ function main {
   }
 
   function colorize {
-    [[ $color == never ]] && echo -n "$1" && return
-    [[ $color == auto ]] && stdoutpipe && echo -n "$1" && return
+    [[ ${color} == never ]] && echo -n "${1}" && return
+    [[ ${color} == auto ]] && stdoutpipe && echo -n "${1}" && return
     local c
-    c="${2:-$GREEN}"
-    tput setaf "$c"
-    echo -n "$1"
+    c="${2:-${GREEN}}"
+    tput setaf "${c}"
+    echo -n "${1}"
     tput sgr0
   }
 
@@ -106,39 +106,39 @@ function main {
     echo -en "\033[6n" >/dev/tty
     # shellcheck disable=SC2162
     read -d"R" curpos </dev/tty
-    stty "$oldstty"
+    stty "${oldstty}"
     pos_x=$( echo "${curpos#??}" | cut -d";" -f1 )
     pos_y=$( echo "${curpos#??}" | cut -d";" -f2 )
   }
 
   function set_cursor_position {
-    [[ "$pos_x" == "$LINES" ]] && : $(( pos_x-- ))
+    [[ "${pos_x}" == "${LINES}" ]] && : $(( pos_x-- ))
     tput cup $(( pos_x-1 )) $(( pos_y-1 ))
   }
 
   function strtolower {
-    echo "$1" | tr '[:upper:]' '[:lower:]'
+    echo "${1}" | tr '[:upper:]' '[:lower:]'
   }
 
   function trim {
-    echo "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+    echo "${1}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
   }
 
   function confirm {
-    [[ $yes == 1 ]] && return 0
-    if [[ $is_stdin == 0 ]]; then
+    [[ ${yes} == 1 ]] && return 0
+    if [[ ${is_stdin} == 0 ]]; then
       stdout_verbose
       echo -n "${1:-"Are you sure?"} [YES/No] "
       save_cursor_position
       clear_stdin
       read -r
-      [[ -z "$REPLY" ]] && set_cursor_position && echo "yes"
+      [[ -z "${REPLY}" ]] && set_cursor_position && echo "yes"
       stdout_silent
     else
       read -r
     fi
-    [[ "$REPLY" =~ ^y(es)?$ || -z "$REPLY" ]] && return 0
-    [[ "$REPLY" =~ ^no?$ ]] && return 1
+    [[ "${REPLY}" =~ ^y(es)?$ || -z "${REPLY}" ]] && return 0
+    [[ "${REPLY}" =~ ^no?$ ]] && return 1
     confirm "Type"
   }
 
@@ -151,7 +151,7 @@ function main {
   function git_checkout {
     local out
     out="$(git checkout "$@" 2>&1)" \
-      || err "$out"
+      || err "${out}"
   }
 
   # make git return only error to stderr
@@ -159,69 +159,69 @@ function main {
     msg_start "Fetching $*"
     local out
     out="$(git fetch --update-head-ok "$@" 2>&1)" \
-      || err "$out" \
+      || err "${out}" \
       || return 1
-    msg_end "$DONE"
+    msg_end "${DONE}"
   }
 
   # make git return only error to stderr
   function git_tag {
     local out
     out="$(git tag "$@" 2>&1)" \
-      || err "$out"
+      || err "${out}"
   }
 
   # make git return only error to stderr
   function git_merge {
     local out
     out="$(env GIT_EDITOR=: git merge "$@" 2>&1)" \
-      || err "$out"
+      || err "${out}"
   }
 
   function git_push {
     msg_start "Pushing $*"
     local out
     out="$(git push "$@" 2>&1)" \
-      || err "$out" \
+      || err "${out}" \
       || return 1
-    msg_end "$DONE"
+    msg_end "${DONE}"
   }
 
   function git_checkout_branch {
-    msg_start "Creating branch '$1'"
-    git_checkout -b "$1" || return 1
-    msg_end "$DONE"
+    msg_start "Creating branch '${1}'"
+    git_checkout -b "${1}" || return 1
+    msg_end "${DONE}"
   }
 
   function git_branch_create {
     local to
     to="${2:-HEAD}"
-    git_remote_branch_exists "$1" \
-      && to="$OMGF_ORIGIN/$1"
-    msg_start "Creating branch '$1' on '$to'"
-    git branch "$1" "$to" >/dev/null
-    msg_end "$DONE"
+    git_remote_branch_exists "${1}" \
+      && to="${OMGF_ORIGIN}/${1}"
+    msg_start "Creating branch '${1}' on '${to}'"
+    git branch "${1}" "${to}" >/dev/null
+    msg_end "${DONE}"
   }
 
   function git_branch_exists {
-    git_local_branch_exists "$1" && return
-    git_remote_branch_exists "$1"
+    git_local_branch_exists "${1}" && return
+    git_remote_branch_exists "${1}"
   }
 
   function git_local_branch_exists {
-    git rev-parse --verify "$1" >/dev/null 2>&1
+    git rev-parse --verify "${1}" >/dev/null 2>&1
   }
 
   function git_remote_branch_exists {
-    git ls-remote --heads "$OMGF_ORIGIN" 2>/dev/null | grep -q "$REFSHEADS/$1"$
+    git ls-remote --heads "${OMGF_ORIGIN}" 2>/dev/null | grep -q "${REFSHEADS}/${1}"$
   }
 
   function git_tag_exists {
-    git tag | grep -q "^$1"
+    git tag | grep -q "^${1}"
   }
 
   function has_tag {
-    git tag --points-at HEAD | grep -q "^$1$"
+    git tag --points-at HEAD | grep -q "^${1}$"
   }
 
   function git_repo_exists {
@@ -229,17 +229,17 @@ function main {
   }
 
   function git_remote_exists {
-    git config remote."$OMGF_ORIGIN".url >/dev/null \
-      || err "Remote url for '$OMGF_ORIGIN' does not exist" \
+    git config remote."${OMGF_ORIGIN}".url >/dev/null \
+      || err "Remote url for '${OMGF_ORIGIN}' does not exist" \
       || return 1
   }
 
   function git_commit_diff {
-    [[ "$( git rev-parse "$1" )" != "$( git rev-parse "$2" )" ]]
+    [[ "$( git rev-parse "${1}" )" != "$( git rev-parse "${2}" )" ]]
   }
 
   function git_version_diff {
-    [[ "$(git show "$1":"$OMGF_VERSION" | cut -d. -f1-2)." != "$2" ]]
+    [[ "$(git show "${1}":"${OMGF_VERSION}" | cut -d. -f1-2)." != "${2}" ]]
   }
 
   function git_current_branch {
@@ -257,18 +257,18 @@ function main {
     git stash >/dev/null || return 1
     if git_status_empty 2>/dev/null; then
       stashed=1
-      msg_end "$DONE"
+      msg_end "${DONE}"
     else
-      msg_end "$FAIL"
+      msg_end "${FAIL}"
       return 1
     fi
   }
 
   function git_stash_pop {
-    [[ $stashed == 0 ]] && return 0
+    [[ ${stashed} == 0 ]] && return 0
     msg_start "Popping stashed files"
-    git stash pop >/dev/null || { msg_end "$FAIL"; return 1; }
-    msg_end "$DONE"
+    git stash pop >/dev/null || { msg_end "${FAIL}"; return 1; }
+    msg_end "${DONE}"
   }
 
   function git_has_commits {
@@ -277,7 +277,7 @@ function main {
 
   #TODO: git branch --merged master
   function additional_commits {
-    git log "$1".."${2:-$gf_branch}"
+    git log "${1}".."${2:-${gf_branch}}"
   }
 
   # idea:
@@ -288,87 +288,87 @@ function main {
   function merge_fromto {
     local stream
     stream='upwards'
-    [[ "$1" == "${OMGF_MASTER}" || "$2" == "${OMGF_DEV}" ]] \
+    [[ "${1}" == "${OMGF_MASTER}" || "${2}" == "${OMGF_DEV}" ]] \
       && stream='downwards'
-    msg_start "Merging ${stream} from '$1' to '$2'"
-    [[ -z "$(additional_commits "$2" "$1")" ]] \
-      && msg_end "$SKIP" \
+    msg_start "Merging ${stream} from '${1}' to '${2}'"
+    [[ -z "$(additional_commits "${2}" "${1}")" ]] \
+      && msg_end "${SKIP}" \
       && return
-    git_checkout "$2" \
-      && git_merge_stream "$1" "$stream" \
-      && msg_end "$DONE"
+    git_checkout "${2}" \
+      && git_merge_stream "${1}" "${stream}" \
+      && msg_end "${DONE}"
   }
 
   function git_merge_stream {
-    if [[ "$2" == 'upwards' ]]; then
-      git_merge --no-ff "$1" || return 5
+    if [[ "${2}" == 'upwards' ]]; then
+      git_merge --no-ff "${1}" || return 5
       return 0
     fi
-    git_merge --no-ff --no-commit "$1" 2>/dev/null
-    git_checkout --ours "$OMGF_VERSION"
-    git_checkout --ours "$OMGF_CHANGELOG"
+    git_merge --no-ff --no-commit "${1}" 2>/dev/null
+    git_checkout --ours "${OMGF_VERSION}"
+    git_checkout --ours "${OMGF_CHANGELOG}"
     git add .
     git_merge --continue || return 5
   }
 
   function delete_gf_branch {
-    [[ "$(git_current_branch)" != "$gf_branch" ]] \
-      || git_checkout "$OMGF_DEV" \
+    [[ "$(git_current_branch)" != "${gf_branch}" ]] \
+      || git_checkout "${OMGF_DEV}" \
       || return $?
-    if git_remote_branch_exists "$gf_branch"; then
-      msg_start "Deleting remote branch '$gf_branch'"
+    if git_remote_branch_exists "${gf_branch}"; then
+      msg_start "Deleting remote branch '${gf_branch}'"
       local out
-      out="$(git push "$OMGF_ORIGIN" ":$REFSHEADS/$gf_branch" 2>&1)" \
-        || err "$out" \
+      out="$(git push "${OMGF_ORIGIN}" ":${REFSHEADS}/${gf_branch}" 2>&1)" \
+        || err "${out}" \
         || return 1
-      msg_end "$DONE"
+      msg_end "${DONE}"
     fi
-    msg_start "Deleting local branch '$gf_branch'"
-    git branch -d "$gf_branch" >/dev/null || return 1
-    msg_end "$DONE"
+    msg_start "Deleting local branch '${gf_branch}'"
+    git branch -d "${gf_branch}" >/dev/null || return 1
+    msg_end "${DONE}"
   }
 
   function load_version {
-    [[ -f "$OMGF_VERSION" ]] \
+    [[ -f "${OMGF_VERSION}" ]] \
       || err "Version file not found" \
       || return 3
-    [[ -n "$(cat "$OMGF_VERSION")" ]] \
+    [[ -n "$(cat "${OMGF_VERSION}")" ]] \
       || err "Version file is empty" \
       || return 3
-    [[ "$(cat "$OMGF_VERSION")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+    [[ "$(cat "${OMGF_VERSION}")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
       || err "Invalid version file content format" \
       || return 1
-    IFS=. read -r major minor patch < "$OMGF_VERSION" \
+    IFS=. read -r major minor patch < "${OMGF_VERSION}" \
       || err "Unable to load version" \
       || return 1
-    master=$prefix$major.$minor
+    master=${prefix}${major}.${minor}
     gf_branch="$(git_current_branch)"
   }
 
   function master_last_change {
-    git cherry -v "$OMGF_DEV" "${OMGF_MASTER}" | tail -n1 | cut -d" " -f2
+    git cherry -v "${OMGF_DEV}" "${OMGF_MASTER}" | tail -n1 | cut -d" " -f2
   }
 
-  # $1 filepath
-  # $2 default content
-  # $3 allow empty file
+  # ${1} filepath
+  # ${2} default content
+  # ${3} allow empty file
   function init_file {
-    [[ -f "$1" ]] && return 0
-    [[ -z "$1" && $3 == 1 ]] && return 0
+    [[ -f "${1}" ]] && return 0
+    [[ -z "${1}" && ${3} == 1 ]] && return 0
     local or_empty_msg
     or_empty_msg=
-    [[ $3 == 0 ]] && or_empty_msg=" or empty"
-    [[ $conform == 1 ]] \
-      || err "Missing$or_empty_msg file '$1'" \
+    [[ ${3} == 0 ]] && or_empty_msg=" or empty"
+    [[ ${conform} == 1 ]] \
+      || err "Missing${or_empty_msg} file '${1}'" \
       || return 3
     local message
-    message="Initializing '$1' file"
-    msg_start "$message"
-    echo "$2" > "$1" || return 1
-    git add "$1" >/dev/null \
-      && git commit -m "$message" >/dev/null \
+    message="Initializing '${1}' file"
+    msg_start "${message}"
+    echo "${2}" > "${1}" || return 1
+    git add "${1}" >/dev/null \
+      && git commit -m "${message}" >/dev/null \
       || return 1
-    msg_end "$DONE"
+    msg_end "${DONE}"
   }
 
   function initial_commit {
@@ -378,15 +378,15 @@ function main {
       && git commit -m "Commit initial files" >/dev/null \
       || err "Unable to commit existing files" \
       || return 1
-    msg_end "$DONE"
+    msg_end "${DONE}"
   }
 
   function parse_version {
-    echo "$1" | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p'
+    echo "${1}" | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p'
   }
 
   function verlte {
-    [ "$1" = "$(echo -e "$1\n$2" | sort -V | head -n1)" ]
+    [ "${1}" = "$(echo -e "${1}\n${2}" | sort -V | head -n1)" ]
   }
 
   function validate_requirements {
@@ -394,11 +394,11 @@ function main {
     git_min_version=1.8.0
     bash_version="$(parse_version "$(bash --version 2>/dev/null)")"
     git_version="$(parse_version "$(git --version 2>/dev/null)")"
-    verlte "$bash_min_version" "$bash_version" \
-      || err "OMGF requires Bash version $bash_min_version or later (you have ${bash_version:-no Bash installed})" \
+    verlte "${bash_min_version}" "${bash_version}" \
+      || err "OMGF requires Bash version ${bash_min_version} or later (you have ${bash_version:-no Bash installed})" \
       || return 1
-    verlte "$git_min_version" "$git_version" \
-      || err "OMGF requires Git version $git_min_version or later (you have ${git_version:-no Git installed})" \
+    verlte "${git_min_version}" "${git_version}" \
+      || err "OMGF requires Git version ${git_min_version} or later (you have ${git_version:-no Git installed})" \
       || return 1
   }
 
@@ -408,71 +408,71 @@ function main {
   # - master branch
   function validate_git_repository {
     if ! git_repo_exists; then
-      [[ $conform == 0 ]] && { err "Git repository does not exist" || return 3; }
+      [[ ${conform} == 0 ]] && { err "Git repository does not exist" || return 3; }
       msg_start "Initializing git repository"
       git init >/dev/null || return 1
-      msg_end "$DONE"
+      msg_end "${DONE}"
     fi
     if ! git_has_commits; then
-      [[ $conform == 0 ]] && { err "Git repository without commits" || return 3; }
+      [[ ${conform} == 0 ]] && { err "Git repository without commits" || return 3; }
       initial_commit || return $?
     elif ! git_local_branch_exists "${OMGF_MASTER}"; then
-      [[ $conform == 0 ]] && { err "Missing branch '${OMGF_MASTER}'" || return 3; }
+      [[ ${conform} == 0 ]] && { err "Missing branch '${OMGF_MASTER}'" || return 3; }
       git_branch_create "${OMGF_MASTER}" || return 1
     fi
   }
 
-  # validate $OMGF_VERSION and $OMGF_CHANGELOG files
+  # validate ${OMGF_VERSION} and ${OMGF_CHANGELOG} files
   function validate_gf_files {
-    init_file "$OMGF_VERSION" "0.0.0" 0 \
-      && init_file "$OMGF_CHANGELOG" "$OMGF_CHANGELOG_HEADER" 1 \
+    init_file "${OMGF_VERSION}" "0.0.0" 0 \
+      && init_file "${OMGF_CHANGELOG}" "${OMGF_CHANGELOG_HEADER}" 1 \
       && load_version \
       || return $?
   }
 
   # validate tag on ($)master
   function validate_master_tag {
-    [[ "$1" != "${OMGF_MASTER}" ]] && [[ "$1" != "$master" ]] \
+    [[ "${1}" != "${OMGF_MASTER}" ]] && [[ "${1}" != "${master}" ]] \
       && return
-    has_tag "$master.$patch" \
+    has_tag "${master}.${patch}" \
       && return
-    [[ $conform == 0 ]] && { err "Missing tag '$master.$patch' on current HEAD" || return 3; }
-    git_tag "$master.$patch";
+    [[ ${conform} == 0 ]] && { err "Missing tag '${master}.${patch}' on current HEAD" || return 3; }
+    git_tag "${master}.${patch}";
   }
 
-  # 1) validate $OMGF_DEV branch
-  # 2) validate $OMGF_DEV is up to date with master
+  # 1) validate ${OMGF_DEV} branch
+  # 2) validate ${OMGF_DEV} is up to date with master
   function validate_dev {
-    if ! git_local_branch_exists "$OMGF_DEV"; then
-      [[ $conform == 0 ]] && { err "Missing branch '$OMGF_DEV'" || return 3; }
+    if ! git_local_branch_exists "${OMGF_DEV}"; then
+      [[ ${conform} == 0 ]] && { err "Missing branch '${OMGF_DEV}'" || return 3; }
       git_branch_create "${OMGF_DEV}" "${OMGF_MASTER}" || return 1
     fi
     local last_change
     last_change="$(master_last_change)"
-    if [[ -n "$last_change" ]] && ! git branch --contains "$last_change" | grep -q "$OMGF_DEV"; then
-      [[ $conform == 0 ]] && { err "Branch '${OMGF_MASTER}' is not merged with '$OMGF_DEV'" || return 3; }
-      merge_fromto "$last_change" "$OMGF_DEV" || return $?
+    if [[ -n "${last_change}" ]] && ! git branch --contains "${last_change}" | grep -q "${OMGF_DEV}"; then
+      [[ ${conform} == 0 ]] && { err "Branch '${OMGF_MASTER}' is not merged with '${OMGF_DEV}'" || return 3; }
+      merge_fromto "${last_change}" "${OMGF_DEV}" || return $?
     fi
   }
 
   function validate_release {
     if ! git_local_branch_exists "${OMGF_RELEASE}"; then
-      [[ $conform == 0 ]] && { err "Missing branch '${OMGF_RELEASE}'" || return 3; }
-      git_branch_create "${OMGF_RELEASE}" "$OMGF_DEV" || return 1
+      [[ ${conform} == 0 ]] && { err "Missing branch '${OMGF_RELEASE}'" || return 3; }
+      git_branch_create "${OMGF_RELEASE}" "${OMGF_DEV}" || return 1
     fi
   }
 
   function validate_dev_version {
-    if [[ "$(git show "$OMGF_DEV":"$OMGF_VERSION")" == "$(git show "${OMGF_RELEASE}":"$OMGF_VERSION")" ]]; then
-      [[ $conform == 0 ]] && { err "Branch $OMGF_DEV has same version as ${OMGF_RELEASE}" || return 3; }
+    if [[ "$(git show "${OMGF_DEV}":"${OMGF_VERSION}")" == "$(git show "${OMGF_RELEASE}":"${OMGF_VERSION}")" ]]; then
+      [[ ${conform} == 0 ]] && { err "Branch ${OMGF_DEV} has same version as ${OMGF_RELEASE}" || return 3; }
       local prev_branch
       prev_branch="$(git_current_branch)"
-      git_checkout "$OMGF_DEV" || return $?
+      git_checkout "${OMGF_DEV}" || return $?
       load_version
       ((minor++))
       patch=0
       gf_commit_version \
-        && git_checkout "$prev_branch" \
+        && git_checkout "${prev_branch}" \
         && load_version \
         || return $?
     fi
@@ -480,7 +480,7 @@ function main {
 
   # validate git status
   function validate_status_empty {
-    if [[ $force == 1 ]]; then
+    if [[ ${force} == 1 ]]; then
       git_stash || return $?
     else
       git_status_empty || return 4
@@ -488,168 +488,168 @@ function main {
   }
 
   function validate_changelog_heading {
-    grep -qE "^# " "$OMGF_CHANGELOG" && return 0
-    [[ "$conform" == 1 ]] \
-      || err "File $OMGF_CHANGELOG missing '# Heading'" \
+    grep -qE "^# " "${OMGF_CHANGELOG}" && return 0
+    [[ "${conform}" == 1 ]] \
+      || err "File ${OMGF_CHANGELOG} missing '# Heading'" \
       || return 3
     local msg
-    msg="Add default heading to $OMGF_CHANGELOG"
-    msg_start "$msg"
-    echo -e "$OMGF_CHANGELOG_HEADER\n$(cat "$OMGF_CHANGELOG")" > "$OMGF_CHANGELOG" \
-      && git commit -am "$msg" >/dev/null \
+    msg="Add default heading to ${OMGF_CHANGELOG}"
+    msg_start "${msg}"
+    echo -e "${OMGF_CHANGELOG_HEADER}\n$(cat "${OMGF_CHANGELOG}")" > "${OMGF_CHANGELOG}" \
+      && git commit -am "${msg}" >/dev/null \
       || return 1
-    msg_end "$DONE"
+    msg_end "${DONE}"
   }
 
   function gf_validate {
     validate_requirements || return $?
     validate_git_repository || return $?
     validate_gf_files || return $?
-    validate_master_tag "$gf_branch" || return $?
+    validate_master_tag "${gf_branch}" || return $?
     validate_dev || return $?
     validate_release || return $?
     validate_dev_version || return $?
     validate_status_empty || return $?
     validate_changelog_heading || return $?
     # load and validate user params
-    [[ $arg_count -gt 2 ]] \
+    [[ ${arg_count} -gt 2 ]] \
       && { err "Wrong number of parameters" || return 1; }
-    if [[ $arg_count -eq 2 ]]; then
-      par_kw="$par1"
-      par_name="$par2"
-      is_gf_keyword "$par_kw" \
-        || err "Parameter '$par_kw' is not a valid keyword" \
+    if [[ ${arg_count} -eq 2 ]]; then
+      par_kw="${par1}"
+      par_name="${par2}"
+      is_gf_keyword "${par_kw}" \
+        || err "Parameter '${par_kw}' is not a valid keyword" \
         || return 1
-    elif [[ $arg_count == 1 ]]; then
-      if is_gf_keyword "$par1"; then par_kw="$par1"
-      else par_name="$par1"; fi
+    elif [[ ${arg_count} == 1 ]]; then
+      if is_gf_keyword "${par1}"; then par_kw="${par1}"
+      else par_name="${par1}"; fi
     fi
-    [[ -z "$par_name" ]] && return 0
-    git check-ref-format "$REFSHEADS/$par_name" \
+    [[ -z "${par_name}" ]] && return 0
+    git check-ref-format "${REFSHEADS}/${par_name}" \
       || err "Invalid branch name format" \
       || return 1
   }
 
   function is_gf_keyword {
-    [[ "$1" == "$HOTFIX" || "$1" == "${OMGF_RELEASE}" || "$1" == "$FEATURE" || "$1" == "$PULL" || "$1" == "$PUSH" ]]
+    [[ "${1}" == "${HOTFIX}" || "${1}" == "${OMGF_RELEASE}" || "${1}" == "${FEATURE}" || "${1}" == "${PULL}" || "${1}" == "${PUSH}" ]]
   }
 
   # Get free branch name (increment suffix)
-  # Eg. when branch "$HOTFIX-john" and "$HOTFIX-john-1" already exists
-  # then for param "$HOTFIX-john" return "$HOTFIX-john-2"
+  # Eg. when branch "${HOTFIX}-john" and "${HOTFIX}-john-1" already exists
+  # then for param "${HOTFIX}-john" return "${HOTFIX}-john-2"
   function get_branch_name {
     local count
     local branch
-    branch="$1"
+    branch="${1}"
     count="${2:-}"
-    [[ -z "$count" ]] \
-      && ! git_branch_exists "$branch" \
-      && echo "$branch" \
+    [[ -z "${count}" ]] \
+      && ! git_branch_exists "${branch}" \
+      && echo "${branch}" \
       && return
-    [[ -z "$count" ]] && count=1
-    git_branch_exists "$branch-$count" \
-      && get_branch_name "$branch" $(( ++count )) \
-      || echo "$branch-$count"
+    [[ -z "${count}" ]] && count=1
+    git_branch_exists "${branch}-${count}" \
+      && get_branch_name "${branch}" $(( ++count )) \
+      || echo "${branch}-${count}"
   }
 
   function prefix_branch {
     local kw name
     kw="${1:-}"
     name="${2:-}"
-    [[ -n "$kw" ]] \
+    [[ -n "${kw}" ]] \
       || err "prefix_branch: missing kw param" \
       || return 1
-    [[ "$name" == "$kw-"* ]] \
-      && echo "$name" \
+    [[ "${name}" == "${kw}-"* ]] \
+      && echo "${name}" \
       && return
-    # [[ "$name" == "$kw" ]] ?
-    [[ -z "$name" ]] && name="$(id -u -n | tr '[:upper:]' '[:lower:]')"
-    get_branch_name "$kw-$name"
+    # [[ "${name}" == "${kw}" ]] ?
+    [[ -z "${name}" ]] && name="$(id -u -n | tr '[:upper:]' '[:lower:]')"
+    get_branch_name "${kw}-${name}"
   }
 
   function create_stable_branch {
-    git_commit_diff "$gf_branch" "${OMGF_MASTER}" \
+    git_commit_diff "${gf_branch}" "${OMGF_MASTER}" \
       || { git_checkout "${OMGF_MASTER}"; return $?; }
-    if git_branch_exists "$master"; then
-      git_commit_diff "$gf_branch" "$master" \
-        || { git_checkout "$master"; return $?; }
+    if git_branch_exists "${master}"; then
+      git_commit_diff "${gf_branch}" "${master}" \
+        || { git_checkout "${master}"; return $?; }
     fi
-    git_checkout_branch "$master" || return 1
+    git_checkout_branch "${master}" || return 1
   }
 
   function gf_process {
     # explicit init
-    [[ $init == 1 ]] \
-      && git_checkout "$OMGF_DEV" \
+    [[ ${init} == 1 ]] \
+      && git_checkout "${OMGF_DEV}" \
       && return 0
     local branch_name
     # action according to current branch
-    if [[ $arg_count -eq 0 ]]; then
+    if [[ ${arg_count} -eq 0 ]]; then
       case "${gf_branch%%-*}" in
-        HEAD|${OMGF_MASTER}|$prefix+([0-9]).+([0-9]))
-          branch_name="$(prefix_branch "$HOTFIX" "$(strtolower "$(whoami)")" )"
-          gf_hotfix "$branch_name"
+        HEAD|${OMGF_MASTER}|${prefix}+([0-9]).+([0-9]))
+          branch_name="$(prefix_branch "${HOTFIX}" "$(strtolower "$(whoami)")" )"
+          gf_hotfix "${branch_name}"
         ;;
-        $OMGF_DEV)
-          branch_name="$(prefix_branch "$FEATURE" "$(strtolower "$(whoami)")" )"
-          gf_feature "$branch_name"
+        ${OMGF_DEV})
+          branch_name="$(prefix_branch "${FEATURE}" "$(strtolower "$(whoami)")" )"
+          gf_feature "${branch_name}"
         ;;
-        $FEATURE) gf_merge_feature "$gf_branch" ;;
+        ${FEATURE}) gf_merge_feature "${gf_branch}" ;;
         ${OMGF_RELEASE}) gf_merge_release ;;
-        $HOTFIX) gf_merge_hotfix "$gf_branch" ;;
-        *) err "Current branch '$gf_branch' is not recognized" || return 1 ;;
+        ${HOTFIX}) gf_merge_hotfix "${gf_branch}" ;;
+        *) err "Current branch '${gf_branch}' is not recognized" || return 1 ;;
       esac
       return $?
     fi
     # action according to given kw
-    if [[ $arg_count -eq 1 && -n "$par_kw" ]]; then
-      branch_name="$(prefix_branch "$par_kw" "$(strtolower "$(whoami)")" )"
-      case "$par_kw" in
-        $HOTFIX) gf_hotfix "$branch_name" ;;
+    if [[ ${arg_count} -eq 1 && -n "${par_kw}" ]]; then
+      branch_name="$(prefix_branch "${par_kw}" "$(strtolower "$(whoami)")" )"
+      case "${par_kw}" in
+        ${HOTFIX}) gf_hotfix "${branch_name}" ;;
         ${OMGF_RELEASE})
-          if [[ "$gf_branch" == "${OMGF_RELEASE}" ]]; then
+          if [[ "${gf_branch}" == "${OMGF_RELEASE}" ]]; then
             gf_release_release
             return $?
           fi
           gf_release
         ;;
-        $FEATURE) gf_feature "$branch_name";;
-        $PULL) gf_pull ;;
-        $PUSH) gf_push ;;
+        ${FEATURE}) gf_feature "${branch_name}";;
+        ${PULL}) gf_pull ;;
+        ${PUSH}) gf_push ;;
       esac
       return $?
     fi
     # action according to given name and kw
-    if [[ -z "$par_kw" ]]; then
+    if [[ -z "${par_kw}" ]]; then
       case "${gf_branch%%-*}" in
-        HEAD|${OMGF_MASTER}|$prefix+([0-9]).+([0-9])|${OMGF_RELEASE}|$HOTFIX) par_kw="$HOTFIX" ;;
-        $OMGF_DEV|$FEATURE) par_kw="$FEATURE" ;;
-        *) err "Current branch '$gf_branch' is not recognized" || return 1 ;;
+        HEAD|${OMGF_MASTER}|${prefix}+([0-9]).+([0-9])|${OMGF_RELEASE}|${HOTFIX}) par_kw="${HOTFIX}" ;;
+        ${OMGF_DEV}|${FEATURE}) par_kw="${FEATURE}" ;;
+        *) err "Current branch '${gf_branch}' is not recognized" || return 1 ;;
       esac
     fi
-    case "$par_kw" in
-      $HOTFIX) gf_hotfix "$par_kw" "$par_name" ;;
-      $FEATURE) gf_feature "$par_kw-$par_name";;
-      *) err "'$par_kw' with second parameter is not supported" || return 1 ;;
+    case "${par_kw}" in
+      ${HOTFIX}) gf_hotfix "${par_kw}" "${par_name}" ;;
+      ${FEATURE}) gf_feature "${par_kw}-${par_name}";;
+      *) err "'${par_kw}' with second parameter is not supported" || return 1 ;;
     esac
     return $?
   }
 
   function gf_checkout {
     local branch
-    branch="$1"
-    msg_start "Checkout '$branch'"
-    [[ "$(git_current_branch)" == "$branch" ]] && msg_end "$SKIP" && return 0
-    git_checkout "$branch" || return $?
-    msg_end "$DONE"
+    branch="${1}"
+    msg_start "Checkout '${branch}'"
+    [[ "$(git_current_branch)" == "${branch}" ]] && msg_end "${SKIP}" && return 0
+    git_checkout "${branch}" || return $?
+    msg_end "${DONE}"
   }
 
   function gf_confirm_checkout {
     local msg
     # shellcheck disable=SC2016
-    msg="${2:-* Branch '$1' already exists, checkout?}"
-    confirm "$msg" || return 1
-    gf_checkout "$1"
+    msg="${2:-* Branch '${1}' already exists, checkout?}"
+    confirm "${msg}" || return 1
+    gf_checkout "${1}"
   }
 
   function gf_release {
@@ -662,10 +662,10 @@ function main {
     last_merge="$(git reflog show "${OMGF_DEV}" --format="%h:%gs" | grep -m1 ":merge ${OMGF_RELEASE}:" | cut -d: -f1)"
     # commits on dev before last release merge
     valid_commits="$(git reflog show "${OMGF_DEV}" --format="%H")"
-    [[ -n "$last_merge" ]] && valid_commits="$(echo "$valid_commits" | sed "/$last_merge/Q")"
+    [[ -n "${last_merge}" ]] && valid_commits="$(echo "${valid_commits}" | sed "/${last_merge}/Q")"
     # on invalid commit?
-    if ! echo "$valid_commits" | grep -q "$(git_current_commit)"; then
-      gf_confirm_checkout "$OMGF_DEV" "* Unable to create '${OMGF_RELEASE}' from current commit, create '${OMGF_RELEASE}' from '$OMGF_DEV'?" \
+    if ! echo "${valid_commits}" | grep -q "$(git_current_commit)"; then
+      gf_confirm_checkout "${OMGF_DEV}" "* Unable to create '${OMGF_RELEASE}' from current commit, create '${OMGF_RELEASE}' from '${OMGF_DEV}'?" \
         || return 1
       confirmed=1
     fi
@@ -673,13 +673,13 @@ function main {
     [[ -n "$(git diff HEAD "${OMGF_MASTER}")" ]] \
       || err "Current HEAD is same as branch '${OMGF_MASTER}', nothing to do" \
       || return 1
-    [[ $confirmed == 0 ]] \
+    [[ ${confirmed} == 0 ]] \
       && { confirm "* Create branch '${OMGF_RELEASE}' from current HEAD?" || return 0; }
     git_checkout "${OMGF_RELEASE}" 2>/dev/null \
       || git_checkout_branch "${OMGF_RELEASE}"
     # use --keep-theirs if conflicting
-    merge_fromto "$OMGF_DEV" "${OMGF_RELEASE}"
-    git_checkout "$OMGF_DEV"
+    merge_fromto "${OMGF_DEV}" "${OMGF_RELEASE}"
+    git_checkout "${OMGF_DEV}"
     gf_update_changelog_header
     ((minor++))
     patch=0
@@ -690,75 +690,75 @@ function main {
 
   function gf_feature {
     local feature_name
-    feature_name="$1"
-    if git_branch_exists "$feature_name"; then
-      gf_confirm_checkout "$feature_name"
+    feature_name="${1}"
+    if git_branch_exists "${feature_name}"; then
+      gf_confirm_checkout "${feature_name}"
       return $?
     fi
-    confirm "* Create branch '$feature_name' from branch '$OMGF_DEV'?" || return 0
-    git_checkout_branch "$feature_name"
+    confirm "* Create branch '${feature_name}' from branch '${OMGF_DEV}'?" || return 0
+    git_checkout_branch "${feature_name}"
   }
 
   function gf_hotfixable {
-    git_commit_diff "$master.$patch" HEAD \
-      && { err "Required tag $master.$patch not detected on current HEAD" || return 1; }
+    git_commit_diff "${master}.${patch}" HEAD \
+      && { err "Required tag ${master}.${patch} not detected on current HEAD" || return 1; }
   }
 
   function gf_hotfix {
     local hotfix_name to
     if [ -n "${2:-}" ]; then
-      if echo "$2" | grep -q "^$prefix[0-9]\+\.[0-9]\+$"; then
-        master="$2"
-        hotfix_name="$(prefix_branch "$par_kw" "$(strtolower "$(whoami)")" )"
+      if echo "${2}" | grep -q "^${prefix}[0-9]\+\.[0-9]\+$"; then
+        master="${2}"
+        hotfix_name="$(prefix_branch "${par_kw}" "$(strtolower "$(whoami)")" )"
       else
-        hotfix_name="$1-$2"
+        hotfix_name="${1}-${2}"
       fi
     else
-      hotfix_name="$1"
+      hotfix_name="${1}"
     fi
-    to="$( git tag | grep -e ^"$master". | sort -V | tail -n1 )"
-    [ -z "$to" ] && to="${OMGF_MASTER}"
-    if git_branch_exists "$hotfix_name"; then
-      gf_confirm_checkout "$hotfix_name"
+    to="$( git tag | grep -e ^"${master}". | sort -V | tail -n1 )"
+    [ -z "${to}" ] && to="${OMGF_MASTER}"
+    if git_branch_exists "${hotfix_name}"; then
+      gf_confirm_checkout "${hotfix_name}"
       return $?
     fi
-    confirm "* Create hotfix '$hotfix_name' from '$to'?" || return 0
-    gf_checkout "$to" \
+    confirm "* Create hotfix '${hotfix_name}' from '${to}'?" || return 0
+    gf_checkout "${to}" \
       && load_version \
       || return $?
-    if [[ "$gf_branch" != "${OMGF_MASTER}" ]]; then
+    if [[ "${gf_branch}" != "${OMGF_MASTER}" ]]; then
       create_stable_branch || return $?
     fi
-    git_checkout_branch "$hotfix_name" || return $?
+    git_checkout_branch "${hotfix_name}" || return $?
   }
 
   function gf_merge_release {
-    confirm "* Merge '${OMGF_RELEASE}' branch into '$OMGF_DEV'?" || return 0
-    merge_fromto "$gf_branch" "$OMGF_DEV" || return $?
+    confirm "* Merge '${OMGF_RELEASE}' branch into '${OMGF_DEV}'?" || return 0
+    merge_fromto "${gf_branch}" "${OMGF_DEV}" || return $?
   }
 
   function gf_release_release {
-    git_version_diff "${OMGF_MASTER}" "$major.$minor." \
+    git_version_diff "${OMGF_MASTER}" "${major}.${minor}." \
       || err 'Already released'
     local confirm_suffix
-    [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
-    confirm "* Create stable branch from ${OMGF_RELEASE}$confirm_suffix?" || return 0
+    [[ ${request} == 1 ]] && confirm_suffix="${pr_suffix}" || confirm_suffix=
+    confirm "* Create stable branch from ${OMGF_RELEASE}${confirm_suffix}?" || return 0
     gf_update_changelog_header
-    merge_fromto "${OMGF_MASTER}" "$gf_branch" || return $?
-    [[ $request == 1 ]] && { gf_request "${OMGF_MASTER}"; return $?; }
+    merge_fromto "${OMGF_MASTER}" "${gf_branch}" || return $?
+    [[ ${request} == 1 ]] && { gf_request "${OMGF_MASTER}"; return $?; }
     git_checkout "${OMGF_MASTER}" \
-      && merge_fromto "$gf_branch" "${OMGF_MASTER}" \
-      && git_tag "$master".0 \
-      && merge_fromto "$gf_branch" "$OMGF_DEV" \
+      && merge_fromto "${gf_branch}" "${OMGF_MASTER}" \
+      && git_tag "${master}".0 \
+      && merge_fromto "${gf_branch}" "${OMGF_DEV}" \
       || return $?
   }
 
   function gf_get_compare_url {
-    url="$(git config remote."$OMGF_ORIGIN".url)"
-    url="$(trim_url "$url")"
-    case "$url" in
-      *"$GITHUB"*) echo "https://$url/compare/$1...$2" ;;
-      *"$BITBUCKET"*) echo "https://$url/compare/$2..$1" ;;
+    url="$(git config remote."${OMGF_ORIGIN}".url)"
+    url="$(trim_url "${url}")"
+    case "${url}" in
+      *"${GITHUB}"*) echo "https://${url}/compare/${1}...${2}" ;;
+      *"${BITBUCKET}"*) echo "https://${url}/compare/${2}..${1}" ;;
       *) echo "" ;;
     esac
   }
@@ -766,14 +766,14 @@ function main {
   function gf_update_changelog_header {
     local header tmpfile compare_url prev_tag
     msg_start "Updating version history header"
-    header="## [$major.$minor.$patch] - $(date "+%Y-%m-%d")"
+    header="## [${major}.${minor}.${patch}] - $(date "+%Y-%m-%d")"
     prev_tag="$(git tag | sort -V | tail -n1 )"
-    compare_url="$(gf_get_compare_url "$prev_tag" "$master.$patch" )"
-    [[ -n "$compare_url" ]] \
-      && compare_url="[$major.$minor.$patch]: $compare_url" \
-      || compare_url="[$major.$minor.$patch]: $prev_tag..$master.$patch"
+    compare_url="$(gf_get_compare_url "${prev_tag}" "${master}.${patch}" )"
+    [[ -n "${compare_url}" ]] \
+      && compare_url="[${major}.${minor}.${patch}]: ${compare_url}" \
+      || compare_url="[${major}.${minor}.${patch}]: ${prev_tag}..${master}.${patch}"
     tmpfile="$(mktemp)"
-    gawk -v header="$header" -v compare_url="$compare_url" '
+    gawk -v header="${header}" -v compare_url="${compare_url}" '
       BEGIN {
         writemsg=1
         writeurl=1
@@ -794,20 +794,20 @@ function main {
         if(writemsg==1) { print header }
         if(writeurl==1) { print ""; print compare_url }
       }
-      ' "$OMGF_CHANGELOG" > "$tmpfile"
-    cat "$tmpfile" > "$OMGF_CHANGELOG"
-    git commit -am "Update $OMGF_CHANGELOG header" >/dev/null || return 1
-    msg_end "$DONE"
+      ' "${OMGF_CHANGELOG}" > "${tmpfile}"
+    cat "${tmpfile}" > "${OMGF_CHANGELOG}"
+    git commit -am "Update ${OMGF_CHANGELOG} header" >/dev/null || return 1
+    msg_end "${DONE}"
   }
 
   function gf_write_changelog_line {
     local tmpfile compare_url
     tmpfile="$(mktemp)"
-    compare_url="$(gf_get_compare_url "${OMGF_MASTER}" "$OMGF_DEV")"
-    [[ -n "$compare_url" ]] \
-      && compare_url="[Unreleased]: $compare_url" \
-      || compare_url="[Unreleased]: ${OMGF_MASTER}..$OMGF_DEV"
-    gawk -v keyword="$1" -v next_keywords="$2" -v message="$3" -v compare_url="$compare_url" '
+    compare_url="$(gf_get_compare_url "${OMGF_MASTER}" "${OMGF_DEV}")"
+    [[ -n "${compare_url}" ]] \
+      && compare_url="[Unreleased]: ${compare_url}" \
+      || compare_url="[Unreleased]: ${OMGF_MASTER}..${OMGF_DEV}"
+    gawk -v keyword="${1}" -v next_keywords="${2}" -v message="${3}" -v compare_url="${compare_url}" '
       function print_unreleased () { print "## [Unreleased]" }
       function print_keyword () { print "### " keyword }
       function print_message () { print " - " message }
@@ -849,158 +849,158 @@ function main {
         }
         if(writeurl==1) { print compare_url }
       }
-    ' "$OMGF_CHANGELOG" > "$tmpfile"
-    cat "$tmpfile" > "$OMGF_CHANGELOG"
+    ' "${OMGF_CHANGELOG}" > "${tmpfile}"
+    cat "${tmpfile}" > "${OMGF_CHANGELOG}"
   }
 
   function gf_update_changelog {
     local commits
-    commits="$(git log "$OMGF_DEV".."$gf_branch" --pretty=format:"*   %h %s")"
+    commits="$(git log "${OMGF_DEV}".."${gf_branch}" --pretty=format:"*   %h %s")"
     stdout_verbose
     echo
     echo "***"
-    echo "* Please enter the $gf_branch description for $OMGF_CHANGELOG."
+    echo "* Please enter the ${gf_branch} description for ${OMGF_CHANGELOG}."
     echo "*"
     echo "* Keywords:"
-    echo "*   $(echo "${CHANGELOG_KEYWORDS[@]}" | sed "s/ /, /g;s/${CHANGELOG_KEYWORDS[$1]}/${CHANGELOG_KEYWORDS[$1]} (default)/")"
+    echo "*   $(echo "${CHANGELOG_KEYWORDS[@]}" | sed "s/ /, /g;s/${CHANGELOG_KEYWORDS[${1}]}/${CHANGELOG_KEYWORDS[${1}]} (default)/")"
     echo "*"
-    echo "* Commits of '$gf_branch':"
-    echo "$commits"
+    echo "* Commits of '${gf_branch}':"
+    echo "${commits}"
     echo "*"
     REPLY=
-    if [[ $is_stdin == 0 ]]; then
+    if [[ ${is_stdin} == 0 ]]; then
       echo "Type \"Keyword: Message\", empty line to end:"
       clear_stdin
     fi
     local message keyword next_keywords i found
     while read -e -r message; do
-      [[ -z "$message" ]] && break
-      history -s "$message"
-      keyword="$(trim "$(echo "$message" | cut -sd':' -f1)")"
+      [[ -z "${message}" ]] && break
+      history -s "${message}"
+      keyword="$(trim "$(echo "${message}" | cut -sd':' -f1)")"
       next_keywords=
       found=0
       i=
-      if [[ -n "$keyword" ]]; then
+      if [[ -n "${keyword}" ]]; then
         for i in "${!CHANGELOG_KEYWORDS[@]}"; do
-          [[ "${CHANGELOG_KEYWORDS[i]}" != "$keyword"* ]] && continue
+          [[ "${CHANGELOG_KEYWORDS[i]}" != "${keyword}"* ]] && continue
           keyword="${CHANGELOG_KEYWORDS[i]}"
           found=1
           break
         done
-        if [[ "$found" == 0 ]]; then
-          echo "'$keyword' is not a valid keyword"
+        if [[ "${found}" == 0 ]]; then
+          echo "'${keyword}' is not a valid keyword"
           continue
         fi
       else
-        i=$1
-        keyword="${CHANGELOG_KEYWORDS[$i]}"
+        i=${1}
+        keyword="${CHANGELOG_KEYWORDS[${i}]}"
       fi
-      for ((index="$i+1"; index < ${#CHANGELOG_KEYWORDS[@]}; index++)); do
-        next_keywords="$next_keywords|^### ${CHANGELOG_KEYWORDS[index]}"
+      for ((index="${i}+1"; index < ${#CHANGELOG_KEYWORDS[@]}; index++)); do
+        next_keywords="${next_keywords}|^### ${CHANGELOG_KEYWORDS[index]}"
       done
-      [[ "$found" == 1 ]] && message="$(echo "$message" | cut -d':' -f2-)"
-      gf_write_changelog_line "$keyword" "$next_keywords" "$(trim "$message")"
+      [[ "${found}" == 1 ]] && message="$(echo "${message}" | cut -d':' -f2-)"
+      gf_write_changelog_line "${keyword}" "${next_keywords}" "$(trim "${message}")"
     done
     stdout_silent
     msg_start "Updating version history"
     if ! git_status_empty 2>/dev/null; then
-      git commit -am "Update $OMGF_CHANGELOG" >/dev/null || return 1
-      msg_end "$DONE"
+      git commit -am "Update ${OMGF_CHANGELOG}" >/dev/null || return 1
+      msg_end "${DONE}"
     else
-      msg_end "$SKIP"
+      msg_end "${SKIP}"
     fi
   }
 
   function gf_merge_feature {
-    [[ -n "$(additional_commits "$OMGF_DEV")" ]] \
-      || err "Nothing to merge - feature branch '$gf_branch' is empty" \
+    [[ -n "$(additional_commits "${OMGF_DEV}")" ]] \
+      || err "Nothing to merge - feature branch '${gf_branch}' is empty" \
       || return 1
     local confirm_suffix
-    [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
-    confirm "* Merge feature '$gf_branch' into '$OMGF_DEV'$confirm_suffix?" || return 0
-    merge_fromto "$OMGF_DEV" "$gf_branch" \
+    [[ ${request} == 1 ]] && confirm_suffix="${pr_suffix}" || confirm_suffix=
+    confirm "* Merge feature '${gf_branch}' into '${OMGF_DEV}'${confirm_suffix}?" || return 0
+    merge_fromto "${OMGF_DEV}" "${gf_branch}" \
       && gf_update_changelog 0 \
       || return $?
-    [[ $request == 1 ]] \
-      && { gf_request "$OMGF_DEV"; return $?; }
-    merge_fromto "$gf_branch" "$OMGF_DEV" \
+    [[ ${request} == 1 ]] \
+      && { gf_request "${OMGF_DEV}"; return $?; }
+    merge_fromto "${gf_branch}" "${OMGF_DEV}" \
       && delete_gf_branch \
       || return $?
   }
 
   function gf_prepare_to_merge {
     local ver
-    ver="$(git show "$1":"$OMGF_VERSION")"
+    ver="$(git show "${1}":"${OMGF_VERSION}")"
     # get and commit VERSION from master
-    msg_start "Updating version number from '$1'"
-    if [[ "$ver" != "$major.$minor.$patch" ]]; then
-      echo "$ver" > "$OMGF_VERSION"
-      git commit -am "Update $OMGF_VERSION from '$1'" >/dev/null || return 1
-      msg_end "$DONE"
+    msg_start "Updating version number from '${1}'"
+    if [[ "${ver}" != "${major}.${minor}.${patch}" ]]; then
+      echo "${ver}" > "${OMGF_VERSION}"
+      git commit -am "Update ${OMGF_VERSION} from '${1}'" >/dev/null || return 1
+      msg_end "${DONE}"
     else
-      msg_end "$SKIP"
+      msg_end "${SKIP}"
     fi
     load_version
-    merge_fromto "$1" "$gf_branch"
+    merge_fromto "${1}" "${gf_branch}"
   }
 
   function gf_commit_version {
-    msg_start "Increment version number to '$major.$minor.$patch'"
-    echo "$major.$minor.$patch" > "$OMGF_VERSION"
+    msg_start "Increment version number to '${major}.${minor}.${patch}'"
+    echo "${major}.${minor}.${patch}" > "${OMGF_VERSION}"
     git commit -am "Increment version number" >/dev/null || return 1
-    msg_end "$DONE"
+    msg_end "${DONE}"
   }
 
   function gf_merge_hotfix {
     local confirm_suffix into
-    [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
+    [[ ${request} == 1 ]] && confirm_suffix="${pr_suffix}" || confirm_suffix=
     # master -> merge hotfix into master and dev
-    if ! git_version_diff "${OMGF_MASTER}" "$major.$minor."; then
+    if ! git_version_diff "${OMGF_MASTER}" "${major}.${minor}."; then
       into=${OMGF_MASTER}
-      confirm "* Merge hotfix into ${OMGF_MASTER} and '$OMGF_DEV'$confirm_suffix?" || return 0
+      confirm "* Merge hotfix into ${OMGF_MASTER} and '${OMGF_DEV}'${confirm_suffix}?" || return 0
     else
-      into="$master"
-      confirm "* Merge hotfix into stable branch '$master'$confirm_suffix?" || return 0
+      into="${master}"
+      confirm "* Merge hotfix into stable branch '${master}'${confirm_suffix}?" || return 0
     fi
-    if [[ -n "$(additional_commits "$into")" ]]; then
-      gf_prepare_to_merge "$into" \
+    if [[ -n "$(additional_commits "${into}")" ]]; then
+      gf_prepare_to_merge "${into}" \
         && patch=$((patch+1)) \
         && gf_commit_version \
         && gf_update_changelog 4 \
         && gf_update_changelog_header \
         || return $?
-      [[ $request == 1 ]] && { gf_request "$into"; return $?; }
-      merge_fromto "$gf_branch" "$into" \
-        && git_checkout "$into" \
-        && git_tag "$master.$patch" \
+      [[ ${request} == 1 ]] && { gf_request "${into}"; return $?; }
+      merge_fromto "${gf_branch}" "${into}" \
+        && git_checkout "${into}" \
+        && git_tag "${master}.${patch}" \
         || return $?
     fi
-    [[ $request == 1 ]] && { gf_request "$into"; return $?; }
-    if [[ "$into" == "${OMGF_MASTER}" ]]; then
+    [[ ${request} == 1 ]] && { gf_request "${into}"; return $?; }
+    if [[ "${into}" == "${OMGF_MASTER}" ]]; then
       # ignore changes in VERSION file iff conflict occured
       merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}" \
-        && merge_fromto "${OMGF_MASTER}" "$OMGF_DEV" \
+        && merge_fromto "${OMGF_MASTER}" "${OMGF_DEV}" \
         || return $?
     fi
     delete_gf_branch
   }
 
   function gf_pull_branch {
-    git_remote_branch_exists "$1" \
+    git_remote_branch_exists "${1}" \
       || return
-    git_fetch "$OMGF_ORIGIN" "$1:$1"
+    git_fetch "${OMGF_ORIGIN}" "${1}:${1}"
   }
 
   function gf_pull {
     git_remote_exists \
       && git_fetch --tags \
-      && gf_pull_branch "$OMGF_DEV" \
+      && gf_pull_branch "${OMGF_DEV}" \
       && gf_pull_branch "${OMGF_MASTER}" \
       && gf_pull_branch "${OMGF_RELEASE}" \
       || return $?
     local stable
     for stable in $(git branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
-      gf_pull_branch "$stable" \
+      gf_pull_branch "${stable}" \
         || return $?
     done
   }
@@ -1008,56 +1008,56 @@ function main {
   function gf_push {
     git_remote_exists \
       && git_push --tags \
-      && git_push "$OMGF_ORIGIN" "$OMGF_DEV" \
-      && git_push "$OMGF_ORIGIN" "${OMGF_MASTER}" \
+      && git_push "${OMGF_ORIGIN}" "${OMGF_DEV}" \
+      && git_push "${OMGF_ORIGIN}" "${OMGF_MASTER}" \
       || return $?
     git_local_branch_exists "${OMGF_RELEASE}" \
-      && { git_push "$OMGF_ORIGIN" "${OMGF_RELEASE}" || return $?; }
+      && { git_push "${OMGF_ORIGIN}" "${OMGF_RELEASE}" || return $?; }
     for stable in $(git branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
-      git_local_branch_exists "$stable" \
-        && { git_push "$OMGF_ORIGIN" "$stable" || return $?; }
+      git_local_branch_exists "${stable}" \
+        && { git_push "${OMGF_ORIGIN}" "${stable}" || return $?; }
     done
   }
 
   function gf_request {
     git_remote_exists \
-      && { [[ "$OMGF_ORIGIN" != "$OMGF_UPSTREAM" ]] || git_push "$OMGF_ORIGIN" "$1"; } \
-      && git_push "$OMGF_ORIGIN" "$gf_branch" \
-      && gf_request_url "$1" \
+      && { [[ "${OMGF_ORIGIN}" != "${OMGF_UPSTREAM}" ]] || git_push "${OMGF_ORIGIN}" "${1}"; } \
+      && git_push "${OMGF_ORIGIN}" "${gf_branch}" \
+      && gf_request_url "${1}" \
       || return $?
   }
 
   function trim_url {
     local url
     url="${1#https://}"
-    echo "$url" | grep -q ":" \
+    echo "${url}" | grep -q ":" \
       && url="${url#*@}" \
       && url="${url/://}" \
       && url="${url/.git/}"
-    echo "$url"
+    echo "${url}"
   }
 
   function gf_request_url {
     local url upstream_url to
-    to="${1:-$OMGF_DEV}"
-    url="$(git config remote."$OMGF_ORIGIN".url)"
-    url="$(trim_url "$url")"
-    upstream_url="$(git config remote."$OMGF_UPSTREAM".url)"
-    upstream_url="$(trim_url "$upstream_url")"
+    to="${1:-${OMGF_DEV}}"
+    url="$(git config remote."${OMGF_ORIGIN}".url)"
+    url="$(trim_url "${url}")"
+    upstream_url="$(git config remote."${OMGF_UPSTREAM}".url)"
+    upstream_url="$(trim_url "${upstream_url}")"
     stdout_verbose
     echo -n "Pull request URL: "
-    case "$url" in
-      *"$GITHUB"*)
+    case "${url}" in
+      *"${GITHUB}"*)
         # shellcheck disable=SC1003
-        [[ "$url" == "$upstream_url" ]] \
-          && echo "https://$url/compare/$to...$gf_branch?expand=1" \
-          || echo "https://$upstream_url/compare/$to...$(echo "$url" | cut -d'/' -f2)%3A$gf_branch?expand=1"
+        [[ "${url}" == "${upstream_url}" ]] \
+          && echo "https://${url}/compare/${to}...${gf_branch}?expand=1" \
+          || echo "https://${upstream_url}/compare/${to}...$(echo "${url}" | cut -d'/' -f2)%3A${gf_branch}?expand=1"
       ;;
-      *"$BITBUCKET"*)
+      *"${BITBUCKET}"*)
         # shellcheck disable=SC1003
-        [[ "$url" == "$upstream_url" ]] \
-          && echo "https://$url/compare/$gf_branch..$(echo "$url" | cut -d'/' -f2-3)%3A$to" \
-          || echo "https://$url/compare/$gf_branch..$(echo "$upstream_url" | cut -d'/' -f2-3)%3A$to"
+        [[ "${url}" == "${upstream_url}" ]] \
+          && echo "https://${url}/compare/${gf_branch}..$(echo "${url}" | cut -d'/' -f2-3)%3A${to}" \
+          || echo "https://${url}/compare/${gf_branch}..$(echo "${upstream_url}" | cut -d'/' -f2-3)%3A${to}"
       ;;
       *)
         err "unknown - remote server name not recognized"
@@ -1071,41 +1071,41 @@ function main {
   function gf_usage {
     local usage_file shift_left first_line other_content
     if [[ -z "${OMGF_USAGE+x}" ]]; then
-      usage_file="$OMGF_DATAPATH/${script_name}.usage"
-      [ -f "$usage_file" ] \
+      usage_file="${OMGF_DATAPATH}/${script_name}.usage"
+      [ -f "${usage_file}" ] \
         || err "Usage file not found" \
         || return 1
-      first_line="$(head -n1 "$usage_file")"
-      other_content="$(tail -n+2 "$usage_file")"
+      first_line="$(head -n1 "${usage_file}")"
+      other_content="$(tail -n+2 "${usage_file}")"
     else
-      first_line="$(echo "$OMGF_USAGE" | head -n1)"
-      other_content="$(echo "$OMGF_USAGE" | tail -n+2)"
+      first_line="$(echo "${OMGF_USAGE}" | head -n1)"
+      other_content="$(echo "${OMGF_USAGE}" | tail -n+2)"
     fi
-    echo "$first_line"
+    echo "${first_line}"
     echo
     shift_left=0
     # shellcheck disable=SC2004
-    [[ $COLUMNS -gt 1 ]] && shift_left=5 && export MANWIDTH=$((COLUMNS+$shift_left))
+    [[ ${COLUMNS} -gt 1 ]] && shift_left=5 && export MANWIDTH=$((COLUMNS+${shift_left}))
     # shellcheck disable=SC2005
-    echo "$other_content" | man --nj --nh -l - | sed "1,2d;/^[[:space:]]*$/d;\$d;s/^ \{$shift_left\}//"
+    echo "${other_content}" | man --nj --nh -l - | sed "1,2d;/^[[:space:]]*$/d;\${d};s/^ \{${shift_left}\}//"
   }
 
   function gf_version {
     local ver prefix
     prefix="omgf "
     [[ -n "${OMGF_VERNUM+x}" ]] \
-      && echo "$prefix$OMGF_VERNUM" \
+      && echo "${prefix}${OMGF_VERNUM}" \
       && return
-    ver="$OMGF_DATAPATH/VERSION"
-    [ -f "$ver" ] \
+    ver="${OMGF_DATAPATH}/VERSION"
+    [ -f "${ver}" ] \
       || err "Version file not found" \
       || return 1
-    echo -n "$prefix"
-    cat "$ver"
+    echo -n "${prefix}"
+    cat "${ver}"
   }
 
   function gf_what_now {
-    [[ $what_now == 0 ]] && return 0
+    [[ ${what_now} == 0 ]] && return 0
     stdout_verbose
     echo "***"
     git_repo_exists || {
@@ -1117,22 +1117,22 @@ function main {
 
     local gcb
     gcb=$(git_current_branch)
-    echo -n "* Current branch '$gcb' is considered as "
-    case $gcb in
-      HEAD|${OMGF_MASTER}|$prefix+([0-9]).+([0-9]))
+    echo -n "* Current branch '${gcb}' is considered as "
+    case ${gcb} in
+      HEAD|${OMGF_MASTER}|${prefix}+([0-9]).+([0-9]))
         if gf_hotfixable 2>/dev/null; then
           echo "hotfixable stable branch."
-          echo "* - Run '$script_name' to create hotfix or leave :)"
-        elif [[ $gcb == HEAD ]]; then
+          echo "* - Run '${script_name}' to create hotfix or leave :)"
+        elif [[ ${gcb} == HEAD ]]; then
           echo "unknown."
           git_status_empty 2>/dev/null && echo "* - Checkout to existing branch"
         else
           #statements
           echo "stable branch (being) hotfixed."
-          echo "* - Run '$script_name' to finish current hotfix or create new one."
+          echo "* - Run '${script_name}' to finish current hotfix or create new one."
         fi
       ;;
-      "$OMGF_DEV")
+      "${OMGF_DEV}")
         echo "developing branch."
         echo "* - Do some bugfixes..."
         echo "* - Run 'omgf MYFEATURE' to create new feature."
@@ -1141,18 +1141,18 @@ function main {
       "${OMGF_RELEASE}")
         echo "release branch."
         echo "* - Do some bugfixes..."
-        echo "* - Run '$script_name' to merge only into '$OMGF_DEV'."
+        echo "* - Run '${script_name}' to merge only into '${OMGF_DEV}'."
         echo "* - Run 'omgf release' to create stable branch."
       ;;
       hotfix-+([0-9]).+([0-9]).+([0-9]))
         echo "hotfix branch."
         echo "* - Do some hotfixes..."
-        echo "* - Run '$script_name' to merge hotfix into stable branch."
+        echo "* - Run '${script_name}' to merge hotfix into stable branch."
       ;;
       *)
         echo "feature branch."
         echo "* - Develop current feature..."
-        echo "* - Run '$script_name' to merge it into '$OMGF_DEV'."
+        echo "* - Run '${script_name}' to merge it into '${OMGF_DEV}'."
     esac
     if ! git_status_empty 2>/dev/null; then
       echo "*"
@@ -1170,7 +1170,7 @@ function main {
   verbose=0
   yes=0
   script_name="omgf"
-  prefix="$([ -z "$OMGF_NOPREFIX" ] && echo v)"
+  prefix="$([ -z "${OMGF_NOPREFIX}" ] && echo v)"
   major=0
   minor=0
   patch=0
@@ -1186,13 +1186,13 @@ function main {
   # shellcheck disable=SC2223
   # shellcheck disable=SC2048
   if ! line=$(
-    IFS=" " getopt -n "$0" \
+    IFS=" " getopt -n "${0}" \
            -o cfhinrvVwy\? \
            -l conform,color::,colour::,force,help,init,dry-run,request,verbose,version,what-now,yes \
            -- $*
   )
   then gf_usage; return 2; fi
-  eval set -- "$line"
+  eval set -- "${line}"
 
   # load user options
   force=0
@@ -1200,9 +1200,9 @@ function main {
   init=0
   request=0
   while [ $# -gt 0 ]; do
-    case $1 in
+    case ${1} in
      -c|--conform) conform=1; shift ;;
-     --color|--colour) shift; setcolor "$1" || { gf_usage; return 2; }; shift ;;
+     --color|--colour) shift; setcolor "${1}" || { gf_usage; return 2; }; shift ;;
      -f|--force) force=1; shift ;;
      -h|-\?|--help) gf_usage; return $? ;;
      -i|--init) init=1; conform=1; shift ;;
@@ -1213,7 +1213,7 @@ function main {
      -w|--what-now) what_now=1; shift ;;
      -y|--yes) yes=1; shift ;;
       --) shift; break ;;
-      *-) echo "$script_name: Unrecognized option '$1'" >&2; gf_usage; return 2 ;;
+      *-) echo "${script_name}: Unrecognized option '${1}'" >&2; gf_usage; return 2 ;;
        *) break ;;
     esac
   done
@@ -1221,7 +1221,7 @@ function main {
   shopt -s nocasematch
 
   # constants
-  # TODO $OMGF_{HOTFIX,RELEASE,FEATURE} ?
+  # TODO ${OMGF_}{HOTFIX,RELEASE,FEATURE} ?
   local -r \
     RED=1 \
     GREEN=2 \
@@ -1235,9 +1235,9 @@ function main {
     CHANGELOG_KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
   local -r \
     REFSHEADS="refs/heads" \
-    DONE="$(colorize "  ok  " $GREEN)" \
-    FAIL="$(colorize " fail " $RED)" \
-    SKIP="$(colorize " skip " $BLUE)"
+    DONE="$(colorize "  ok  " ${GREEN})" \
+    FAIL="$(colorize " fail " ${RED})" \
+    SKIP="$(colorize " skip " ${BLUE})"
 
   # proceed params
   local par1 par2 par_kw par_name arg_count
@@ -1250,7 +1250,7 @@ function main {
   # silent output by default
   stdout_silent
   # dry run
-  [[ $dry == 1 ]] && { gf_what_now; return 0; }
+  [[ ${dry} == 1 ]] && { gf_what_now; return 0; }
 
   # shellcheck disable=SC2015
   gf_validate && gf_process && git_stash_pop && gf_what_now || {
