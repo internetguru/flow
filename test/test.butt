@@ -163,6 +163,7 @@ start "dev is behind master error code"
     && git commit -am "add file a" \
     && omgf release --yes \
     && omgf release --yes \
+    && gch dev \
     && git reset --hard HEAD~1
   } >/dev/null
   debug "omgf -v"
@@ -365,7 +366,7 @@ start "conform on existing repo with commits and --force"
     && git commit -am "first commit" \
     && echo b > b
   } >/dev/null
-  debug "yes no | omgf --conform --force"
+  debug "omgf --conform --force"
   assert_equal "${status}" 0
   checkInitFiles
   gref
@@ -430,7 +431,7 @@ start "merge empty feature"
   } >/dev/null
   debug "omgf -v --yes"
   assert_equal "${status}" 1
-  assert_startwith "${errlines[0]}" "omgf error: Nothing to merge."
+  assert_startwith "${errlines[0]}" "omgf error: Nothing to merge into 'master'."
 end
 #######################################
 : $((i++))

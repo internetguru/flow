@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
 shopt -s extglob
+# exit when any command fails
+set -e
+# treat unset variables as error
 set -u
 
 # shellcheck disable=SC2223
@@ -61,7 +64,6 @@ function main {
     return 0
   }
 
-  #TODO: exit with ${2} ?
   function err {
     echo "$(basename "${0}") error: ${1}" >&2
     exit "${2:-1}"
@@ -125,7 +127,7 @@ function main {
   }
 
   function confirm {
-    [[ ${yes} == 1 ]] && return 0
+    [[ ${yes} == 1 ]] && return
     if [[ ${is_stdin} == 0 ]]; then
       stdout_verbose
       echo -n "${1:-"Are you sure?"} [YES/No] "
@@ -138,7 +140,7 @@ function main {
       read -r
     fi
     [[ "${REPLY}" =~ ^y(es)?$ || -z "${REPLY}" ]] && return 0
-    [[ "${REPLY}" =~ ^no?$ ]] && return 1
+    [[ "${REPLY}" =~ ^no?$ ]] && exit
     confirm "Type"
   }
 
@@ -147,10 +149,14 @@ function main {
   }
 
   # make git return only error to stderr
-  function git_checkout {
+  function gch {
     local out
     out="$(git checkout "$@" 2>&1)" \
       || echo "${out}" >&2
+  }
+
+  function gc {
+    git commit "$@"
   }
 
   # make git return only error to stderr
@@ -184,9 +190,9 @@ function main {
     msg_end "${DONE}"
   }
 
-  function git_checkout_branch {
+  function gch_branch {
     msg_start "Creating branch '${1}'"
-    git_checkout -b "${1}" || return 1
+    gch -b "${1}" || return 1
     msg_end "${DONE}"
   }
 
@@ -196,7 +202,8 @@ function main {
     git_remote_branch_exists "${1}" \
       && to="${OMGF_ORIGIN}/${1}"
     msg_start "Creating branch '${1}' on '${to}'"
-    git branch "${1}" "${to}" >/dev/null
+    git branch "${1}" "${to}" >/dev/null \
+      || exit 1
     msg_end "${DONE}"
   }
 
@@ -218,7 +225,7 @@ function main {
   }
 
   function has_tag {
-    git tag --points-at HEAD | grep -q "^${1}$"
+    [[ -n $(git tag --merged "${1}" -l "${2}") ]]
   }
 
   function git_repo_exists {
@@ -238,7 +245,7 @@ function main {
     [[ "$(git show "${1}":"${OMGF_VERSION}" | cut -d. -f1-2)." != "${2}" ]]
   }
 
-  function git_current_branch {
+  function current_branch {
     git rev-parse --abbrev-ref HEAD
   }
 
@@ -273,6 +280,10 @@ function main {
     git log "${1}".."${2:-${gf_branch}}"
   }
 
+  function is_merged_to {
+    git branch --merged "${2}" | grep -q "${1}"
+  }
+
   # idea:
   # merge upwards preserving conflicts
   # merge downwards ignoring VERSION and CHANGELOG conflicts
@@ -284,29 +295,30 @@ function main {
     [[ "${1}" == "${OMGF_MASTER}" || "${2}" == "${OMGF_DEV}" ]] \
       && stream='downwards'
     msg_start "Merging ${stream} from '${1}' to '${2}'"
-    [[ -z "$(additional_commits "${2}" "${1}")" ]] \
+    is_merged_to "${1}" "${2}" \
       && msg_end "${SKIP}" \
       && return
-    git_checkout "${2}" \
+    gch "${2}" \
       && git_merge_stream "${1}" "${stream}" \
       && msg_end "${DONE}"
   }
 
   function git_merge_stream {
-    if [[ "${2}" == 'upwards' ]]; then
-      git_merge --no-ff "${1}" || return 5
-      return 0
-    fi
+    [[ "${2}" == 'upwards' ]] \
+      && git_merge --no-ff "${1}" \
+      && return \
+      || exit 5
     git_merge --no-ff --no-commit "${1}" 2>/dev/null
-    git_checkout --ours "${OMGF_VERSION}"
-    git_checkout --ours "${OMGF_CHANGELOG}"
-    git add .
-    git_merge --continue || return 5
+    gch --ours "${OMGF_VERSION}" \
+      && gch --ours "${OMGF_CHANGELOG}" \
+      && git add . \
+      && git_merge --continue \
+      || exit 5
   }
 
   function delete_gf_branch {
-    [[ "$(git_current_branch)" != "${gf_branch}" ]] \
-      || git_checkout "${OMGF_DEV}" \
+    [[ "$(current_branch)" != "${gf_branch}" ]] \
+      || gch "${OMGF_DEV}" \
       || return $?
     if git_remote_branch_exists "${gf_branch}"; then
       msg_start "Deleting remote branch '${gf_branch}'"
@@ -320,17 +332,10 @@ function main {
     msg_end "${DONE}"
   }
 
+  #TODO add verification?
   function load_version {
-    [[ -f "${OMGF_VERSION}" ]] \
-      || err "Version file not found." 3
-    [[ -n "$(cat "${OMGF_VERSION}")" ]] \
-      || err "Version file is empty." 3
-    [[ "$(cat "${OMGF_VERSION}")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
-      || err "Invalid version file content format."
-    IFS=. read -r major minor patch < "${OMGF_VERSION}" \
-      || err "Unable to load version."
-    master=${prefix}${major}.${minor}
-    gf_branch="$(git_current_branch)"
+    git show "${1}:VERSION" \
+      || exit 1
   }
 
   function master_last_change {
@@ -353,8 +358,8 @@ function main {
     msg_start "${message}"
     echo "${2}" > "${1}" || return 1
     git add "${1}" >/dev/null \
-      && git commit -m "${message}" >/dev/null \
-      || return 1
+      && gc -m "${message}" >/dev/null \
+      || exit 1
     msg_end "${DONE}"
   }
 
@@ -363,7 +368,7 @@ function main {
     msg_start "Initial commit"
     # shellcheck disable=SC2015
     git add -A >/dev/null \
-      && git commit -m "Commit initial files" >/dev/null \
+      && gc -m "Commit initial files" >/dev/null \
       || err "Unable to commit existing files."
     msg_end "${DONE}"
   }
@@ -406,44 +411,42 @@ function main {
     elif ! git_local_branch_exists "${OMGF_MASTER}"; then
       [[ ${conform} == 0 ]] \
         && err "Missing branch '${OMGF_MASTER}'." 3
-      git_branch_create "${OMGF_MASTER}" || return 1
+      git_branch_create "${OMGF_MASTER}"
     fi
   }
 
   # validate ${OMGF_VERSION} and ${OMGF_CHANGELOG} files
   function validate_gf_files {
-    init_file "${OMGF_VERSION}" "0.0.0" 0 \
-      && init_file "${OMGF_CHANGELOG}" "${OMGF_CHANGELOG_HEADER}" 1 \
-      && load_version \
-      || return $?
+    #TODO validate
+    init_file "${OMGF_VERSION}" "0.0.0" 0
+    init_file "${OMGF_CHANGELOG}" "${OMGF_CHANGELOG_HEADER}" 1
   }
 
   # validate tag on ($)master
-  function validate_master_tag {
-    [[ "${1}" != "${OMGF_MASTER}" ]] && [[ "${1}" != "${master}" ]] \
-      && return
-    has_tag "${master}.${patch}" \
+  function validate_vtag {
+    local ver
+    ver=$(load_version "${1}")
+    has_tag "${1}" "${ver}" \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Missing tag '${master}.${patch}' on current HEAD." 3
-    git_tag "${master}.${patch}";
+      && err "Missing tag '${ver}' on branch '${1}'." 3
+    git_tag "${ver}" "${1}" \
+      || exit 1
   }
 
   # 1) validate ${OMGF_DEV} branch
   # 2) validate ${OMGF_DEV} is up to date with master
   function validate_dev {
-    if ! git_local_branch_exists "${OMGF_DEV}"; then
-      [[ ${conform} == 0 ]] \
-        && err "Missing branch '${OMGF_DEV}'." 3
-      git_branch_create "${OMGF_DEV}" "${OMGF_MASTER}" || return 1
-    fi
-    local last_change
-    last_change="$(master_last_change)"
-    if [[ -n "${last_change}" ]] && ! git branch --contains "${last_change}" | grep -q "${OMGF_DEV}"; then
-      [[ ${conform} == 0 ]] \
-        && err "Branch '${OMGF_MASTER}' is not merged with '${OMGF_DEV}'." 3
-      merge_fromto "${last_change}" "${OMGF_DEV}" || return $?
-    fi
+    git_local_branch_exists "${OMGF_DEV}" \
+      && return
+    [[ ${conform} == 0 ]] \
+      && err "Missing branch '${OMGF_DEV}'." 3
+    git_branch_create "${OMGF_DEV}" "${OMGF_MASTER}"
+    is_merged_to "${OMGF_MASTER}" "${OMGF_DEV}" \
+      && return
+    [[ ${conform} == 0 ]] \
+      && err "Branch '${OMGF_MASTER}' is not merged to '${OMGF_DEV}'." 3
+    merge_fromto "${OMGF_MASTER}" "${OMGF_DEV}"
   }
 
   function validate_release {
@@ -455,20 +458,14 @@ function main {
   }
 
   function validate_dev_version {
-    if [[ "$(git show "${OMGF_DEV}":"${OMGF_VERSION}")" == "$(git show "${OMGF_RELEASE}":"${OMGF_VERSION}")" ]]; then
-      [[ ${conform} == 0 ]] \
-        && err "Branch ${OMGF_DEV} has the same version as ${OMGF_RELEASE}." 3
-      local prev_branch
-      prev_branch="$(git_current_branch)"
-      git_checkout "${OMGF_DEV}" || return $?
-      load_version
-      ((minor++))
-      patch=0
-      gf_commit_version \
-        && git_checkout "${prev_branch}" \
-        && load_version \
-        || return $?
-    fi
+    ver=$(load_version "${OMGF_DEV}")
+    vergt "${ver}" "$(load_version "${OMGF_MASTER}")" \
+      && return
+    [[ ${conform} == 0 ]] \
+      && err "Version on '${OMGF_DEV}' must be greater than on '${OMGF_MASTER}'." 3
+    gch "${OMGF_DEV}" \
+      || exit 1
+    increment_version "${ver}" 1
   }
 
   # validate git status
@@ -489,32 +486,32 @@ function main {
     msg="Add default heading to ${OMGF_CHANGELOG}"
     msg_start "${msg}"
     echo -e "${OMGF_CHANGELOG_HEADER}\n$(cat "${OMGF_CHANGELOG}")" > "${OMGF_CHANGELOG}" \
-      && git commit -am "${msg}" >/dev/null \
-      || return 1
+      && gc -am "${msg}" >/dev/null \
+      || exit 1
     msg_end "${DONE}"
   }
 
   function gf_validate {
-    validate_requirements || return $?
-    validate_git_repository || return $?
-    validate_gf_files || return $?
-    validate_master_tag "${gf_branch}" || return $?
-    validate_dev || return $?
-    validate_release || return $?
-    validate_dev_version || return $?
-    validate_status_empty || return $?
-    validate_changelog_heading || return $?
+    validate_requirements
+    validate_git_repository
+    validate_status_empty
+    validate_gf_files
+    validate_vtag "${OMGF_MASTER}"
+    validate_dev
+    validate_dev_version
+    validate_release
+    validate_changelog_heading
     # load and validate user params
     [[ ${arg_count} -gt 2 ]] \
       && err "Wrong number of parameters."
     if [[ ${arg_count} -eq 2 ]]; then
-      par_kw="${par1}"
-      par_name="${par2}"
+      par_kw="${KEYWORD}"
+      par_name="${NAME}"
       is_gf_keyword "${par_kw}" \
         || err "Parameter '${par_kw}' is not a valid keyword."
     elif [[ ${arg_count} == 1 ]]; then
-      if is_gf_keyword "${par1}"; then par_kw="${par1}"
-      else par_name="${par1}"; fi
+      if is_gf_keyword "${KEYWORD}"; then par_kw="${KEYWORD}"
+      else par_name="${KEYWORD}"; fi
     fi
     [[ -z "${par_name}" ]] && return 0
     git check-ref-format "${REFSHEADS}/${par_name}" \
@@ -559,18 +556,18 @@ function main {
 
   function create_stable_branch {
     git_commit_diff "${gf_branch}" "${OMGF_MASTER}" \
-      || { git_checkout "${OMGF_MASTER}"; return $?; }
+      || { gch "${OMGF_MASTER}"; return $?; }
     if git_branch_exists "${master}"; then
       git_commit_diff "${gf_branch}" "${master}" \
-        || { git_checkout "${master}"; return $?; }
+        || { gch "${master}"; return $?; }
     fi
-    git_checkout_branch "${master}" || return 1
+    gch_branch "${master}" || return 1
   }
 
   function gf_process {
     # explicit init
     [[ ${init} == 1 ]] \
-      && git_checkout "${OMGF_DEV}" \
+      && gch "${OMGF_DEV}" \
       && return 0
     local branch_name
     # action according to current branch
@@ -619,7 +616,7 @@ function main {
     fi
     case "${par_kw}" in
       ${HOTFIX}) gf_hotfix "${par_kw}" "${par_name}" ;;
-      ${FEATURE}) gf_feature "${par_kw}-${par_name}";;
+      ${FEATURE}) gf_feature "${par_kw}-${par_name}" ;;
       *) err "'${par_kw}' with second parameter is not supported." ;;
     esac
     return $?
@@ -629,8 +626,8 @@ function main {
     local branch
     branch="${1}"
     msg_start "Checkout '${branch}'"
-    [[ "$(git_current_branch)" == "${branch}" ]] && msg_end "${SKIP}" && return 0
-    git_checkout "${branch}" || return $?
+    [[ "$(current_branch)" == "${branch}" ]] && msg_end "${SKIP}" && return 0
+    gch "${branch}" || return $?
     msg_end "${DONE}"
   }
 
@@ -638,43 +635,31 @@ function main {
     local msg
     # shellcheck disable=SC2016
     msg="${2:-* Branch '${1}' already exists, checkout?}"
-    confirm "${msg}" || return 1
+    confirm "${msg}"
     gf_checkout "${1}"
   }
 
   function gf_release {
-    # if git_branch_exists "${OMGF_RELEASE}"; then
-    #   gf_confirm_checkout "${OMGF_RELEASE}"
-    #   return $?
+    # local last_merge valid_commits confirmed
+    # confirmed=0
+    # last_merge="$(git reflog show "${OMGF_DEV}" --format="%h:%gs" | grep -m1 ":merge ${OMGF_RELEASE}:" | cut -d: -f1)"
+    # # commits on dev before last release merge
+    # valid_commits="$(git reflog show "${OMGF_DEV}" --format="%H")"
+    # [[ -n "${last_merge}" ]] && valid_commits="$(echo "${valid_commits}" | sed "/${last_merge}/Q")"
+    # # on invalid commit?
+    # if ! echo "${valid_commits}" | grep -q "$(git_current_commit)"; then
+    #   gf_confirm_checkout "${OMGF_DEV}" "* Unable to create '${OMGF_RELEASE}' from current commit. Create '${OMGF_RELEASE}' from '${OMGF_DEV}' instead?" \
+    #     || return 1
+    #   confirmed=1
     # fi
-    local last_merge valid_commits confirmed
-    confirmed=0
-    last_merge="$(git reflog show "${OMGF_DEV}" --format="%h:%gs" | grep -m1 ":merge ${OMGF_RELEASE}:" | cut -d: -f1)"
-    # commits on dev before last release merge
-    valid_commits="$(git reflog show "${OMGF_DEV}" --format="%H")"
-    [[ -n "${last_merge}" ]] && valid_commits="$(echo "${valid_commits}" | sed "/${last_merge}/Q")"
-    # on invalid commit?
-    if ! echo "${valid_commits}" | grep -q "$(git_current_commit)"; then
-      gf_confirm_checkout "${OMGF_DEV}" "* Unable to create '${OMGF_RELEASE}' from current commit, create '${OMGF_RELEASE}' from '${OMGF_DEV}'?" \
-        || return 1
-      confirmed=1
-    fi
-    # HEAD and master has no diff, nothing to do
-    [[ -n "$(git diff HEAD "${OMGF_MASTER}")" ]] \
-      || err "Current HEAD is same as branch '${OMGF_MASTER}'. Nothing to do."
-    [[ ${confirmed} == 0 ]] \
-      && { confirm "* Create branch '${OMGF_RELEASE}' from current HEAD?" || return 0; }
-    git_checkout "${OMGF_RELEASE}" 2>/dev/null \
-      || git_checkout_branch "${OMGF_RELEASE}"
-    # use --keep-theirs if conflicting
+    [[ "$(current_branch)" != "${OMGF_DEV}" ]] \
+      && err "Releasing is only available from '${OMGF_DEV}'."
+    ver=$(load_version "${OMGF_DEV}")
+    confirm "* Release '${ver}' from '${OMGF_DEV}' branch?"
     merge_fromto "${OMGF_DEV}" "${OMGF_RELEASE}"
-    git_checkout "${OMGF_DEV}"
+    gch "${OMGF_DEV}"
     gf_update_changelog_header
-    ((minor++))
-    patch=0
-    gf_commit_version \
-      && git_checkout "${OMGF_RELEASE}" \
-      && load_version
+    increment_version "${ver}" 1
   }
 
   function gf_feature {
@@ -684,8 +669,8 @@ function main {
       gf_confirm_checkout "${feature_name}"
       return $?
     fi
-    confirm "* Create branch '${feature_name}' from branch '${OMGF_DEV}'?" || return 0
-    git_checkout_branch "${feature_name}"
+    confirm "* Create branch '${feature_name}' from branch '${OMGF_DEV}'?"
+    gch_branch "${feature_name}"
   }
 
   function gf_hotfixable {
@@ -711,18 +696,18 @@ function main {
       gf_confirm_checkout "${hotfix_name}"
       return $?
     fi
-    confirm "* Create hotfix '${hotfix_name}' from '${to}'?" || return 0
+    confirm "* Create hotfix '${hotfix_name}' from '${to}'?"
     gf_checkout "${to}" \
       && load_version \
       || return $?
     if [[ "${gf_branch}" != "${OMGF_MASTER}" ]]; then
       create_stable_branch || return $?
     fi
-    git_checkout_branch "${hotfix_name}" || return $?
+    gch_branch "${hotfix_name}" || return $?
   }
 
   function gf_merge_release {
-    confirm "* Merge '${OMGF_RELEASE}' branch into '${OMGF_DEV}'?" || return 0
+    confirm "* Merge '${OMGF_RELEASE}' branch into '${OMGF_DEV}'?"
     merge_fromto "${gf_branch}" "${OMGF_DEV}" || return $?
   }
 
@@ -731,11 +716,11 @@ function main {
       || err 'Branch already released.'
     local confirm_suffix
     [[ ${request} == 1 ]] && confirm_suffix="${pr_suffix}" || confirm_suffix=
-    confirm "* Create stable branch from ${OMGF_RELEASE}${confirm_suffix}?" || return 0
+    confirm "* Create stable branch from ${OMGF_RELEASE}${confirm_suffix}?"
     gf_update_changelog_header
     merge_fromto "${OMGF_MASTER}" "${gf_branch}" || return $?
     [[ ${request} == 1 ]] && { gf_request "${OMGF_MASTER}"; return $?; }
-    git_checkout "${OMGF_MASTER}" \
+    gch "${OMGF_MASTER}" \
       && merge_fromto "${gf_branch}" "${OMGF_MASTER}" \
       && git_tag "${master}".0 \
       && merge_fromto "${gf_branch}" "${OMGF_DEV}" \
@@ -785,7 +770,7 @@ function main {
       }
       ' "${OMGF_CHANGELOG}" > "${tmpfile}"
     cat "${tmpfile}" > "${OMGF_CHANGELOG}"
-    git commit -am "Update ${OMGF_CHANGELOG} header" >/dev/null || return 1
+    gc -am "Update ${OMGF_CHANGELOG} header" >/dev/null || return 1
     msg_end "${DONE}"
   }
 
@@ -893,7 +878,7 @@ function main {
     stdout_silent
     msg_start "Updating version history"
     if ! git_status_empty 2>/dev/null; then
-      git commit -am "Update ${OMGF_CHANGELOG}" >/dev/null || return 1
+      gc -am "Update ${OMGF_CHANGELOG}" >/dev/null || return 1
       msg_end "${DONE}"
     else
       msg_end "${SKIP}"
@@ -901,11 +886,11 @@ function main {
   }
 
   function gf_merge_feature {
-    [[ -n "$(additional_commits "${OMGF_DEV}")" ]] \
-      || err "Nothing to merge."
+    is_merged_to "${gf_branch}" "${OMGF_DEV}" \
+      && err "Nothing to merge."
     local confirm_suffix
     [[ ${request} == 1 ]] && confirm_suffix="${pr_suffix}" || confirm_suffix=
-    confirm "* Merge feature '${gf_branch}' into '${OMGF_DEV}'${confirm_suffix}?" || return 0
+    confirm "* Merge feature '${gf_branch}' into '${OMGF_DEV}'${confirm_suffix}?"
     merge_fromto "${OMGF_DEV}" "${gf_branch}" \
       && gf_update_changelog 0 \
       || return $?
@@ -916,60 +901,54 @@ function main {
       || return $?
   }
 
-  function gf_prepare_to_merge {
-    local ver
-    ver="$(git show "${1}":"${OMGF_VERSION}")"
-    # get and commit VERSION from master
-    msg_start "Updating version number from '${1}'"
-    if [[ "${ver}" != "${major}.${minor}.${patch}" ]]; then
-      echo "${ver}" > "${OMGF_VERSION}"
-      git commit -am "Update ${OMGF_VERSION} from '${1}'" >/dev/null || return 1
-      msg_end "${DONE}"
-    else
-      msg_end "${SKIP}"
-    fi
-    load_version
-    merge_fromto "${1}" "${gf_branch}"
-  }
-
-  function gf_commit_version {
-    msg_start "Increment version number to '${major}.${minor}.${patch}'"
-    echo "${major}.${minor}.${patch}" > "${OMGF_VERSION}"
-    git commit -am "Increment version number" >/dev/null || return 1
+  ### Increments the part of the string
+  ## $1: version itself
+  ## $2: number of part: 0 – major, 1 – minor, 2 – patch
+  function increment_version {
+    msg_start "Increment version number"
+    local array=("$(echo "${1}" | tr '.' '\n')")
+    array[${2}]=$((array[${2}] + 1))
+    [[ ${2} -lt 2 ]] && array[2]=0
+    [[ ${2} -lt 1 ]] && array[1]=0
+    ver=$(local IFS=.; echo "${array[*]}")
+    echo "${ver}" > "${OMGF_VERSION}"
+    gc -am "Increment version number" \
+      || exit 1
     msg_end "${DONE}"
   }
 
   function gf_merge_hotfix {
-    local confirm_suffix into
-    [[ ${request} == 1 ]] && confirm_suffix="${pr_suffix}" || confirm_suffix=
-    # master -> merge hotfix into master and dev
-    if ! git_version_diff "${OMGF_MASTER}" "${major}.${minor}."; then
-      into=${OMGF_MASTER}
-      confirm "* Merge hotfix into ${OMGF_MASTER} and '${OMGF_DEV}'${confirm_suffix}?" || return 0
-    else
-      into="${master}"
-      confirm "* Merge hotfix into stable branch '${master}'${confirm_suffix}?" || return 0
-    fi
-    if [[ -n "$(additional_commits "${into}")" ]]; then
-      gf_prepare_to_merge "${into}" \
-        && patch=$((patch+1)) \
-        && gf_commit_version \
-        && gf_update_changelog 4 \
-        && gf_update_changelog_header \
-        || return $?
-      [[ ${request} == 1 ]] && { gf_request "${into}"; return $?; }
-      merge_fromto "${gf_branch}" "${into}" \
-        && git_checkout "${into}" \
-        && git_tag "${master}.${patch}" \
-        || return $?
-    fi
-    [[ ${request} == 1 ]] && { gf_request "${into}"; return $?; }
-    if [[ "${into}" == "${OMGF_MASTER}" ]]; then
-      # ignore changes in VERSION file iff conflict occured
-      merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}" \
-        && merge_fromto "${OMGF_MASTER}" "${OMGF_DEV}" \
-        || return $?
-    fi
+    local dest_branch ver
+    dest_branch=${OMGF_MASTER}
+  #
+  # TODO: decide destination according to major.minor match
+  # TODO: increment version on destination after merge!
+  #
+    git_version_diff "${OMGF_MASTER}" "${major}.${minor}." \
+      && dest_branch="${master}"
+    is_merged_to "${gf_branch}" "${dest_branch}" \
+      && err "Nothing to merge into '${dest_branch}'."
+    # shellcheck disable=SC2015
+    [[ "${dest_branch}" == "${OMGF_MASTER}" ]] \
+      && confirm "* Merge hotfix into '${dest_branch}' and further?" \
+      || confirm "* Merge hotfix into separate stable branch '${dest_branch}' only?"
+    ver=$(load_version "${OMGF_MASTER}")
+
+    gf_prepare_to_merge "${dest_branch}" \
+      && patch=$((patch+1)) \
+      && increment_version \
+      && gf_update_changelog 4 \
+      && gf_update_changelog_header \
+      || return $?
+    [[ ${request} == 1 ]] && { gf_request "${dest_branch}"; return $?; }
+    merge_fromto "${gf_branch}" "${dest_branch}" \
+      && gch "${dest_branch}" \
+      && git_tag "${master}.${patch}" \
+      || return $?
+    [[ "${dest_branch}" == "${OMGF_MASTER}" ]] \
+      && merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}" \
+      && merge_fromto "${OMGF_MASTER}" "${OMGF_DEV}" \
+      || return $?
     delete_gf_branch
   }
 
@@ -1098,7 +1077,7 @@ function main {
       return 3
     }
     local gcb
-    gcb=$(git_current_branch)
+    gcb=$(current_branch)
     echo -n "* Current branch '${gcb}' is considered as "
     case ${gcb} in
       HEAD|${OMGF_MASTER}|${prefix}+([0-9]).+([0-9]))
@@ -1222,9 +1201,9 @@ function main {
     SKIP="$(colorize " skip " ${BLUE})"
 
   # proceed params
-  local par1 par2 par_kw par_name arg_count
-  par1="${1:-}"
-  par2="${2:-}"
+  local KEYWORD NAME par_kw par_name arg_count
+  KEYWORD="${1:-}"
+  NAME="${2:-}"
   par_kw=
   par_name=
   arg_count=$#
@@ -1239,10 +1218,12 @@ function main {
     && gf_what_now \
     && exit
 
-  # shellcheck disable=SC2015
-  gf_validate \
-    && gf_process \
-    && git_stash_pop
+  gf_validate
+
+  [[ ${conform} != 1 ]] \
+    && gf_process
+
+  git_stash_pop
 
 }
 
