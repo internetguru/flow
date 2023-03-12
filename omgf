@@ -169,7 +169,7 @@ function main {
   # make git return only error to stderr
   function git_merge {
     local out
-    out="$(git merge "$@" 2>&1)" \
+    out="$(env GIT_EDITOR=: git merge "$@" 2>&1)" \
       || err "$out"
   }
 
@@ -270,22 +270,40 @@ function main {
     git log >/dev/null 2>&1
   }
 
+  #TODO: git branch --merged master
   function additional_commits {
     git log "$1".."${2:-$gf_branch}"
   }
 
-  function merge_branches {
-    local prev_branch
-    prev_branch="$(git_current_branch)"
-    msg_start "Merging '$1' into branch '$2'"
+  # idea:
+  # merge upwards preserving conflicts
+  # merge downwards ignoring conflicts
+  # upwards: feature->dev->release->master, hotfix->master
+  # downwards: master->release->dev
+  function merge_fromto {
+    local stream
+    stream='upwards'
+    [[ "$1" == 'master' || "$2" == "${OMGF_DEV}" ]] \
+      && stream='downwards'
+    msg_start "Merging ${stream} from '$1' to '$2'"
     [[ -z "$(additional_commits "$2" "$1")" ]] \
       && msg_end "$SKIP" \
       && return
-    # $4 can be --no-commit if explicitly given
     git_checkout "$2" \
-      && { git_merge "${3:---no-ff}" "${4:---commit}" "$1" || return 5; } \
-      && { [[ -n "${4:-}" ]] || git_checkout "$prev_branch"; } \
+      && git_merge_stream "$1" "$stream" \
       && msg_end "$DONE"
+  }
+
+  function git_merge_stream {
+    if [[ "$2" == 'upwards' ]]; then
+      git_merge --no-ff "$1" || return 5
+      return 0
+    fi
+    git_merge --no-ff --no-commit "$1" 2>/dev/null
+    git_checkout --ours "$OMGF_VERSION"
+    git_checkout --ours "$OMGF_CHANGELOG"
+    git add .
+    git_merge --continue || return 5
   }
 
   function delete_gf_branch {
@@ -399,7 +417,7 @@ function main {
     fi
   }
 
-  # validate $OMGF_VERSION and $OMGF_HANGELOG files
+  # validate $OMGF_VERSION and $OMGF_CHANGELOG files
   function validate_gf_files {
     init_file "$OMGF_VERSION" "0.0.0" 0 \
       && init_file "$OMGF_CHANGELOG" "$OMGF_CHANGELOG_HEADER" 1 \
@@ -426,7 +444,7 @@ function main {
     last_change="$(master_last_change)"
     if [[ -n "$last_change" ]] && ! git branch --contains "$last_change" | grep -q "$OMGF_DEV"; then
       [[ $conform == 0 ]] && { err "Branch master is not merged with '$OMGF_DEV'" || return 3; }
-      merge_branches "$last_change" "$OMGF_DEV" || return $?
+      merge_fromto "$last_change" "$OMGF_DEV" || return $?
     fi
   }
 
@@ -653,7 +671,7 @@ function main {
     git_checkout "$RELEASE" 2>/dev/null \
       || git_checkout_branch "$RELEASE"
     # use --keep-theirs if conflicting
-    merge_branches "$OMGF_DEV" "$RELEASE"
+    merge_fromto "$OMGF_DEV" "$RELEASE"
     git_checkout "$OMGF_DEV"
     gf_update_changelog_header
     ((minor++))
@@ -709,7 +727,7 @@ function main {
 
   function gf_merge_release {
     confirm "* Merge '$RELEASE' branch into '$OMGF_DEV'?" || return 0
-    merge_branches "$gf_branch" "$OMGF_DEV" || return $?
+    merge_fromto "$gf_branch" "$OMGF_DEV" || return $?
   }
 
   function gf_release_release {
@@ -719,11 +737,11 @@ function main {
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     confirm "* Create stable branch from release$confirm_suffix?" || return 0
     gf_update_changelog_header
-    merge_branches master "$gf_branch" || return $?
+    merge_fromto master "$gf_branch" || return $?
     [[ $request == 1 ]] && { gf_request master; return $?; }
     git_checkout master \
-      && merge_branches "$gf_branch" "$OMGF_DEV" \
-      && merge_branches "$gf_branch" master \
+      && merge_fromto "$gf_branch" "$OMGF_DEV" \
+      && merge_fromto "$gf_branch" master \
       && git_tag "$master".0 \
       && git_checkout "$OMGF_DEV" \
       || return $?
@@ -894,13 +912,12 @@ function main {
     local confirm_suffix
     [[ $request == 1 ]] && confirm_suffix="$pr_suffix" || confirm_suffix=
     confirm "* Merge feature '$gf_branch' into '$OMGF_DEV'$confirm_suffix?" || return 0
-    merge_branches "$OMGF_DEV" "$gf_branch" \
+    merge_fromto "$OMGF_DEV" "$gf_branch" \
       && gf_update_changelog 0 \
       || return $?
     [[ $request == 1 ]] \
       && { gf_request "$OMGF_DEV"; return $?; }
-    merge_branches "$gf_branch" "$OMGF_DEV" \
-      && git_checkout "$OMGF_DEV" \
+    merge_fromto "$gf_branch" "$OMGF_DEV" \
       && delete_gf_branch \
       || return $?
   }
@@ -918,7 +935,7 @@ function main {
       msg_end "$SKIP"
     fi
     load_version
-    merge_branches "$1" "$gf_branch"
+    merge_fromto "$1" "$gf_branch"
   }
 
   function gf_commit_version {
@@ -947,7 +964,7 @@ function main {
         && gf_update_changelog_header \
         || return $?
       [[ $request == 1 ]] && { gf_request "$into"; return $?; }
-      merge_branches "$gf_branch" "$into" \
+      merge_fromto "$gf_branch" "$into" \
         && git_checkout "$into" \
         && git_tag "$master.$patch" \
         || return $?
@@ -955,35 +972,11 @@ function main {
     [[ $request == 1 ]] && { gf_request "$into"; return $?; }
     if [[ "$into" == master ]]; then
       # ignore changes in VERSION file iff conflict occured
-      gf_version_ignore_merge "$OMGF_DEV" \
-        && gf_version_ignore_merge "$RELEASE" \
+      merge_fromto master "$RELEASE" \
+        && merge_fromto master "$OMGF_DEV" \
         || return $?
     fi
     delete_gf_branch
-  }
-
-
-  function gf_version_ignore_merge {
-    local ecode
-    [[ -z "$(additional_commits "$1")" ]] \
-      && return
-    merge_branches "$gf_branch" "$1" "--no-ff" "--no-commit"
-    ecode=$?
-    # ignore version iff conflict occurred
-    if [[ $ecode == 5 ]]; then
-      git reset "$OMGF_VERSION" >/dev/null \
-        && git_checkout "$OMGF_VERSION" \
-        && git -c core.editor=/bin/true merge --continue >/dev/null \
-        && return 0 \
-        || return $?
-    fi
-    # no conflicts, proceed merge
-    if [[ $ecode == 0 ]]; then
-      git commit -am "Merge branch '$gf_branch' into $1" >/dev/null \
-        && git_checkout "$gf_branch" \
-        || return $?
-    fi
-    return $ecode
   }
 
   function gf_pull_branch {
