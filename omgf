@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 shopt -s extglob
-shopt -s nocasematch
 # exit when any command fails
 set -e
 # treat unset variables as error
@@ -510,22 +509,22 @@ function main {
     name=${2:-"$(whoami)"}
     git check-ref-format "${REFSHEADS}/${name}" \
       || err "Invalid branch name format '${name}'." 2
-    case "${1:-"${kw}"}" in
+    case "${1:-"${kw,,}"}" in
       ${HOTFIX})
-        [[ "${current_branch}" == "${kw}-${name}" ]] \
+        [[ "${current_branch}" == "${HOTFIX}-${name}" ]] \
           && hotfix_release \
           && return
         confirm_checkout_if_exists "${1}" \
           && return
-        hotfix_create "${kw}-${name}"
+        hotfix_create "${HOTFIX}-${name}"
         ;;
       ${FEATURE})
-        [[ "${current_branch}" == "${kw}-${name}" ]] \
+        [[ "${current_branch}" == "${FEATURE}-${name}" ]] \
           && feature_merge \
           && return
         confirm_checkout_if_exists "${1}" \
           && return
-        feature_create "${kw}-${name}"
+        feature_create "${FEATURE}-${name}"
         ;;
       ${OMGF_RELEASE})
         [[ "${current_branch}" == "${OMGF_DEV}" ]] \
@@ -925,7 +924,11 @@ function main {
   }
 
   function gf_version {
-    echo "OMGF ${OMGF_VERNUM}"
+    [[ -n "${OMGF_VERNUM+x}" ]] \
+      && echo "OMGF ${OMGF_VERNUM}" \
+      && return
+    ver=$(<"${OMGF_DATAPATH}/VERSION")
+    echo -n "OMGF ${ver}"
   }
 
   function what_now {
