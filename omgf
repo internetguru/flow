@@ -159,19 +159,19 @@ function main {
   # make git return only error to stderr
   function gch {
     local out
-    out="$(git checkout "$@" 2>&1)" \
+    out="$(git checkout "${@}" 2>&1)" \
       || err "${out}"
   }
 
   function git_add {
     local out
-    out="$(git add "$@" 2>&1)" \
+    out="$(git add "${@}" 2>&1)" \
       || err "${out}"
   }
 
   function gc {
     local out
-    out="$(git commit "$@" 2>&1)" \
+    out="$(git commit "${@}" 2>&1)" \
       || err "${out}"
   }
 
@@ -179,7 +179,7 @@ function main {
   function git_fetch {
     msg_start "Fetching ${*}"
     local out
-    out="$(git fetch --update-head-ok "$@" 2>&1)" \
+    out="$(git fetch --update-head-ok "${@}" 2>&1)" \
       || err "${out}"
     msg_end "${DONE}"
   }
@@ -187,33 +187,34 @@ function main {
   # make git return only error to stderr
   function git_tag {
     local out
-    out="$(git tag "$@" 2>&1)" \
+    out="$(git tag "${@}" 2>&1)" \
       || err "${out}" >&2
   }
 
   # make git return only error to stderr
   function git_merge {
     local out
-    out="$(env GIT_EDITOR=: git merge "$@" 2>&1)" \
+    out="$(env GIT_EDITOR=: git merge "${@}" 2>&1)" \
       || err "${out}"
   }
 
   function git_show {
     local out
-    out="$(git show "$@" 2>&1)" \
+    out="$(git show "${@}" 2>&1)" \
       || err "${out}"
+    echo "${out}"
   }
 
   function git_branch {
     local out
-    out="$(git branch "$@" 2>&1)" \
+    out="$(git branch "${@}" 2>&1)" \
       || err "${out}"
   }
 
   function git_push {
-    msg_start "Pushing $*"
+    msg_start "Pushing to remote"
     local out
-    out="$(git push "$@" 2>&1)" \
+    out="$(git push "${@}" 2>&1)" \
       || err "${out}"
     msg_end "${DONE}"
   }
@@ -344,10 +345,11 @@ function main {
   }
 
   function load_version {
-    local ver
-    ver="$(git_show "${1:-$(current_branch)}:VERSION")"
+    local branch ver
+    branch=${1:-$(current_branch)}
+    ver=$(git_show "${branch}:${OMGF_VERFILE}")
     [[ "${ver}" =~ ^[0-9]+\.[0-9]+\.[0-9]$ ]] \
-      || err "Invalid version format." 3
+      || err "Invalid version format on branch '${branch}'." 3
     echo "${ver}"
   }
 
@@ -466,8 +468,7 @@ function main {
     msg="Add default heading to ${OMGF_CHANGELOG}"
     msg_start "${msg}"
     echo -e "${OMGF_CHANGELOG_HEADER}\n$(cat "${OMGF_CHANGELOG}")" > "${OMGF_CHANGELOG}" \
-      && gc -am "${msg}" >/dev/null \
-      || exit 1
+      && gc -am "${msg}"
     msg_end "${DONE}"
   }
 
@@ -481,6 +482,7 @@ function main {
     validate_merged_to "${OMGF_MASTER}" "${OMGF_DEV}"
     validate_merged_to "${OMGF_MASTER}" "${OMGF_RELEASE}"
     validate_merged_to "${OMGF_RELEASE}" "${OMGF_DEV}"
+    err DEBUG
     validate_vertag "${OMGF_MASTER}"
     validate_verlte "$(load_version "${OMGF_MASTER}")" "${OMGF_RELEASE}"
     validate_verlte "$(increment_version "$(load_version "${OMGF_RELEASE}")" 1)" "${OMGF_DEV}"
