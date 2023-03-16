@@ -27,7 +27,8 @@ set -u
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
-and this project adheres to [Semantic Versioning](http://semver.org/).}
+and this project adheres to [Semantic Versioning](http://semver.org/).
+}
 # shellcheck disable=SC2223
 : ${OMGF_STABLE_PREFIX:=v}
 : ${COLUMNS:=$(tput cols)}
@@ -36,9 +37,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).}
 function main {
 
   function msg_start {
-    [[ ${verbose} -eq 0 ]] && return
+    [[ ${verbose} -eq 0 ]] \
+      && return
     if stdoutpipe || [[ ${COLUMNS} -lt 41 ]]; then
-      echo -n "${1}" && return 0
+      echo -n "${1}" \
+        && return
     fi
     echo -n "[ "
     save_cursor_position
@@ -46,22 +49,24 @@ function main {
   }
 
   function msg_end {
-    [[ ${verbose} -eq 0 ]] && return
+    [[ ${verbose} -eq 0 ]] \
+      && return
     if stdoutpipe || [[ ${COLUMNS} -lt 41 ]]; then
-      echo " [ ${1} ]" && return 0
+      echo " [ ${1} ]" \
+        && return
     fi
     set_cursor_position
     echo "${1}"
   }
 
   function stdout_silent {
+    return
     [[ ${verbose} == 0 ]] && exec 5<&1 && exec 1>/dev/null
-    return 0
   }
 
   function stdout_verbose {
+    return
     [[ ${verbose} == 0 ]] && exec 1<&5
-    return 0
   }
 
   function err {
@@ -158,19 +163,9 @@ function main {
       || err "${out}"
   }
 
-  function init_repository {
-    [[ ${conform} == 0 ]] \
-      && err "Git repository does not exist." 3
-    msg_start "Initializing git repository"
-    local out
-    out="$(git init 2>&1)" \
-      || err "${out}"
-    msg_end "${DONE}"
-  }
-
   function git_add {
     local out
-    out="$(git_add "$@" 2>&1)" \
+    out="$(git add "$@" 2>&1)" \
       || err "${out}"
   }
 
@@ -203,6 +198,12 @@ function main {
       || err "${out}"
   }
 
+  function git_show {
+    local out
+    out="$(git show "$@" 2>&1)" \
+      || err "${out}"
+  }
+
   function git_branch {
     local out
     out="$(git branch "$@" 2>&1)" \
@@ -229,13 +230,12 @@ function main {
     local_branch_exists "${1}" \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Missing branch '${1}'." 3
-    msg_start "Creating branch '${1}' on '${to}'"
-    local to
-    to="${2:-HEAD}"
+      && err "Branch '${1}' not found." 3
+    msg_start "Creating branch '${1}'"
+    # shellcheck disable=SC2015
     remote_branch_exists "${1}" \
-      && to="${OMGF_ORIGIN}/${1}"
-    git_branch "${1}" "${to}"
+      && git_branch "${1}" "${OMGF_ORIGIN}/${1}" \
+      || git_branch "${1}"
     msg_end "${DONE}"
   }
 
@@ -273,7 +273,6 @@ function main {
     git_status_empty \
       && msg_end "${SKIP}" \
       && return
-    # shellcheck disable=SC2015
     git_add -A
     git_stash
     stashed=1
@@ -288,15 +287,10 @@ function main {
     msg_end "${DONE}"
   }
 
-  function git_has_commits {
-    git log >/dev/null 2>&1
-  }
-
   function is_merged_to {
     git_branch --merged "${2}" | grep -q "${1}"
   }
 
-  # idea:
   # merge upwards preserving conflicts
   # merge downwards ignoring VERSION and CHANGELOG conflicts
   # upwards: feature->dev->release->master, hotfix->master
@@ -310,22 +304,23 @@ function main {
     is_merged_to "${1}" "${2}" \
       && msg_end "${SKIP}" \
       && return
-    gch "${2}" \
-      && git_merge_stream "${1}" "${stream}" \
-      && msg_end "${DONE}"
+    gch "${2}"
+    git_merge_stream "${1}" "${stream}"
+    msg_end "${DONE}"
   }
 
   function git_merge_stream {
-    [[ "${2}" == 'upwards' ]] \
+    [[ "${2}" == "upwards" ]] \
+      && err asdf \
       && git_merge --no-ff "${1}" \
-      && return \
-      || exit 5
-    git_merge --no-ff --no-commit "${1}" 2>/dev/null
-    gch --ours "${OMGF_VERFILE}" \
-      && gch --ours "${OMGF_CHANGELOG}" \
-      && git_add . \
-      && git_merge --continue \
-      || exit 5
+      && return
+    git_merge --no-ff --no-commit "${1}"
+    git_status_empty \
+      && return
+    gch --ours "${OMGF_VERFILE}"
+    gch --ours "${OMGF_CHANGELOG}"
+    git_add .
+    git_merge --continue
   }
 
   function delete_remote_branch {
@@ -348,10 +343,12 @@ function main {
     msg_end "${DONE}"
   }
 
-  #TODO add verification?
   function load_version {
-    git show "${1:-$(current_branch)}:VERSION" \
-      || exit 1
+    local ver
+    ver="$(git_show "${1:-$(current_branch)}:VERSION")"
+    [[ "${ver}" =~ ^[0-9]+\.[0-9]+\.[0-9]$ ]] \
+      || err "Invalid version format." 3
+    echo "${ver}"
   }
 
   function master_last_change {
@@ -362,31 +359,12 @@ function main {
   # ${2} default content
   # ${3} allow empty file
   function init_file {
-    [[ -f "${1}" ]] && return 0
-    [[ -z "${1}" && ${3} == 1 ]] && return 0
-    local or_empty_msg
-    or_empty_msg=
-    [[ ${3} == 0 ]] && or_empty_msg=" or empty"
-    [[ ${conform} == 1 ]] \
-      || err "Missing${or_empty_msg} file '${1}'." 3
-    local message
-    message="Initializing '${1}' file"
-    msg_start "${message}"
-    echo "${2}" > "${1}" || return 1
-    git_add "${1}" \
-      && gc -m "${message}" \
-      || exit 1
-    msg_end "${DONE}"
-  }
-
-  function init_commit {
+    [[ -f "${1}" ]] \
+      && return
     [[ ${conform} == 0 ]] \
-      && err "Uncommited files on repository with no commits." 3
-    msg_start "Initial commit"
-    # shellcheck disable=SC2015
-    git_add -A
-    gc -m "Initial commit all files"
-    msg_end "${DONE}"
+      && err "Missing required file '${1}'." 3
+    echo "${2}" > "${1}" \
+      || exit 1
   }
 
   function parse_version {
@@ -394,12 +372,11 @@ function main {
   }
 
   function verlte {
-    [[ "${1}" == "$(echo -e "${1}\n${2}" | sort -V | head -n1)" ]] \
-      && true \
-      || false
+    [[ "${1}" == "$(echo -e "${1}\n${2}" | sort -V | head -n1)" ]]
   }
 
   function validate_requirements {
+    local bash_minv git_minv bash_ver git_ver
     bash_minv=3.2
     git_minv=1.8.0
     bash_ver="$(parse_version "$(bash --version 2>/dev/null)")"
@@ -415,19 +392,24 @@ function main {
   # - at least one commit
   # - master branch
   function validate_repository {
-    ! git_repo_exists \
-      && init_repository
-    ! git_status_empty \
-      && ! git_has_commits \
-      && init_commit
-    validate_branch "${OMGF_MASTER}"
+    git_repo_exists \
+      && return
+    [[ ${conform} == 0 ]] \
+      && err "Git repository not found." 3
+    msg_start "Initializing repository"
+    local out
+    out="$(git init 2>&1)" \
+      || err "${out}"
+    validate_files "0.0.0"
+    msg_end "${DONE}"
   }
 
   # validate ${OMGF_VERFILE} and ${OMGF_CHANGELOG} files
-  function validate_gf_files {
-    #TODO validate
-    init_file "${OMGF_VERFILE}" "0.0.0" 0
-    init_file "${OMGF_CHANGELOG}" "${OMGF_CHANGELOG_HEADER}" 1
+  function validate_files {
+    init_file "${OMGF_VERFILE}" "${1}"
+    init_file "${OMGF_CHANGELOG}" "${OMGF_CHANGELOG_HEADER}"
+    git_add "${OMGF_VERFILE}" "${OMGF_CHANGELOG}"
+    gc -m "Init files"
   }
 
   # validate tag on ($)master
@@ -444,27 +426,25 @@ function main {
 
   # 1) validate ${OMGF_DEV} branch
   # 2) validate ${OMGF_DEV} is up to date with master
-  function validate_dev {
-    validate_branch "${OMGF_DEV}" "${OMGF_MASTER}"
-    is_merged_to "${OMGF_MASTER}" "${OMGF_DEV}" \
+  function validate_merged_to {
+    is_merged_to "${1}" "${2}" \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Branch '${OMGF_MASTER}' is not merged to '${OMGF_DEV}'." 3
-    merge_fromto "${OMGF_MASTER}" "${OMGF_DEV}"
+      && err "Branch '${1}' is not merged to '${2}'." 3
+    merge_fromto "${1}" "${2}"
   }
 
-  function validate_release {
-    validate_branch "${OMGF_RELEASE}" "${OMGF_DEV}"
-  }
-
-  function validate_dev_version {
-    ver=$(load_version "${OMGF_DEV}")
-    verlte "${ver}" "$(load_version "${OMGF_MASTER}")" \
+  function validate_verlte {
+    verlte "${1}" "${2}" \
       || return
     [[ ${conform} == 0 ]] \
-      && err "Version on '${OMGF_DEV}' must be greater than version on '${OMGF_MASTER}'." 3
-    gch "${OMGF_DEV}"
-    increment_version "${ver}" 1
+      && err "Invalid version on '${2}'." 3
+    local gcb
+    gcb=$(current_branch)
+    gch "${2}"
+    echo "${1}" > "${OMGF_VERFILE}"
+    gc -am "Update version number"
+    gch "${gcb}"
   }
 
   # validate git status
@@ -478,7 +458,8 @@ function main {
   }
 
   function validate_changelog_heading {
-    grep -qE "^# " "${OMGF_CHANGELOG}" && return 0
+    grep -qE "^# " "${OMGF_CHANGELOG}" \
+      && return
     [[ "${conform}" == 1 ]] \
       || err "File ${OMGF_CHANGELOG} missing '# Heading'." 3
     local msg
@@ -494,13 +475,18 @@ function main {
     validate_requirements
     validate_repository
     validate_status_empty
-    validate_gf_files
+    validate_branch "${OMGF_MASTER}"
+    validate_branch "${OMGF_RELEASE}"
+    validate_branch "${OMGF_DEV}"
+    validate_merged_to "${OMGF_MASTER}" "${OMGF_DEV}"
+    validate_merged_to "${OMGF_MASTER}" "${OMGF_RELEASE}"
+    validate_merged_to "${OMGF_RELEASE}" "${OMGF_DEV}"
     validate_vertag "${OMGF_MASTER}"
-    validate_dev
-    validate_dev_version
-    err "DEBUG" 2
-    validate_release
+    validate_verlte "$(load_version "${OMGF_MASTER}")" "${OMGF_RELEASE}"
+    validate_verlte "$(increment_version "$(load_version "${OMGF_RELEASE}")" 1)" "${OMGF_DEV}"
+
     validate_changelog_heading
+
   }
 
   function gf_process {
@@ -997,7 +983,7 @@ function main {
     IFS=" " getopt -n "${0}" \
       -o chinrsvVwy\? \
       -l conform,color::,colour::,help,init,dry-run,request,stash,verbose,version,what-now,yes \
-      -- "${*}"
+      -- "${@}"
   ); then gf_usage; return 2; fi
   eval set -- "${line}"
 
@@ -1006,7 +992,7 @@ function main {
   conform=0
   init=0
   request=0
-  while [ $# -gt 0 ]; do
+  while [[ ${#} -gt 0 ]]; do
     case ${1} in
      -c|--conform) conform=1; shift ;;
      --color|--colour) shift; setcolor "${1}" || { gf_usage; return 2; }; shift ;;
