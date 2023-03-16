@@ -2,7 +2,7 @@
 
 shopt -s extglob
 # exit when any command fails
-set -e
+#set -e
 # treat unset variables as error
 set -u
 
@@ -155,16 +155,34 @@ function main {
   function gch {
     local out
     out="$(git checkout "$@" 2>&1)" \
-      || echo "${out}" >&2
+      || err "${out}"
+  }
+
+  function init_repository {
+    [[ ${conform} == 0 ]] \
+      && err "Git repository does not exist." 3
+    msg_start "Initializing git repository"
+    local out
+    out="$(git init 2>&1)" \
+      || err "${out}"
+    msg_end "${DONE}"
+  }
+
+  function git_add {
+    local out
+    out="$(git_add "$@" 2>&1)" \
+      || err "${out}"
   }
 
   function gc {
-    git commit "$@"
+    local out
+    out="$(git commit "$@" 2>&1)" \
+      || err "${out}"
   }
 
   # make git return only error to stderr
   function git_fetch {
-    msg_start "Fetching $*"
+    msg_start "Fetching ${*}"
     local out
     out="$(git fetch --update-head-ok "$@" 2>&1)" \
       || err "${out}"
@@ -175,14 +193,20 @@ function main {
   function git_tag {
     local out
     out="$(git tag "$@" 2>&1)" \
-      || echo "${out}" >&2
+      || err "${out}" >&2
   }
 
   # make git return only error to stderr
   function git_merge {
     local out
     out="$(env GIT_EDITOR=: git merge "$@" 2>&1)" \
-      || echo "${out}" >&2
+      || err "${out}"
+  }
+
+  function git_branch {
+    local out
+    out="$(git branch "$@" 2>&1)" \
+      || err "${out}"
   }
 
   function git_push {
@@ -195,18 +219,23 @@ function main {
 
   function create_branch {
     msg_start "Creating branch '${1}'"
-    gch -b "${1}"
+    local out
+    out="$(gch -b "${1}")" \
+      || err "${out}"
     msg_end "${DONE}"
   }
 
-  function git_branch_create {
+  function validate_branch {
+    local_branch_exists "${1}" \
+      && return
+    [[ ${conform} == 0 ]] \
+      && err "Missing branch '${1}'." 3
+    msg_start "Creating branch '${1}' on '${to}'"
     local to
     to="${2:-HEAD}"
     remote_branch_exists "${1}" \
       && to="${OMGF_ORIGIN}/${1}"
-    msg_start "Creating branch '${1}' on '${to}'"
-    git branch "${1}" "${to}" >/dev/null \
-      || exit 1
+    git_branch "${1}" "${to}"
     msg_end "${DONE}"
   }
 
@@ -215,7 +244,7 @@ function main {
   }
 
   function remote_branch_exists {
-    git ls-remote --heads "${OMGF_ORIGIN}" 2>/dev/null | grep -q "${REFSHEADS}/${1}"$
+    git ls-remote --heads "${OMGF_ORIGIN}" 2>/dev/null | grep -q "${REFSHEADS}/${1}\$"
   }
 
   function git_tag_exists {
@@ -235,38 +264,27 @@ function main {
       || err "Remote url for '${OMGF_ORIGIN}' does not exist."
   }
 
-  function git_commit_diff {
-    [[ "$( git rev-parse "${1}" )" != "$( git rev-parse "${2}" )" ]]
-  }
-
-  function git_version_diff {
-    [[ "$(git show "${1}":"${OMGF_VERFILE}" | cut -d. -f1-2)." != "${2}" ]]
-  }
-
   function current_branch {
     git rev-parse --abbrev-ref HEAD
   }
 
-  function git_current_commit {
-    git rev-parse HEAD
-  }
-
-  function git_stash {
-    git_status_empty && return 0
+  function stash_files {
     msg_start "Stashing files"
+    git_status_empty \
+      && msg_end "${SKIP}" \
+      && return
     # shellcheck disable=SC2015
-    git add -A >/dev/null \
-      && git stash >/dev/null \
-      || err "Unable to stash changes." 1
+    git_add -A
+    git_stash
     stashed=1
     msg_end "${DONE}"
   }
 
-  function git_stash_pop {
+  function unstash_files {
     [[ ${stashed} == 0 ]] \
       && return 0
-    msg_start "Popping stashed files"
-    git stash pop >/dev/null
+    msg_start "Unstashing files"
+    git_stash pop
     msg_end "${DONE}"
   }
 
@@ -275,7 +293,7 @@ function main {
   }
 
   function is_merged_to {
-    git branch --merged "${2}" | grep -q "${1}"
+    git_branch --merged "${2}" | grep -q "${1}"
   }
 
   # idea:
@@ -305,7 +323,7 @@ function main {
     git_merge --no-ff --no-commit "${1}" 2>/dev/null
     gch --ours "${OMGF_VERFILE}" \
       && gch --ours "${OMGF_CHANGELOG}" \
-      && git add . \
+      && git_add . \
       && git_merge --continue \
       || exit 5
   }
@@ -326,7 +344,7 @@ function main {
       || err "Cannot delete checked branch" 1
     delete_remote_branch "${1}"
     msg_start "Deleting local branch '${1}'"
-    git branch -d "${1}"
+    git_branch -d "${1}"
     msg_end "${DONE}"
   }
 
@@ -355,18 +373,19 @@ function main {
     message="Initializing '${1}' file"
     msg_start "${message}"
     echo "${2}" > "${1}" || return 1
-    git add "${1}" \
+    git_add "${1}" \
       && gc -m "${message}" \
       || exit 1
     msg_end "${DONE}"
   }
 
-  function initial_commit {
-    git_status_empty && return 0
+  function init_commit {
+    [[ ${conform} == 0 ]] \
+      && err "Uncommited files on repository with no commits." 3
     msg_start "Initial commit"
     # shellcheck disable=SC2015
-    git add -A
-    gc -m "Commit initial files"
+    git_add -A
+    gc -m "Initial commit all files"
     msg_end "${DONE}"
   }
 
@@ -375,7 +394,9 @@ function main {
   }
 
   function verlte {
-    [ "${1}" = "$(echo -e "${1}\n${2}" | sort -V | head -n1)" ]
+    [[ "${1}" == "$(echo -e "${1}\n${2}" | sort -V | head -n1)" ]] \
+      && true \
+      || false
   }
 
   function validate_requirements {
@@ -393,23 +414,13 @@ function main {
   # 2) validate repository consistency:
   # - at least one commit
   # - master branch
-  function validate_git_repository {
-    if ! git_repo_exists; then
-      [[ ${conform} == 0 ]] \
-        && err "Git repository does not exist." 3
-      msg_start "Initializing git repository"
-      git init >/dev/null || return 1
-      msg_end "${DONE}"
-    fi
-    if ! git_has_commits; then
-      [[ ${conform} == 0 ]] \
-        && err "Git repository without commits." 3
-      initial_commit
-    elif ! local_branch_exists "${OMGF_MASTER}"; then
-      [[ ${conform} == 0 ]] \
-        && err "Missing branch '${OMGF_MASTER}'." 3
-      git_branch_create "${OMGF_MASTER}"
-    fi
+  function validate_repository {
+    ! git_repo_exists \
+      && init_repository
+    ! git_status_empty \
+      && ! git_has_commits \
+      && init_commit
+    validate_branch "${OMGF_MASTER}"
   }
 
   # validate ${OMGF_VERFILE} and ${OMGF_CHANGELOG} files
@@ -434,11 +445,7 @@ function main {
   # 1) validate ${OMGF_DEV} branch
   # 2) validate ${OMGF_DEV} is up to date with master
   function validate_dev {
-    local_branch_exists "${OMGF_DEV}" \
-      && return
-    [[ ${conform} == 0 ]] \
-      && err "Missing branch '${OMGF_DEV}'." 3
-    git_branch_create "${OMGF_DEV}" "${OMGF_MASTER}"
+    validate_branch "${OMGF_DEV}" "${OMGF_MASTER}"
     is_merged_to "${OMGF_MASTER}" "${OMGF_DEV}" \
       && return
     [[ ${conform} == 0 ]] \
@@ -447,21 +454,16 @@ function main {
   }
 
   function validate_release {
-    if ! local_branch_exists "${OMGF_RELEASE}"; then
-      [[ ${conform} == 0 ]] \
-        && err "Missing branch '${OMGF_RELEASE}'." 3
-      git_branch_create "${OMGF_RELEASE}" "${OMGF_DEV}" || return 1
-    fi
+    validate_branch "${OMGF_RELEASE}" "${OMGF_DEV}"
   }
 
   function validate_dev_version {
     ver=$(load_version "${OMGF_DEV}")
-    vergt "${ver}" "$(load_version "${OMGF_MASTER}")" \
-      && return
+    verlte "${ver}" "$(load_version "${OMGF_MASTER}")" \
+      || return
     [[ ${conform} == 0 ]] \
-      && err "Version on '${OMGF_DEV}' must be greater than on '${OMGF_MASTER}'." 3
-    gch "${OMGF_DEV}" \
-      || exit 1
+      && err "Version on '${OMGF_DEV}' must be greater than version on '${OMGF_MASTER}'." 3
+    gch "${OMGF_DEV}"
     increment_version "${ver}" 1
   }
 
@@ -470,7 +472,7 @@ function main {
     git_status_empty \
       && return
     [[ ${stash} == 1 ]] \
-      && git_stash \
+      && stash_files \
       && return
     err "Uncommitted changes." 4
   }
@@ -490,12 +492,13 @@ function main {
 
   function gf_validate {
     validate_requirements
-    validate_git_repository
+    validate_repository
     validate_status_empty
     validate_gf_files
     validate_vertag "${OMGF_MASTER}"
     validate_dev
     validate_dev_version
+    err "DEBUG" 2
     validate_release
     validate_changelog_heading
   }
@@ -838,7 +841,7 @@ function main {
     gf_pull_branch "${OMGF_MASTER}"
     gf_pull_branch "${OMGF_RELEASE}"
     local stable
-    for stable in $(git branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
+    for stable in $(git_branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
       gf_pull_branch "${stable}"
     done
   }
@@ -849,7 +852,7 @@ function main {
     git_push "${OMGF_ORIGIN}" "${OMGF_DEV}"
     git_push "${OMGF_ORIGIN}" "${OMGF_MASTER}"
     git_push "${OMGF_ORIGIN}" "${OMGF_RELEASE}"
-    for stable in $(git branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
+    for stable in $(git_branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
       local_branch_exists "${stable}" \
         && git_push "${OMGF_ORIGIN}" "${stable}"
     done
@@ -1049,11 +1052,11 @@ function main {
     && exit
 
   [[ ${init} == 1 ]] \
-    && git_stash_pop \
+    && unstash_files \
     && exit
 
   gf_process "${@}"
-  git_stash_pop
+  unstash_files
 
 }
 
