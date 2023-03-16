@@ -74,6 +74,10 @@ release on another branch
     switch to or create release
 feature
     create new ``feature-$USER(-[0-9]+)?``
+pull
+    pull from remote
+push
+    push to remote
 
 PARAM [KEYWORD] NAME
 --------------------
@@ -101,8 +105,6 @@ OPTIONS
 \--color[=WHEN], --colour[=WHEN]
     Use markers to highlight command status; WHEN is 'always', 'never', or
     'auto'. Empty WHEN sets color to 'always'. Default color value is 'auto'.
-\-f, --force
-    Move (stash and pop) uncommitted changes.
 \-h, --help
     Print help.
 \-i, --init
@@ -112,6 +114,8 @@ OPTIONS
 \-r, --request
     Instead of merging prepare current branch for pull request and push it to
     the origin.
+\-s, --stash
+    Temporary remove (stash and pop) uncommitted changes.
 \-v, --verbose
     Verbose mode.
 \-V, --version
@@ -230,6 +234,8 @@ EXIT STATUS
     Git status is not empty.
 5
     Git conflict occurred.
+6
+    Nothing to do (e. g. empty merge).
 
 SEE ALSO
 ========
