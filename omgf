@@ -12,7 +12,7 @@ set -u
 # shellcheck disable=SC2223
 : ${OMGF_CHANGELOG:=CHANGELOG.md}
 # shellcheck disable=SC2223
-: ${OMGF_VERSION:=VERSION}
+: ${OMGF_VERFILE:=VERSION}
 # shellcheck disable=SC2223
 : ${OMGF_DEV:=dev}
 # shellcheck disable=SC2223
@@ -241,7 +241,7 @@ function main {
   }
 
   function git_version_diff {
-    [[ "$(git show "${1}":"${OMGF_VERSION}" | cut -d. -f1-2)." != "${2}" ]]
+    [[ "$(git show "${1}":"${OMGF_VERFILE}" | cut -d. -f1-2)." != "${2}" ]]
   }
 
   function current_branch {
@@ -304,7 +304,7 @@ function main {
       && return \
       || exit 5
     git_merge --no-ff --no-commit "${1}" 2>/dev/null
-    gch --ours "${OMGF_VERSION}" \
+    gch --ours "${OMGF_VERFILE}" \
       && gch --ours "${OMGF_CHANGELOG}" \
       && git add . \
       && git_merge --continue \
@@ -413,10 +413,10 @@ function main {
     fi
   }
 
-  # validate ${OMGF_VERSION} and ${OMGF_CHANGELOG} files
+  # validate ${OMGF_VERFILE} and ${OMGF_CHANGELOG} files
   function validate_gf_files {
     #TODO validate
-    init_file "${OMGF_VERSION}" "0.0.0" 0
+    init_file "${OMGF_VERFILE}" "0.0.0" 0
     init_file "${OMGF_CHANGELOG}" "${OMGF_CHANGELOG_HEADER}" 1
   }
 
@@ -793,7 +793,7 @@ function main {
     [[ ${2} -lt 1 ]] \
       && array[1]=0
     ver=$(local IFS=.; echo "${array[*]}")
-    echo "${ver}" > "${OMGF_VERSION}"
+    echo "${ver}" > "${OMGF_VERFILE}"
     gc -am "Increment version number"
     msg_end "${DONE}"
   }
@@ -979,7 +979,7 @@ function main {
   declare stashed=0
   declare verbose=0
   declare yes=0
-  declare script_name=${0}
+  declare script_name=omgf
   declare color=auto
   declare pos_x=1
   declare pos_y=1
@@ -1031,8 +1031,8 @@ function main {
   declare -r CHANGELOG_KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
   declare -r REFSHEADS="refs/heads"
   declare DONE
-  declare SKIP
   DONE="$(colorize "  ok  " ${GREEN})"
+  declare SKIP
   SKIP="$(colorize " skip " ${BLUE})"
 
   stdout_silent

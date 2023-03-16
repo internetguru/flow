@@ -81,7 +81,7 @@ user="$(echo "${USER}" | tr '[:upper:]' '[:lower:]')"
 : $((i++))
 start "omgf help"
   take "${i}"
-  debug "omgf --help 2>/dev/null"
+  debug "omgf --help"
   assert_equal "${status}" 0
   assert_startwith "${outlines[0]}" "Usage: omgf [-"
   assert_startwith "${outlines[1]}" "  -c, --conform"
