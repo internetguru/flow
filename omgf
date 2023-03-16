@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 shopt -s extglob
+shopt -s nocasematch
 # exit when any command fails
 set -e
 # treat unset variables as error
@@ -86,11 +87,14 @@ function main {
   }
 
   function colorize {
-    [[ ${color} == never ]] && echo -n "${1}" && return
-    [[ ${color} == auto ]] && stdoutpipe && echo -n "${1}" && return
-    local c
-    c="${2:-${GREEN}}"
-    tput setaf "${c}"
+    [[ ${color} == never ]] \
+      && echo -n "${1}" \
+      && return
+    [[ ${color} == auto ]] \
+      && stdoutpipe \
+      && echo -n "${1}" \
+      && return
+    tput setaf "${2:-${GREEN}}"
     echo -n "${1}"
     tput sgr0
   }
@@ -227,7 +231,7 @@ function main {
     [[ -d .git ]]
   }
 
-  function git_remote_exists {
+  function validate_git_remote {
     git config remote."${OMGF_ORIGIN}".url >/dev/null \
       || err "Remote url for '${OMGF_ORIGIN}' does not exist."
   }
@@ -260,9 +264,10 @@ function main {
   }
 
   function git_stash_pop {
-    [[ ${stashed} == 0 ]] && return 0
+    [[ ${stashed} == 0 ]] \
+      && return 0
     msg_start "Popping stashed files"
-    git stash pop >/dev/null || { msg_end "${FAIL}"; return 1; }
+    git stash pop >/dev/null
     msg_end "${DONE}"
   }
 
@@ -351,8 +356,8 @@ function main {
     message="Initializing '${1}' file"
     msg_start "${message}"
     echo "${2}" > "${1}" || return 1
-    git add "${1}" >/dev/null \
-      && gc -m "${message}" >/dev/null \
+    git add "${1}" \
+      && gc -m "${message}" \
       || exit 1
     msg_end "${DONE}"
   }
@@ -361,9 +366,8 @@ function main {
     git_status_empty && return 0
     msg_start "Initial commit"
     # shellcheck disable=SC2015
-    git add -A >/dev/null \
-      && gc -m "Commit initial files" >/dev/null \
-      || err "Unable to commit existing files."
+    git add -A
+    gc -m "Commit initial files"
     msg_end "${DONE}"
   }
 
@@ -376,14 +380,14 @@ function main {
   }
 
   function validate_requirements {
-    bash_min_version=3.2
-    git_min_version=1.8.0
-    bash_version="$(parse_version "$(bash --version 2>/dev/null)")"
-    git_version="$(parse_version "$(git --version 2>/dev/null)")"
-    verlte "${bash_min_version}" "${bash_version}" \
-      || err "OMGF requires Bash version ${bash_min_version} or later (you have ${bash_version:-no Bash installed})."
-    verlte "${git_min_version}" "${git_version}" \
-      || err "OMGF requires Git version ${git_min_version} or later (you have ${git_version:-no Git installed})."
+    bash_minv=3.2
+    git_minv=1.8.0
+    bash_ver="$(parse_version "$(bash --version 2>/dev/null)")"
+    git_ver="$(parse_version "$(git --version 2>/dev/null)")"
+    verlte "${bash_minv}" "${bash_ver}" \
+      || err "OMGF requires Bash version ${bash_minv} or later (you have ${bash_ver:-no Bash installed})."
+    verlte "${git_minv}" "${git_ver}" \
+      || err "OMGF requires Git version ${git_minv} or later (you have ${git_ver:-no Git installed})."
   }
 
   # 1) validate repository existence
@@ -497,34 +501,42 @@ function main {
     validate_changelog_heading
   }
 
-  #TODO: dissolve
-  function auto_process {
-    case "${1%%-*}" in
-      ${OMGF_MASTER}|${OMGF_STABLE_PREFIX}+([0-9]).+([0-9])) create_hotfix ;;
-      ${OMGF_DEV}) create_feature ;;
-      ${FEATURE}) merge_feature ;;
-      ${OMGF_RELEASE}) merge_release ;;
-      ${HOTFIX}) release_hotfix ;;
-    esac
-  }
-
   function gf_process {
     [[ ${#} -gt 2 ]] \
       && err "Too many arguments." 2
-    local source
-    source=$(current_branch)
+    local current_branch
+    current_branch=$(current_branch)
+    kw=${1:-"${current_branch%%-*}"}
     name=${2:-"$(whoami)"}
     git check-ref-format "${REFSHEADS}/${name}" \
       || err "Invalid branch name format '${name}'." 2
-    case "${1:-"${source%%-*}"}" in
+    case "${1:-"${kw}"}" in
       ${HOTFIX})
-        gf_hotfix
-        ;;
-      ${OMGF_RELEASE})
-        gf_release
+        [[ "${current_branch}" == "${kw}-${name}" ]] \
+          && hotfix_release \
+          && return
+        confirm_checkout_if_exists "${1}" \
+          && return
+        hotfix_create "${kw}-${name}"
         ;;
       ${FEATURE})
-        gf_feature
+        [[ "${current_branch}" == "${kw}-${name}" ]] \
+          && feature_merge \
+          && return
+        confirm_checkout_if_exists "${1}" \
+          && return
+        feature_create "${kw}-${name}"
+        ;;
+      ${OMGF_RELEASE})
+        [[ "${current_branch}" == "${OMGF_DEV}" ]] \
+          && release_dev \
+          && return
+        [[ "${current_branch}" == "${OMGF_RELEASE}" ]] \
+          && release_release \
+          && return
+        confirm_checkout_if_exists "${1}" \
+          && return
+        err "Expected branch not found." 1
         ;;
       ${PULL})
         gf_pull
@@ -533,45 +545,27 @@ function main {
         gf_push
         ;;
       *)
-        err "Unknown branch." 2
+        err "Unknown keyword or branch." 2
         ;;
     esac
   }
 
   function confirm_checkout_if_exists {
-    [[ "$(current_branch)" == "${1}" ]] \
-      && err "You are on branch '${1}'." 6
-    ! local_branch_exists "${1}" \
-      && ! remote_branch_exists "${1}" \
-      && return
-    confirm "* Branch '${1}' already exists, checkout?"
+    local_branch_exists "${1}" \
+      || return 1
+    confirm "* Checkout to branch '${1}'?"
     gch "${1}"
   }
 
-  function gf_release {
-    # local last_merge valid_commits confirmed
-    # confirmed=0
-    # last_merge="$(git reflog show "${OMGF_DEV}" --format="%h:%gs" | grep -m1 ":merge ${OMGF_RELEASE}:" | cut -d: -f1)"
-    # # commits on dev before last release merge
-    # valid_commits="$(git reflog show "${OMGF_DEV}" --format="%H")"
-    # [[ -n "${last_merge}" ]] && valid_commits="$(echo "${valid_commits}" | sed "/${last_merge}/Q")"
-    # # on invalid commit?
-    # if ! echo "${valid_commits}" | grep -q "$(git_current_commit)"; then
-    #   gf_confirm_checkout "${OMGF_DEV}" "* Unable to create '${OMGF_RELEASE}' from current commit. Create '${OMGF_RELEASE}' from '${OMGF_DEV}' instead?" \
-    #     || return 1
-    #   confirmed=1
-    # fi
-    [[ "$(current_branch)" != "${OMGF_DEV}" ]] \
-      && err "Releasing is only available from '${OMGF_DEV}'."
-    ver=$(load_version "${OMGF_DEV}")
-    confirm "* Release '${ver}' from '${OMGF_DEV}' branch?"
+  function release_dev {
+    confirm "* Release '${OMGF_DEV}' branch and increment its version?"
     merge_fromto "${OMGF_DEV}" "${OMGF_RELEASE}"
     gch "${OMGF_DEV}"
     update_changelog_header
     increment_version "${ver}" 1
   }
 
-  function create_feature {
+  function feature_create {
     local feature_name
     feature_name="${1}"
     confirm_checkout_if_exists "${feature_name}" \
@@ -580,64 +574,59 @@ function main {
     create_branch "${feature_name}"
   }
 
-  function create_hotfix {
-    local source ver
-    source=${HOTFIX}-${1:-"$(whoami)"}
-    ver=$(load_version "${OMGF_MASTER}")
-    confirm_checkout_if_exists "${source}" \
-      && return
-    confirm "* Create hotfix '${source}' from '${OMGF_MASTER}'?"
-    gch "${OMGF_MASTER}"
+  function hotfix_create {
     #[[ "${gf_branch}" != "${OMGF_MASTER}" ]] \
     #  && create_stable_branch
-    create_branch "${source}"
+    confirm "* Create hotfix '${1}' from '${OMGF_MASTER}'?"
+    gch "${OMGF_MASTER}"
+    create_branch "${1}"
   }
 
-  function merge_release {
-    confirm "* Merge '${OMGF_RELEASE}' branch into '${OMGF_DEV}'?"
-    merge_fromto "${gf_branch}" "${OMGF_DEV}"
-  }
-
-  function gf_release_release {
-    local source
-    source=$(current_branch)
-    git_version_diff "${OMGF_MASTER}" "${major}.${minor}." \
-      || err 'Branch already released.'
+  function release_release {
+    is_merged_to "${OMGF_RELEASE}" "${OMGF_MASTER}" \
+      || err 'Branch already released.' 6
     # shellcheck disable=SC2015
     [[ ${request} == 1 ]] \
       && confirm "* Request merge '${OMGF_RELEASE}' to '${OMGF_MASTER}'?" \
       || confirm "* Merge '${OMGF_RELEASE}' to '${OMGF_MASTER}'?"
     update_changelog_header
-    merge_fromto "${OMGF_MASTER}" "${source}"
+    merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}"
     [[ ${request} == 1 ]] \
       && gf_request "${OMGF_MASTER}" \
       && return
-    merge_fromto "${source}" "${OMGF_MASTER}"
-    git_tag "${master}".0
-    merge_fromto "${source}" "${OMGF_DEV}"
+    merge_fromto "${OMGF_RELEASE}" "${OMGF_MASTER}"
+    git_tag "$(load_version)"
+    merge_fromto "${OMGF_RELEASE}" "${OMGF_DEV}"
   }
 
-  function gf_get_compare_url {
-    url="$(git config remote."${OMGF_ORIGIN}".url)"
-    url="$(trim_url "${url}")"
+  function get_diff_url {
+    local url
+    url="$(trim_url "$(git config remote."${OMGF_ORIGIN}".url)")"
     case "${url}" in
-      *"${GITHUB}"*) echo "https://${url}/compare/${1}...${2}" ;;
-      *"${BITBUCKET}"*) echo "https://${url}/compare/${2}..${1}" ;;
-      *) echo "" ;;
+      *"${GITHUB}"*)
+        echo "https://${url}/compare/${1}...${2}"
+        ;;
+      *"${BITBUCKET}"*)
+        echo "https://${url}/compare/${2}..${1}"
+        ;;
+      *)
+        err "Unsupported git remote."
+        ;;
     esac
   }
 
   function update_changelog_header {
-    local header tmpfile compare_url prev_tag
+    local header tmpfile diff_url prev_tag ver
+    ver=$(load_version)
     msg_start "Updating version history header"
-    header="## [${major}.${minor}.${patch}] - $(date "+%Y-%m-%d")"
+    header="## [${ver}] - $(date "+%Y-%m-%d")"
     prev_tag="$(git tag | sort -V | tail -n1 )"
-    compare_url="$(gf_get_compare_url "${prev_tag}" "${master}.${patch}" )"
-    [[ -n "${compare_url}" ]] \
-      && compare_url="[${major}.${minor}.${patch}]: ${compare_url}" \
-      || compare_url="[${major}.${minor}.${patch}]: ${prev_tag}..${master}.${patch}"
+    diff_url="$(get_diff_url "${prev_tag}" "${ver}" )"
+    [[ -n "${diff_url}" ]] \
+      && diff_url="[${ver}]: ${diff_url}" \
+      || diff_url="[${ver}]: ${prev_tag}..${ver}"
     tmpfile="$(mktemp)"
-    gawk -v header="${header}" -v compare_url="${compare_url}" '
+    gawk -v header="${header}" -v diff_url="${diff_url}" '
       BEGIN {
         writemsg=1
         writeurl=1
@@ -650,28 +639,28 @@ function main {
         print ""
       }
       writeurl == 1 && /^\[/ && ! /^\[Unreleased\]/ {
-        print compare_url
+        print diff_url
         writeurl=0
       }
       {print}
       ENDFILE {
         if(writemsg==1) { print header }
-        if(writeurl==1) { print ""; print compare_url }
+        if(writeurl==1) { print ""; print diff_url }
       }
       ' "${OMGF_CHANGELOG}" > "${tmpfile}"
     cat "${tmpfile}" > "${OMGF_CHANGELOG}"
-    gc -am "Update ${OMGF_CHANGELOG} header" >/dev/null || return 1
+    gc -am "Update ${OMGF_CHANGELOG} header"
     msg_end "${DONE}"
   }
 
-  function gf_write_changelog_line {
-    local tmpfile compare_url
+  function add_changelog_entry {
+    local tmpfile diff_url
     tmpfile="$(mktemp)"
-    compare_url="$(gf_get_compare_url "${OMGF_MASTER}" "${OMGF_DEV}")"
-    [[ -n "${compare_url}" ]] \
-      && compare_url="[Unreleased]: ${compare_url}" \
-      || compare_url="[Unreleased]: ${OMGF_MASTER}..${OMGF_DEV}"
-    gawk -v keyword="${1}" -v next_keywords="${2}" -v message="${3}" -v compare_url="${compare_url}" '
+    diff_url="$(get_diff_url "${OMGF_MASTER}" "${OMGF_DEV}")"
+    [[ -n "${diff_url}" ]] \
+      && diff_url="[Unreleased]: ${diff_url}" \
+      || diff_url="[Unreleased]: ${OMGF_MASTER}..${OMGF_DEV}"
+    gawk -v keyword="${1}" -v next_keywords="${2}" -v message="${3}" -v diff_url="${diff_url}" '
       function print_unreleased () { print "## [Unreleased]" }
       function print_keyword () { print "### " keyword }
       function print_message () { print " - " message }
@@ -696,7 +685,7 @@ function main {
       }
       /^\[Unreleased\]/ { writeurl=0 }
       writeurl == 1 && /^\[/ {
-        print compare_url
+        print diff_url
         writeurl=0
       }
       {print}
@@ -711,7 +700,7 @@ function main {
           print_keyword()
           print_message()
         }
-        if(writeurl==1) { print compare_url }
+        if(writeurl==1) { print diff_url }
       }
     ' "${OMGF_CHANGELOG}" > "${tmpfile}"
     cat "${tmpfile}" > "${OMGF_CHANGELOG}"
@@ -719,7 +708,7 @@ function main {
 
   function gf_update_changelog {
     local commits
-    commits="$(git log "${2:-OMGF_DEV}".."$(current_branch)" --pretty=format:"*   %h %s")"
+    commits="$(git log "${2}".."$(current_branch)" --pretty=format:"*   %h %s")"
     stdout_verbose
     echo
     echo "***"
@@ -763,7 +752,7 @@ function main {
         next_keywords="${next_keywords}|^### ${CHANGELOG_KEYWORDS[index]}"
       done
       [[ "${found}" == 1 ]] && message="$(echo "${message}" | cut -d':' -f2-)"
-      gf_write_changelog_line "${keyword}" "${next_keywords}" "$(trim "${message}")"
+      add_changelog_entry "${keyword}" "${next_keywords}" "$(trim "${message}")"
     done
     stdout_silent
     msg_start "Updating version history"
@@ -775,7 +764,7 @@ function main {
     fi
   }
 
-  function merge_feature {
+  function feature_merge {
     local source
     source=$(current_branch)
     is_merged_to "${source}" "${OMGF_DEV}" \
@@ -785,7 +774,7 @@ function main {
       && confirm "* Request merge '${source}' into '${OMGF_DEV}'?" \
       || confirm "* Merge '${source}' into '${OMGF_DEV}'?"
     merge_fromto "${OMGF_DEV}" "${source}"
-    gf_update_changelog 0
+    gf_update_changelog 0 "${OMGF_DEV}"
     [[ ${request} == 1 ]] \
       && gf_request "${OMGF_DEV}"
     merge_fromto "${source}" "${OMGF_DEV}"
@@ -809,11 +798,11 @@ function main {
     msg_end "${DONE}"
   }
 
-  function release_hotfix {
+  function hotfix_release {
     local source dest verh verd
     source=$(current_branch)
     dest=${OMGF_MASTER}
-    verh=$(load_version)
+    verh=$(load_version "${source}")
     verd=$(load_version "${OMGF_MASTER}")
     # shellcheck disable=SC2015
     [[ "${verd%.*}" != "${verh%.*}" ]] \
@@ -823,8 +812,8 @@ function main {
       || confirm "* Release the hotfix?"
     is_merged_to "${source}" "${dest}" \
       && err "Nothing to merge." 6
-    increment_version "${verd}" 2
     gf_update_changelog 4 "${dest}"
+    increment_version "${verd}" 2
     update_changelog_header
     [[ ${request} == 1 ]] \
       && gf_request "${dest}" \
@@ -844,35 +833,31 @@ function main {
   }
 
   function gf_pull {
-    git_remote_exists \
-      && git_fetch --tags \
-      && gf_pull_branch "${OMGF_DEV}" \
-      && gf_pull_branch "${OMGF_MASTER}" \
-      && gf_pull_branch "${OMGF_RELEASE}" \
-      || return $?
+    validate_git_remote
+    git_fetch --tags
+    gf_pull_branch "${OMGF_DEV}"
+    gf_pull_branch "${OMGF_MASTER}"
+    gf_pull_branch "${OMGF_RELEASE}"
     local stable
     for stable in $(git branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
-      gf_pull_branch "${stable}" \
-        || return $?
+      gf_pull_branch "${stable}"
     done
   }
 
   function gf_push {
-    git_remote_exists \
-      && git_push --tags \
-      && git_push "${OMGF_ORIGIN}" "${OMGF_DEV}" \
-      && git_push "${OMGF_ORIGIN}" "${OMGF_MASTER}" \
-      || return $?
-    local_branch_exists "${OMGF_RELEASE}" \
-      && { git_push "${OMGF_ORIGIN}" "${OMGF_RELEASE}" || return $?; }
+    validate_git_remote
+    git_push --tags
+    git_push "${OMGF_ORIGIN}" "${OMGF_DEV}"
+    git_push "${OMGF_ORIGIN}" "${OMGF_MASTER}"
+    git_push "${OMGF_ORIGIN}" "${OMGF_RELEASE}"
     for stable in $(git branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
       local_branch_exists "${stable}" \
-        && { git_push "${OMGF_ORIGIN}" "${stable}" || return $?; }
+        && git_push "${OMGF_ORIGIN}" "${stable}"
     done
   }
 
   function gf_request {
-    git_remote_exists
+    validate_git_remote
     [[ "${OMGF_ORIGIN}" == "${OMGF_UPSTREAM}" ]] \
       || git_push "${OMGF_ORIGIN}" "${1}"
     git_push "${OMGF_ORIGIN}" "${1}"
@@ -890,26 +875,26 @@ function main {
   }
 
   function gf_request_url {
-    local url upstream_url to
+    local url upstream_url to current_branch
     to="${1:-${OMGF_DEV}}"
-    url="$(git config remote."${OMGF_ORIGIN}".url)"
-    url="$(trim_url "${url}")"
+    url=$(trim_url "$(git config remote."${OMGF_ORIGIN}".url)")
     upstream_url="$(git config remote."${OMGF_UPSTREAM}".url)"
     upstream_url="$(trim_url "${upstream_url}")"
+    current_branch=$(current_branch)
     stdout_verbose
     echo -n "Pull request URL: "
     case "${url}" in
       *"${GITHUB}"*)
         # shellcheck disable=SC1003
         [[ "${url}" == "${upstream_url}" ]] \
-          && echo "https://${url}/compare/${to}...${gf_branch}?expand=1" \
-          || echo "https://${upstream_url}/compare/${to}...$(echo "${url}" | cut -d'/' -f2)%3A${gf_branch}?expand=1"
+          && echo "https://${url}/compare/${to}...${current_branch}?expand=1" \
+          || echo "https://${upstream_url}/compare/${to}...$(echo "${url}" | cut -d'/' -f2)%3A${current_branch}?expand=1"
       ;;
       *"${BITBUCKET}"*)
         # shellcheck disable=SC1003
         [[ "${url}" == "${upstream_url}" ]] \
-          && echo "https://${url}/compare/${gf_branch}..$(echo "${url}" | cut -d'/' -f2-3)%3A${to}" \
-          || echo "https://${url}/compare/${gf_branch}..$(echo "${upstream_url}" | cut -d'/' -f2-3)%3A${to}"
+          && echo "https://${url}/compare/${current_branch}..$(echo "${url}" | cut -d'/' -f2-3)%3A${to}" \
+          || echo "https://${url}/compare/${current_branch}..$(echo "${upstream_url}" | cut -d'/' -f2-3)%3A${to}"
       ;;
       *)
         err "Remote server name not recognized."
@@ -946,16 +931,8 @@ function main {
   function what_now {
     stdout_verbose
     echo "***"
-    git_repo_exists || {
-      echo "* Not a git repository"
-      echo "* - Run 'gf --init' to initialize OMGF"
-      echo "***"
-      return 3
-    }
-    local gcb
-    gcb=$(current_branch)
-    echo -n "* Current revision '${gcb}' is considered "
-    case ${gcb} in
+    echo -n "* Current revision is considered "
+    case $(current_branch) in
       HEAD)
         echo "elusive."
         echo "* - Checkout to existing branch, e.g. '${OMGF_DEV}'."
@@ -995,37 +972,27 @@ function main {
   }
 
   # variables
-  local line script_name master stash conform yes verbose dry what_now color pos_x pos_y init request is_stdin gf_branch major minor patch stashed
-  what_now=0
-  dry=0
-  stashed=0
-  verbose=0
-  yes=0
-  script_name="omgf"
-
-  #TODO: dissolve
-  major=0
-  minor=0
-  patch=0
-  master=v0.0
-  ###
-
-  color=auto
-  pos_x=1
-  pos_y=1
   [ -t 0 ]
-  is_stdin=$?
+  declare is_stdin=${?}
+  declare what_now=0
+  declare dry=0
+  declare stashed=0
+  declare verbose=0
+  declare yes=0
+  declare script_name=${0}
+  declare color=auto
+  declare pos_x=1
+  declare pos_y=1
 
   # process options
   # shellcheck disable=SC2223
   # shellcheck disable=SC2048
   if ! line=$(
     IFS=" " getopt -n "${0}" \
-           -o chinrsvVwy\? \
-           -l conform,color::,colour::,help,init,dry-run,request,stash,verbose,version,what-now,yes \
-           -- "${*}"
-  )
-  then gf_usage; return 2; fi
+      -o chinrsvVwy\? \
+      -l conform,color::,colour::,help,init,dry-run,request,stash,verbose,version,what-now,yes \
+      -- "${*}"
+  ); then gf_usage; return 2; fi
   eval set -- "${line}"
 
   # load user options
@@ -1052,37 +1019,24 @@ function main {
     esac
   done
 
-  shopt -s nocasematch
+  # system constants
+  declare -r GREEN=2
+  declare -r BLUE=4
+  declare -r GITHUB="github.com"
+  declare -r BITBUCKET="bitbucket.org"
+  declare -r HOTFIX="hotfix"
+  declare -r FEATURE="feature"
+  declare -r PULL="pull"
+  declare -r PUSH="push"
+  declare -r CHANGELOG_KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
+  declare -r REFSHEADS="refs/heads"
+  declare DONE
+  declare SKIP
+  DONE="$(colorize "  ok  " ${GREEN})"
+  SKIP="$(colorize " skip " ${BLUE})"
 
-  # constants
-  # TODO ${OMGF_}{HOTFIX,RELEASE,FEATURE} ?
-  local -r \
-    RED=1 \
-    GREEN=2 \
-    BLUE=4 \
-    GITHUB="github.com" \
-    BITBUCKET="bitbucket.org" \
-    HOTFIX="hotfix" \
-    FEATURE="feature" \
-    PULL="pull" \
-    PUSH="push" \
-    CHANGELOG_KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
-  local -r \
-    REFSHEADS="refs/heads" \
-    DONE="$(colorize "  ok  " ${GREEN})" \
-    FAIL="$(colorize " fail " ${RED})" \
-    SKIP="$(colorize " skip " ${BLUE})"
-
-  # proceed params
-  local KEYWORD NAME par_kw par_name arg_count
-  KEYWORD="${1:-}"
-  NAME="${2:-}"
-  par_kw=
-  par_name=
-  arg_count=$#
-
-  # silent output by default
   stdout_silent
+  gf_validate "${@}"
 
   [[ ${dry} == 1 ]] \
     && exit
@@ -1090,8 +1044,6 @@ function main {
   [[ ${what_now} == 1 ]] \
     && what_now \
     && exit
-
-  gf_validate "${@}"
 
   [[ ${init} == 1 ]] \
     && git_stash_pop \
@@ -1102,4 +1054,4 @@ function main {
 
 }
 
-main "$@"
+main "${@}"
