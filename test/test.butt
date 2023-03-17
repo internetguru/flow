@@ -36,7 +36,7 @@ function checkInitRefs {
   assert_contains "${ref}" "refs/heads/dev"
   assert_contains "${ref}" "refs/heads/master"
   assert_contains "${ref}" "refs/heads/release"
-  assert_contains "${ref}" "refs/tags/v0.0.0"
+  assert_contains "${ref}" "refs/tags/0.0.0"
 }
 
 function checkInitFiles {
@@ -162,13 +162,14 @@ start "dev is behind master error code"
     && git add a \
     && git commit -am "add file a" \
     && omgf release --yes \
+    && gch release \
     && omgf release --yes \
     && gch dev \
     && git reset --hard HEAD~1
   } >/dev/null
   debug "omgf -v"
   assert_equal "${status}" 3
-  assert_startwith "${errlines[0]}" "Branch 'master' is not merged with 'dev'."
+  assert_startwith "${errlines[0]}" "Branch 'release' is not merged to 'dev'."
 end
 #######################################
 : $((i++))
@@ -195,7 +196,8 @@ start "version change on dev"
   debug "echo '' | omgf --yes"
   assert_equal "${status}" 0
   load_log
-  assert_contains "${log}" "(tag: v0.0.1, master)"
+  assert_contains "${log}" "(HEAD -> dev)"
+  assert_contains "${log}" "(tag: 0.0.1, master)"
   assert_contains "${log}" "Merge branch 'master' into release"
   assert_contains "${log}" "Merge branch 'master' into dev"
   assert_equal "$(git show master:VERSION)" "0.0.1"
@@ -212,7 +214,8 @@ end
 start "dry run"
   take "${i}"
   debug "omgf --dry-run"
-  assert_equal "${status}" 0
+  assert_equal "${status}" 3
+  assert_startwith "${errlines[0]}" "Git repository not found."
 end
 #######################################
 : $((i++))
@@ -229,7 +232,7 @@ end
 : $((i++))
 start "init on empty folder"
   take "${i}"
-  debug "omgf -v --init"
+  debug "omgf --init"
   assert_equal "${status}" 0
   checkInitFiles
   gref
@@ -240,16 +243,27 @@ end
 : $((i++))
 start "init on non-empty folder"
   take "${i}"
-  { echo a > a \
-    && echo b > b \
-    && echo test > .gitignore
+  { touch a \
+    && touch b
   } >/dev/null
-  debug "omgf -v --init"
+  debug "omgf --init"
+  assert_equal "${status}" 1
+  assert_startwith "${errlines[0]}" "Folder is not empty."
+end
+#######################################
+: $((i++))
+start "init on non-empty folder with stash"
+  take "${i}"
+  { touch a \
+    && touch b \
+    && echo b > .gitignore
+  } >/dev/null
+  debug "omgf --init --stash"
   assert_equal "${status}" 0
   checkInitFiles
   gref
   checkInitRefs
-  assert_equal "$(gsp)" ""
+  assert_equal "$(gsp | wc -l)" 2
 end
 #######################################
 : $((i++))
@@ -269,34 +283,28 @@ start "init on existing repo with commits"
 end
 #######################################
 : $((i++))
-start "init on existing repo without commits"
+start "init on existing repo uncommitted"
   take "${i}"
   { git init \
     && echo a > a
   } >/dev/null
   debug "omgf -v --init"
-  assert_equal "${status}" 0
-  checkInitFiles
-  gref
-  checkInitRefs
-  assert_equal "$(gsp)" ""
+  assert_equal "${status}" 1
+  assert_startwith "${errlines[0]}" "Folder is not empty."
 end
 #######################################
 : $((i++))
-start "init on existing repo with commits and --force"
+start "init on existing repo without commits with --stash"
   take "${i}"
   { git init \
-    && echo a > a \
-    && git add . \
-    && git commit -am "first commit" \
-    && echo b > b
+    && echo a > a
   } >/dev/null
-  debug "omgf -v --init --force"
+  debug "omgf -v --init --stash"
   assert_equal "${status}" 0
   checkInitFiles
   gref
   checkInitRefs
-  assert_equal "$(gsp | wc -l)" 1
+  assert_equal "$(gsp)" "A  a"
 end
 #######################################
 ## Conform
@@ -305,42 +313,8 @@ end
 start "conform on empty folder"
   take "${i}"
   debug "yes no | omgf --conform"
-  assert_equal "${status}" 0
-  checkInitFiles
-  gref
-  checkInitRefs
-  assert_equal "$(gsp)" ""
-end
-#######################################
-: $((i++))
-start "conform on non-empty folder"
-  take "${i}"
-  { echo a > a \
-    && echo b > b \
-    && echo test > .gitignore
-  } >/dev/null
-  debug "yes no | omgf --conform"
-  assert_equal "${status}" 0
-  checkInitFiles
-  gref
-  checkInitRefs
-  assert_equal "$(gsp)" ""
-end
-#######################################
-: $((i++))
-start "conform on existing repo with commits"
-  take "${i}"
-  { git init \
-    && echo a > a \
-    && git add . \
-    && git commit -am "first commit.."
-  } >/dev/null
-  debug "yes no | omgf --conform"
-  assert_equal "${status}" 0
-  checkInitFiles
-  gref
-  checkInitRefs
-  assert_equal "$(gsp)" ""
+  assert_equal "${status}" 3
+  assert_startwith "${errlines[0]}" "Git repository not found."
 end
 #######################################
 : $((i++))
@@ -349,16 +323,13 @@ start "conform on existing repo without commits"
   { git init \
     && echo a > a
   } >/dev/null
-  debug "yes no | omgf --conform"
-  assert_equal "${status}" 0
-  checkInitFiles
-  gref
-  checkInitRefs
-  assert_equal "$(gsp)" ""
+  debug "omgf --conform"
+  assert_equal "${status}" 3
+  assert_startwith "${errlines[0]}" "Missing commit on 'master'."
 end
 #######################################
 : $((i++))
-start "conform on existing repo with commits and --force"
+start "conform on existing repo with commits and --stash"
   take "${i}"
   { git init \
     && echo a > a \
@@ -366,11 +337,12 @@ start "conform on existing repo with commits and --force"
     && git commit -am "first commit" \
     && echo b > b
   } >/dev/null
-  debug "omgf --conform --force"
+  debug "omgf --conform --stash --yes"
   assert_equal "${status}" 0
   checkInitFiles
   gref
   checkInitRefs
+  assert_equal "$(git_current_branch)" "hotfix-$(whoami)"
   assert_equal "$(gsp | wc -l)" 1
 end
 #######################################

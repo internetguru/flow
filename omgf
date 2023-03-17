@@ -146,8 +146,8 @@ function main {
     else
       read -r
     fi
-    [[ "${REPLY}" =~ ^y(es)?$ || -z "${REPLY}" ]] && return 0
-    [[ "${REPLY}" =~ ^no?$ ]] && exit
+    [[ "${REPLY,,}" =~ ^y(es)?$ || -z "${REPLY}" ]] && return 0
+    [[ "${REPLY,,}" =~ ^no?$ ]] && exit
     confirm "Type"
   }
 
@@ -180,6 +180,12 @@ function main {
       || err "${out}"
   }
 
+  function git_stash {
+    local out
+    out="$(git stash "${@}" 2>&1)" \
+      || err "${out}"
+  }
+
   # make git return only error to stderr
   function git_fetch {
     msg_start "Fetching ${*}"
@@ -189,14 +195,16 @@ function main {
     msg_end "${DONE}"
   }
 
-  # make git return only error to stderr
   function git_tag {
     local out
     out="$(git tag "${@}" 2>&1)" \
       || err "${out}" >&2
   }
 
-  # make git return only error to stderr
+  function git_merge_nocommit {
+    env GIT_EDITOR=: git merge --no-commit "${@}" >/dev/null 2>&1
+  }
+
   function git_merge {
     local out
     out="$(env GIT_EDITOR=: git merge "${@}" 2>&1)" \
@@ -291,7 +299,7 @@ function main {
       && msg_end "${SKIP}" \
       && return
     git_add -A
-    git_stash
+    git_stash push
     stashed=1
     msg_end "${DONE}"
   }
@@ -328,14 +336,12 @@ function main {
 
   function git_merge_stream {
     [[ "${2}" == "upwards" ]] \
-      && err asdf \
       && git_merge --no-ff "${1}" \
       && return
-    git_merge --no-ff --no-commit "${1}"
-    git_status_empty \
-      && return
+    git_merge_nocommit --no-ff --no-commit "${1}"
     gch --ours "${OMGF_VERFILE}"
-    gch --ours "${OMGF_CHANGELOG}"
+    #TODO: resolve changelog automatically
+    #gch --ours "${OMGF_CHANGELOG}"
     git_add .
     git_merge --continue
   }
@@ -412,8 +418,14 @@ function main {
     git_repo_exists \
       && local_branch_exists "${OMGF_MASTER}" \
       && return
-    [[ ${conform} == 0 ]] \
+    [[ ${init} == 0 ]] \
+      && ! git_repo_exists \
       && err "Git repository not found." 3
+    [[ ${init} == 0 ]] \
+      && ! local_branch_exists "${OMGF_MASTER}" \
+      && err "Missing commit on '${OMGF_MASTER}'." 3
+    [[ "$(ls -A .)" && "${stash}" == 0 ]] \
+      && err "Folder is not empty."
     msg_start "Initializing repository"
     local out
     git_init .
@@ -477,7 +489,8 @@ function main {
     gcb=$(git_current_branch)
     gch "${1}"
     init_file "${OMGF_CHANGELOG}" "${OMGF_CHANGELOG_HEADER}"
-    gc -am "Add default changelog header"
+    git_add .
+    gc -am "Add changelog file"
     gch "${gcb}"
   }
 
@@ -488,11 +501,16 @@ function main {
     gcb=$(git_current_branch)
     gch "${1}"
     init_file "${OMGF_VERFILE}" "0.0.0"
+    git_add "${OMGF_VERFILE}"
+    gc -am "Add version file"
     gch "${gcb}"
   }
 
   function gf_validate {
+    local gcb=${OMGF_DEV}
     validate_requirements
+    local_branch_exists "${OMGF_MASTER}" \
+      && gcb=$(git_current_branch)
     validate_repository
     validate_status_empty
     validate_branch "${OMGF_MASTER}"
@@ -510,6 +528,7 @@ function main {
     validate_changelog "${OMGF_MASTER}"
     validate_changelog "${OMGF_RELEASE}"
     validate_changelog "${OMGF_DEV}"
+    gch "${gcb}"
   }
 
   function gf_process {
@@ -522,19 +541,19 @@ function main {
     git check-ref-format "${REFSHEADS}/${name}" \
       || err "Invalid branch name format '${name}'." 2
     case "${1:-"${kw,,}"}" in
-      ${HOTFIX})
-        [[ "${gcb}" == "${HOTFIX}-${name}" ]] \
+      ${HOTFIX}|${OMGF_MASTER})
+        [[ "${gcb%%-*}" == "${HOTFIX}" ]] \
           && hotfix_release \
           && return
-        confirm_checkout_if_exists "${1}" \
+        confirm_checkout_if_exists "${HOTFIX}-${name}" \
           && return
         hotfix_create "${HOTFIX}-${name}"
         ;;
-      ${FEATURE})
-        [[ "${gcb}" == "${FEATURE}-${name}" ]] \
+      ${FEATURE}|${OMGF_DEV})
+        [[ "${gcb%%-*}" == "${FEATURE}" ]] \
           && feature_merge \
           && return
-        confirm_checkout_if_exists "${1}" \
+        confirm_checkout_if_exists "${FEATURE}-${name}" \
           && return
         feature_create "${FEATURE}-${name}"
         ;;
@@ -545,7 +564,7 @@ function main {
         [[ "${gcb}" == "${OMGF_RELEASE}" ]] \
           && release_release \
           && return
-        confirm_checkout_if_exists "${1}" \
+        confirm_checkout_if_exists "${OMGF_RELEASE}" \
           && return
         err "Expected branch not found." 1
         ;;
@@ -569,11 +588,15 @@ function main {
   }
 
   function release_dev {
-    confirm "* Release '${OMGF_DEV}' branch and increment its version?"
+    confirm "* Release '${OMGF_DEV}' branch?"
+    #TODO: technically this check is irrelevant
+    is_merged_to "${OMGF_RELEASE}" "${OMGF_DEV}" \
+      || err 'Branch already released.' 6
     merge_fromto "${OMGF_DEV}" "${OMGF_RELEASE}"
     gch "${OMGF_DEV}"
+    merge_fromto "${OMGF_RELEASE}" "${OMGF_DEV}"
     update_changelog_header
-    increment_version "${ver}" minor
+    increment_version "$(load_version)" minor > "${OMGF_VERFILE}"
     gc -am "Update control files"
   }
 
@@ -595,19 +618,23 @@ function main {
   }
 
   function release_release {
-    is_merged_to "${OMGF_RELEASE}" "${OMGF_MASTER}" \
-      || err 'Branch already released.' 6
     # shellcheck disable=SC2015
     [[ ${request} == 1 ]] \
       && confirm "* Request merge '${OMGF_RELEASE}' to '${OMGF_MASTER}'?" \
       || confirm "* Merge '${OMGF_RELEASE}' to '${OMGF_MASTER}'?"
+    #TODO: technically this check is irrelevant
+    is_merged_to "${OMGF_MASTER}" "${OMGF_RELEASE}" \
+      || err 'Branch already released.' 6
     update_changelog_header
+    gc -am "Update control files"
     merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}"
     [[ ${request} == 1 ]] \
       && gf_request "${OMGF_MASTER}" \
       && return
     merge_fromto "${OMGF_RELEASE}" "${OMGF_MASTER}"
     git_tag "$(load_version)"
+    merge_fromto "${OMGF_MASTER}" "${OMGF_DEV}"
+    merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}"
     merge_fromto "${OMGF_RELEASE}" "${OMGF_DEV}"
   }
 
@@ -621,6 +648,9 @@ function main {
       *"${BITBUCKET}"*)
         echo "https://${url}/compare/${2}..${1}"
         ;;
+      "")
+        return
+        ;;
       *)
         err "Unsupported git remote."
         ;;
@@ -630,7 +660,7 @@ function main {
   function update_changelog_header {
     local header tmpfile diff_url prev_tag ver
     ver=$(load_version)
-    msg_start "Updating version history header"
+    msg_start "Updating changelog header"
     header="## [${ver}] - $(date "+%Y-%m-%d")"
     prev_tag="$(git tag | sort -V | tail -n1 )"
     diff_url="$(get_diff_url "${prev_tag}" "${ver}" )"
@@ -766,13 +796,6 @@ function main {
       add_changelog_entry "${keyword}" "${next_keywords}" "$(trim "${message}")"
     done
     stdout_silent
-    msg_start "Updating version history"
-    if ! git_status_empty 2>/dev/null; then
-      gc -am "Update ${OMGF_CHANGELOG}" >/dev/null || return 1
-      msg_end "${DONE}"
-    else
-      msg_end "${SKIP}"
-    fi
   }
 
   function feature_merge {
@@ -833,10 +856,12 @@ function main {
       || confirm "* Release the hotfix?"
     is_merged_to "${source}" "${dest}" \
       && err "Nothing to merge." 6
+    msg_start "Updating control files"
     gf_update_changelog 4 "${dest}"
     increment_version "${verd}" patch > "${OMGF_VERFILE}"
     update_changelog_header
     gc -am "Update control files"
+    msg_end "${DONE}"
     [[ ${request} == 1 ]] \
       && gf_request "${dest}" \
       && return
@@ -844,7 +869,8 @@ function main {
     git_tag "$(load_version)"
     [[ "${dest}" == "${OMGF_MASTER}" ]] \
       && merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}" \
-      && merge_fromto "${OMGF_MASTER}" "${OMGF_DEV}"
+      && merge_fromto "${OMGF_MASTER}" "${OMGF_DEV}" \
+      && merge_fromto "${OMGF_RELEASE}" "${OMGF_DEV}"
     delete_branch "${source}"
   }
 
@@ -1073,7 +1099,6 @@ function main {
 
   [[ ${init} == 1 ]] \
     && unstash_files \
-    && gch "${OMGF_DEV}" \
     && exit
 
   gf_process "${@}"
