@@ -127,7 +127,7 @@ start "missing git error code"
   debug "omgf"
   assert_equal "${status}" 3
   # shellcheck disable=SC2154
-  assert_startwith "${errlines[0]}" "omgf error: Git repository does not exist."
+  assert_startwith "${errlines[0]}" "Git repository not found."
 end
 #######################################
 : $((i++))
@@ -139,7 +139,7 @@ start "missing branch dev error code"
   } >/dev/null 2>&1
   debug "omgf"
   assert_equal "${status}" 3
-  assert_startwith "${errlines[0]}" "omgf error: Missing branch 'dev'."
+  assert_startwith "${errlines[0]}" "Branch 'dev' not found."
 end
 #######################################
 : $((i++))
@@ -151,7 +151,7 @@ start "missing VERSION file error code"
   } >/dev/null
   debug "omgf"
   assert_equal "${status}" 3
-  assert_equal "${errlines[0]}" "omgf error: Missing or empty file 'VERSION'."
+  assert_equal "${errlines[0]}" "Missing or empty file 'VERSION'."
 end
 #######################################
 : $((i++))
@@ -168,7 +168,7 @@ start "dev is behind master error code"
   } >/dev/null
   debug "omgf -v"
   assert_equal "${status}" 3
-  assert_startwith "${errlines[0]}" "omgf error: Branch 'master' is not merged with 'dev'."
+  assert_startwith "${errlines[0]}" "Branch 'master' is not merged with 'dev'."
 end
 #######################################
 : $((i++))
@@ -179,7 +179,7 @@ start "uncommited changes error code"
   } >/dev/null
   debug "omgf"
   assert_equal "${status}" 4
-  assert_startwith "${errlines[0]}" "omgf error: Uncommitted changes."
+  assert_startwith "${errlines[0]}" "Uncommitted changes."
 end
 #######################################
 : $((i++))
@@ -431,7 +431,7 @@ start "merge empty feature"
   } >/dev/null
   debug "omgf -v --yes"
   assert_equal "${status}" 1
-  assert_startwith "${errlines[0]}" "omgf error: Nothing to merge into 'master'."
+  assert_startwith "${errlines[0]}" "Nothing to merge into 'master'."
 end
 #######################################
 : $((i++))

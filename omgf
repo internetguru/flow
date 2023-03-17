@@ -281,7 +281,7 @@ function main {
       || err "Remote url for '${OMGF_ORIGIN}' does not exist."
   }
 
-  function current_branch {
+  function git_current_branch {
     git rev-parse --abbrev-ref HEAD
   }
 
@@ -352,7 +352,7 @@ function main {
   }
 
   function delete_branch {
-    [[ "$(current_branch)" != "${1}" ]] \
+    [[ "$(git_current_branch)" != "${1}" ]] \
       || err "Cannot delete checked branch" 1
     delete_remote_branch "${1}"
     msg_start "Deleting local branch '${1}'"
@@ -362,7 +362,7 @@ function main {
 
   function load_version {
     local branch ver
-    branch=${1:-$(current_branch)}
+    branch=${1:-$(git_current_branch)}
     ver=$(git_show "${branch}:${OMGF_VERFILE}")
     [[ "${ver}" =~ ^[0-9]+\.[0-9]+\.[0-9]$ ]] \
       || err "Invalid version format on branch '${branch}'." 3
@@ -450,7 +450,7 @@ function main {
     [[ ${conform} == 0 ]] \
       && err "Invalid version on '${2}'." 3
     local gcb
-    gcb=$(current_branch)
+    gcb=$(git_current_branch)
     msg_start "Updating version number"
     gch "${2}"
     echo "${1}" > "${OMGF_VERFILE}"
@@ -474,10 +474,20 @@ function main {
       && [[ -n $(git_show "${1}:${OMGF_CHANGELOG}") ]] \
       && return
     local gcb
-    gcb=$(current_branch)
+    gcb=$(git_current_branch)
     gch "${1}"
     init_file "${OMGF_CHANGELOG}" "${OMGF_CHANGELOG_HEADER}"
     gc -am "Add default changelog header"
+    gch "${gcb}"
+  }
+
+  function validate_verfile {
+    git_show_exists "${1}:${OMGF_VERFILE}" \
+      && return
+    local gcb
+    gcb=$(git_current_branch)
+    gch "${1}"
+    init_file "${OMGF_VERFILE}" "0.0.0"
     gch "${gcb}"
   }
 
@@ -491,8 +501,11 @@ function main {
     validate_merged_to "${OMGF_MASTER}" "${OMGF_DEV}"
     validate_merged_to "${OMGF_MASTER}" "${OMGF_RELEASE}"
     validate_merged_to "${OMGF_RELEASE}" "${OMGF_DEV}"
+    validate_verfile "${OMGF_MASTER}"
+    validate_verfile "${OMGF_RELEASE}"
+    validate_verfile "${OMGF_DEV}"
     validate_vertag "${OMGF_MASTER}"
-    #validate_verlte "$(load_version "${OMGF_MASTER}")" "${OMGF_RELEASE}"
+    validate_verlte "$(load_version "${OMGF_MASTER}")" "${OMGF_RELEASE}"
     validate_verlte "$(increment_version "$(load_version "${OMGF_RELEASE}")" minor)" "${OMGF_DEV}"
     validate_changelog "${OMGF_MASTER}"
     validate_changelog "${OMGF_RELEASE}"
@@ -502,15 +515,15 @@ function main {
   function gf_process {
     [[ ${#} -gt 2 ]] \
       && err "Too many arguments." 2
-    local current_branch
-    current_branch=$(current_branch)
-    kw=${1:-"${current_branch%%-*}"}
+    local gcb
+    gcb=$(git_current_branch)
+    kw=${1:-"${gcb%%-*}"}
     name=${2:-"$(whoami)"}
     git check-ref-format "${REFSHEADS}/${name}" \
       || err "Invalid branch name format '${name}'." 2
     case "${1:-"${kw,,}"}" in
       ${HOTFIX})
-        [[ "${current_branch}" == "${HOTFIX}-${name}" ]] \
+        [[ "${gcb}" == "${HOTFIX}-${name}" ]] \
           && hotfix_release \
           && return
         confirm_checkout_if_exists "${1}" \
@@ -518,7 +531,7 @@ function main {
         hotfix_create "${HOTFIX}-${name}"
         ;;
       ${FEATURE})
-        [[ "${current_branch}" == "${FEATURE}-${name}" ]] \
+        [[ "${gcb}" == "${FEATURE}-${name}" ]] \
           && feature_merge \
           && return
         confirm_checkout_if_exists "${1}" \
@@ -526,10 +539,10 @@ function main {
         feature_create "${FEATURE}-${name}"
         ;;
       ${OMGF_RELEASE})
-        [[ "${current_branch}" == "${OMGF_DEV}" ]] \
+        [[ "${gcb}" == "${OMGF_DEV}" ]] \
           && release_dev \
           && return
-        [[ "${current_branch}" == "${OMGF_RELEASE}" ]] \
+        [[ "${gcb}" == "${OMGF_RELEASE}" ]] \
           && release_release \
           && return
         confirm_checkout_if_exists "${1}" \
@@ -706,16 +719,16 @@ function main {
 
   function gf_update_changelog {
     local commits
-    commits="$(git log "${2}".."$(current_branch)" --pretty=format:"*   %h %s")"
+    commits="$(git log "${2}".."$(git_current_branch)" --pretty=format:"*   %h %s")"
     stdout_verbose
     echo
     echo "***"
-    echo "* Please enter the $(current_branch) description for ${OMGF_CHANGELOG}."
+    echo "* Please enter the $(git_current_branch) description for ${OMGF_CHANGELOG}."
     echo "*"
     echo "* Keywords:"
     echo "*   $(echo "${CHANGELOG_KEYWORDS[@]}" | sed "s/ /, /g;s/${CHANGELOG_KEYWORDS[${1}]}/${CHANGELOG_KEYWORDS[${1}]} (default)/")"
     echo "*"
-    echo "* Commits of '$(current_branch)':"
+    echo "* Commits of '$(git_current_branch)':"
     echo "${commits}"
     echo "*"
     REPLY=
@@ -764,7 +777,7 @@ function main {
 
   function feature_merge {
     local source
-    source=$(current_branch)
+    source=$(git_current_branch)
     is_merged_to "${source}" "${OMGF_DEV}" \
       && err "Nothing to merge." 6
     # shellcheck disable=SC2015
@@ -808,7 +821,7 @@ function main {
 
   function hotfix_release {
     local source dest verh verd
-    source=$(current_branch)
+    source=$(git_current_branch)
     dest=${OMGF_MASTER}
     verh=$(load_version "${source}")
     verd=$(load_version "${OMGF_MASTER}")
@@ -884,26 +897,26 @@ function main {
   }
 
   function gf_request_url {
-    local url upstream_url to current_branch
+    local url upstream_url to gcb
     to="${1:-${OMGF_DEV}}"
     url=$(trim_url "$(git config remote."${OMGF_ORIGIN}".url)")
     upstream_url="$(git config remote."${OMGF_UPSTREAM}".url)"
     upstream_url="$(trim_url "${upstream_url}")"
-    current_branch=$(current_branch)
+    gcb=$(git_current_branch)
     stdout_verbose
     echo -n "Pull request URL: "
     case "${url}" in
       *"${GITHUB}"*)
         # shellcheck disable=SC1003
         [[ "${url}" == "${upstream_url}" ]] \
-          && echo "https://${url}/compare/${to}...${current_branch}?expand=1" \
-          || echo "https://${upstream_url}/compare/${to}...$(echo "${url}" | cut -d'/' -f2)%3A${current_branch}?expand=1"
+          && echo "https://${url}/compare/${to}...${gcb}?expand=1" \
+          || echo "https://${upstream_url}/compare/${to}...$(echo "${url}" | cut -d'/' -f2)%3A${gcb}?expand=1"
       ;;
       *"${BITBUCKET}"*)
         # shellcheck disable=SC1003
         [[ "${url}" == "${upstream_url}" ]] \
-          && echo "https://${url}/compare/${current_branch}..$(echo "${url}" | cut -d'/' -f2-3)%3A${to}" \
-          || echo "https://${url}/compare/${current_branch}..$(echo "${upstream_url}" | cut -d'/' -f2-3)%3A${to}"
+          && echo "https://${url}/compare/${gcb}..$(echo "${url}" | cut -d'/' -f2-3)%3A${to}" \
+          || echo "https://${url}/compare/${gcb}..$(echo "${upstream_url}" | cut -d'/' -f2-3)%3A${to}"
       ;;
       *)
         err "Remote server name not recognized."
@@ -945,7 +958,7 @@ function main {
     stdout_verbose
     echo "***"
     echo -n "* Current revision is considered "
-    case $(current_branch) in
+    case $(git_current_branch) in
       HEAD)
         echo "elusive."
         echo "* - Checkout to existing branch, e.g. '${OMGF_DEV}'."
@@ -1060,6 +1073,7 @@ function main {
 
   [[ ${init} == 1 ]] \
     && unstash_files \
+    && gch "${OMGF_DEV}" \
     && exit
 
   gf_process "${@}"
