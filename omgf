@@ -174,7 +174,7 @@ function main {
       || err "${out}"
   }
 
-  function gc {
+  function git_commit {
     local out
     out="$(git commit "${@}" 2>&1)" \
       || err "${out}"
@@ -220,6 +220,14 @@ function main {
 
   function git_show_exists {
     git show "${@}" >/dev/null 2>&1
+  }
+
+  function git_tag_commit {
+    git rev-list -n 1 "tags/${1}"
+  }
+
+  function git_merge_base {
+    git merge-base "${1}" "${2}"
   }
 
   function git_branch {
@@ -394,7 +402,11 @@ function main {
     echo "${1}" | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p'
   }
 
-  function verlte {
+  function version_gt {
+    ! version_lte "${1}" "${2}"
+  }
+
+  function version_lte {
     [[ "${1}" == "$(echo -e "${1}\n${2}" | sort -V | head -n1)" ]]
   }
 
@@ -404,9 +416,9 @@ function main {
     git_minv=1.8.0
     bash_ver="$(parse_version "$(bash --version 2>/dev/null)")"
     git_ver="$(parse_version "$(git --version 2>/dev/null)")"
-    verlte "${bash_minv}" "${bash_ver}" \
+    version_lte "${bash_minv}" "${bash_ver}" \
       || err "OMGF requires Bash version ${bash_minv} or later (you have ${bash_ver:-no Bash installed})."
-    verlte "${git_minv}" "${git_ver}" \
+    version_lte "${git_minv}" "${git_ver}" \
       || err "OMGF requires Git version ${git_minv} or later (you have ${git_ver:-no Git installed})."
   }
 
@@ -432,18 +444,34 @@ function main {
     init_file "${OMGF_VERFILE}" "0.0.0"
     init_file "${OMGF_CHANGELOG}" "${OMGF_CHANGELOG_HEADER}"
     git_add "${OMGF_VERFILE}" "${OMGF_CHANGELOG}"
-    gc -m "Init files"
+    git_commit -m "Init files"
     msg_end "${DONE}"
   }
 
-  function validate_vertag {
+  function validate_hotfix_tag {
     local ver
-    ver=$(load_version "${1}")
-    has_tag "${1}" "${ver}" \
+    ver=$(load_version "${OMGF_MASTER}")
+    has_tag "${OMGF_MASTER}" "${ver}" \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Missing tag '${ver}' on branch '${1}'." 3
-    git_tag "${ver}" "${1}"
+      && err "Missing hotfix tag '${ver}' on branch '${OMGF_MASTER}'." 3
+    git_tag "${ver}" "${OMGF_MASTER}"
+  }
+
+  function validate_release_tag {
+    local ver verr base
+    ver=$(load_version "${OMGF_MASTER}")
+    verr=${ver%.*}.0
+    base=$(git_merge_base "${OMGF_MASTER}" "${OMGF_RELEASE}")
+    has_tag "${OMGF_MASTER}" "${verr}" \
+      && [[ $(git_tag_commit "${verr}") == "${base}" ]] \
+      && return
+    has_tag "${OMGF_MASTER}" "${verr}" \
+      && [[ $(git_tag_commit "${verr}") != "${base}" ]] \
+      && err "Invalid release tag ${verr} commit." 3
+    [[ ${conform} == 0 ]] \
+      && err "Missing release tag '${verr}' on branch '${OMGF_MASTER}'." 3
+    git_tag "${verr}" "${OMGF_MASTER}"
   }
 
   # 1) validate ${OMGF_DEV} branch
@@ -456,19 +484,41 @@ function main {
     merge_fromto "${1}" "${2}"
   }
 
-  function validate_verlte {
-    verlte "${1}" "$(load_version "${2}")" \
+  function validate_release_ver {
+    local verm verr
+    verm=$(load_version "${OMGF_MASTER}")
+    verr=$(load_version "${OMGF_RELEASE}")
+    version_gt "${verr%.*}" "${verm%.*}" \
+      && return
+    [[ "${verm%.*}" == "${verr%.*}" ]] \
+      && is_merged_to "${OMGF_RELEASE}" "${OMGF_MASTER}" \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Invalid version on '${2}'." 3
+      && err "Branch '${OMGF_RELEASE}' has lower version or is not merged to '${OMGF_MASTER}'." 3
+    update_version "${OMGF_RELEASE}" "$(increment_version "${verm}" minor)"
+  }
+
+  function update_version {
     local gcb
     gcb=$(git_current_branch)
     msg_start "Updating version number"
-    gch "${2}"
-    echo "${1}" > "${OMGF_VERFILE}"
-    gc -am "Update version number"
+    gch "${1}"
+    echo "${2}" > "${OMGF_VERFILE}"
+    git_add "${OMGF_VERFILE}"
+    git_commit -am "Update version number"
     msg_end "${DONE}"
     gch "${gcb}"
+  }
+
+  function validate_dev_ver {
+    local verd verr
+    verr=$(load_version "${OMGF_RELEASE}")
+    verd=$(load_version "${OMGF_DEV}")
+    version_gt "${verd%.*}" "${verr%.*}" \
+      && return
+    [[ ${conform} == 0 ]] \
+      && err "Branch '${OMGF_DEV}' version is lower or equal to '${OMGF_RELEASE}'." 3
+    update_version "${OMGF_DEV}" "$(increment_version "${verr}" minor)"
   }
 
   # validate git status
@@ -490,7 +540,7 @@ function main {
     gch "${1}"
     init_file "${OMGF_CHANGELOG}" "${OMGF_CHANGELOG_HEADER}"
     git_add .
-    gc -am "Add changelog file"
+    git_commit -am "Add changelog file"
     gch "${gcb}"
   }
 
@@ -502,7 +552,7 @@ function main {
     gch "${1}"
     init_file "${OMGF_VERFILE}" "0.0.0"
     git_add "${OMGF_VERFILE}"
-    gc -am "Add version file"
+    git_commit -am "Add version file"
     gch "${gcb}"
   }
 
@@ -522,9 +572,13 @@ function main {
     validate_verfile "${OMGF_MASTER}"
     validate_verfile "${OMGF_RELEASE}"
     validate_verfile "${OMGF_DEV}"
-    validate_vertag "${OMGF_MASTER}"
-    validate_verlte "$(load_version "${OMGF_MASTER}")" "${OMGF_RELEASE}"
-    validate_verlte "$(increment_version "$(load_version "${OMGF_RELEASE}")" minor)" "${OMGF_DEV}"
+    # validate release tag before hotfix tag
+    # to prevent confusion if no hotfix exists
+    # e.g. "Missing hotfix tag 0.1.0"
+    validate_release_tag
+    validate_hotfix_tag
+    validate_release_ver
+    validate_dev_ver
     validate_changelog "${OMGF_MASTER}"
     validate_changelog "${OMGF_RELEASE}"
     validate_changelog "${OMGF_DEV}"
@@ -597,7 +651,7 @@ function main {
     merge_fromto "${OMGF_RELEASE}" "${OMGF_DEV}"
     update_changelog_header
     increment_version "$(load_version)" minor > "${OMGF_VERFILE}"
-    gc -am "Update control files"
+    git_commit -am "Update control files"
   }
 
   function feature_create {
@@ -626,7 +680,7 @@ function main {
     is_merged_to "${OMGF_MASTER}" "${OMGF_RELEASE}" \
       || err 'Branch already released.' 6
     update_changelog_header
-    gc -am "Update control files"
+    git_commit -am "Update control files"
     merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}"
     [[ ${request} == 1 ]] \
       && gf_request "${OMGF_MASTER}" \
@@ -809,6 +863,8 @@ function main {
       || confirm "* Merge '${source}' into '${OMGF_DEV}'?"
     merge_fromto "${OMGF_DEV}" "${source}"
     gf_update_changelog 0 "${OMGF_DEV}"
+    git_add .
+    git_commit -m "Update changelog"
     [[ ${request} == 1 ]] \
       && gf_request "${OMGF_DEV}"
     merge_fromto "${source}" "${OMGF_DEV}"
@@ -860,7 +916,7 @@ function main {
     gf_update_changelog 4 "${dest}"
     increment_version "${verd}" patch > "${OMGF_VERFILE}"
     update_changelog_header
-    gc -am "Update control files"
+    git_commit -am "Update control files"
     msg_end "${DONE}"
     [[ ${request} == 1 ]] \
       && gf_request "${dest}" \

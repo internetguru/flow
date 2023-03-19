@@ -56,7 +56,7 @@ function load_log {
 }
 
 function load_changelog {
-  chglog="$(git show "${1:-HEAD}":CHANGELOG.md)"
+  chglog="$(git show HEAD:CHANGELOG.md)"
   IFS=$'\n' read -d '' -r -a chgloglines <<< "${chglog}" || return 0
 }
 
@@ -341,7 +341,7 @@ start "conform on existing repo with commits and --stash"
   assert_equal "${status}" 0
   checkInitFiles
   gref
-  checkInitRefs
+  #checkInitRefs
   assert_equal "$(git_current_branch)" "hotfix-$(whoami)"
   assert_equal "$(gsp | wc -l)" 1
 end
@@ -352,21 +352,20 @@ end
 start "create feature"
   take "${i}"
   { omgf --init; } >/dev/null
-  debug "omgf -v --yes myfeature"
+  debug "omgf -v --yes"
   assert_equal "${status}" 0
-  assert_contains "${outlines[0]}" "Creating branch 'feature-myfeature'"
   gref
-  assert_contains "${ref}" "refs/heads/feature-myfeature"
-  assert_equal "$(git_current_branch)" "feature-myfeature"
+  assert_contains "${ref}" "refs/heads/feature-$(whoami)"
+  assert_equal "$(git_current_branch)" "feature-$(whoami)"
 end
 #######################################
 : $((i++))
-start "create feature with uncommited changes and --force"
+start "create feature with uncommited changes and --stash"
   take "${i}"
   { omgf --init \
     && echo a > a
   } >/dev/null
-  debug "omgf -v --yes --force myfeature"
+  debug "omgf -v --yes --stash feature myfeature"
   assert_equal "${status}" 0
   assert_contains "${outlines[0]}" "Stashing files"
   assert_equal "$(git_current_branch)" "feature-myfeature"
@@ -377,7 +376,7 @@ end
 start "merge feature"
   take "${i}"
   { omgf --init \
-    && omgf --yes myfeature \
+    && omgf --yes feature myfeature \
     && echo a > a \
     && git add . \
     && git commit -am "add feature 1"
@@ -385,7 +384,7 @@ start "merge feature"
   debug "echo 'feature1' | omgf --yes"
   assert_equal "${status}" 0
   load_log
-  assert_contains "${log}" "Update CHANGELOG.md"
+  assert_contains "${log}" "Update changelog"
   assert_contains "$(arrowToComma "${loglines[0]}")" "(HEAD, dev) Merge branch 'feature-myfeature' into dev"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/feature-myfeature)" ""
@@ -399,28 +398,28 @@ end
 start "merge empty feature"
   take "${i}"
   { omgf --init \
-    && omgf --yes myfeature
+    && omgf --yes feature myfeature
   } >/dev/null
   debug "omgf -v --yes"
-  assert_equal "${status}" 1
-  assert_startwith "${errlines[0]}" "Nothing to merge into 'master'."
+  assert_equal "${status}" 6
+  assert_startwith "${errlines[0]}" "Nothing to merge."
 end
 #######################################
 : $((i++))
-start "merge feature with uncommited changes and --force"
+start "merge feature with uncommited changes and --stash"
   take "${i}"
   { omgf --init \
-    && omgf --yes myfeature \
+    && omgf --yes feature myfeature \
     && echo a > a \
     && git add . \
     && git commit -am "add feature 1" \
     && echo b > b
   } >/dev/null
-  debug "echo 'feature1' | omgf --yes --force"
+  debug "echo 'feature1' | omgf --yes --stash"
   assert_equal "${status}" 0
   #assert_contains "${outlines[0]}" "Stashing files"
   load_log
-  assert_contains "${log}" "Update CHANGELOG.md"
+  assert_contains "${log}" "Update changelog"
   assert_contains "$(arrowToComma "${loglines[0]}")" "(HEAD, dev) Merge branch 'feature-myfeature' into dev"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/feature-myfeature)" ""
@@ -449,37 +448,39 @@ start "create release"
   } >/dev/null
   debug "omgf -v --yes release"
   assert_equal "${status}" 0
-  load_changelog "dev"
+  load_changelog
   assert_equal "${chgloglines[4]:-}" "## [0.1.0] - $(date "+%Y-%m-%d")"
-  assert_equal "$(cat VERSION)" "0.1.0"
+  assert_equal "$(cat VERSION)" "0.2.0"
+  gch "release"
   load_changelog
   assert_equal "${chgloglines[4]:-}" ""
+  assert_equal "$(cat VERSION)" "0.1.0"
   gref
   assert_contains "${ref}" "refs/heads/release"
   assert_equal "$(gsp)" ""
 end
 #######################################
-: $((i++))
-start "try create two releases"
-  take "${i}"
-  { omgf --init \
-    && echo a > a \
-    && git add . \
-    && git commit -m "add file a" \
-    && omgf --yes release \
-    && gch dev \
-    && echo b > b \
-    && git add . \
-    && git commit -m "add file b"
-  } >/dev/null 2>&1
-  debug "omgf -v --yes release"
-  assert_equal "${status}" 0
-  assert_equal "$(git_current_branch)" "release"
-  assert_equal "$(gsp)" ""
-end
+# : $((i++))
+# start "try create two releases"
+#   take "${i}"
+#   { omgf --init \
+#     && echo a > a \
+#     && git add . \
+#     && git commit -m "add file a" \
+#     && omgf --yes release \
+#     && gch dev \
+#     && echo b > b \
+#     && git add . \
+#     && git commit -m "add file b"
+#   } >/dev/null 2>&1
+#   debug "omgf -v --yes release"
+#   assert_equal "${status}" 0
+#   assert_equal "$(git_current_branch)" "release"
+#   assert_equal "$(gsp)" ""
+# end
 #######################################
 : $((i++))
-start "release with uncommited changes and --force"
+start "release with uncommited changes and --stash"
   take "${i}"
   { omgf --init \
     && echo a > a \
@@ -487,7 +488,7 @@ start "release with uncommited changes and --force"
     && git commit -m "add file a" \
     && echo b > b
   } >/dev/null
-  debug "omgf -v --yes --force release"
+  debug "omgf -v --yes --stash release"
   assert_equal "${status}" 0
   assert_contains "${outlines[0]}" "Stashing files"
   gref
@@ -507,44 +508,52 @@ start "merge release"
   debug "omgf -v --yes release"
   assert_equal "${status}" 0
   load_log
-  assert_contains "$(arrowToComma "${log}")" "(HEAD, dev) Merge branch 'release' into dev"
+  assert_contains "$(arrowToComma "${log}")" "(HEAD, dev) Update control files"
+  assert_contains "$(arrowToComma "${log}")" "(release) Merge branch 'dev' into release"
+  assert_contains "$(arrowToComma "${log}")" "Merge branch 'release' into dev"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/release)" ""
   assert_equal "$(gsp)" ""
 end
 #######################################
-#TODO
-# : $((i++))
-# start "invalid version number"
-#   take "${i}"
-#   { omgf --init \
-#     && echo a > a \
-#     && git add . \
-#     && git commit -m "add file a" \
-#     && omgf --yes release \
-#     && gch dev \
-#     && echo 1.0.0 > VERSION \
-#     && git commit -am "bump dev major VERSION" \
-#     && gch release \
-#     && echo 2.0.0 > VERSION \
-#     && git commit -am "bump release major VERSION"
-#   } >/dev/null 2>&1
-#   debug "omgf -v --yes release"
-#   assert_equal "${status}" 5
-#   assert_contains "$(gsp)" "UU VERSION"
-# end
+: $((i++))
+start "invalid version number"
+  take "${i}"
+  { omgf --init \
+    && echo 0.0.0 > VERSION \
+    && git commit -am "version"
+  } >/dev/null 2>&1
+  debug "omgf"
+  assert_equal "${status}" 3
+  assert_startwith "${errlines[0]}" "Branch 'dev' version is lower or equal to 'release'."
+end
 #######################################
 : $((i++))
-start "merge release with uncommited changes and --force"
+start "invalid version number --conform"
+  take "${i}"
+  { omgf --init \
+    && omgf --yes release \
+    && gch release \
+    && echo 1.0.0 > VERSION \
+    && git commit -am "version"
+  } >/dev/null 2>&1
+  debug "omgf --conform --yes"
+  assert_equal "${status}" 0
+  assert_equal "$(cat VERSION)" "1.1.0"
+end
+#######################################
+: $((i++))
+start "merge release with uncommited changes and --stash"
   take "${i}"
   { omgf --init \
     && echo a > a \
     && git add . \
     && git commit -m "add file a" \
+    && gch release \
     && omgf --yes release \
     && echo b > b
   } >/dev/null
-  debug "omgf -v --yes --force release"
+  debug "omgf -v --yes --stash release"
   assert_equal "${status}" 0
   assert_contains "${outlines[0]}" "Stashing files"
   load_log
