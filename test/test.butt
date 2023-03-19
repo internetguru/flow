@@ -532,7 +532,6 @@ end
 start "invalid version number --conform"
   take "${i}"
   { omgf --init \
-    && omgf --yes release \
     && gch release \
     && echo 1.0.0 > VERSION \
     && git commit -am "version"
@@ -543,19 +542,30 @@ start "invalid version number --conform"
 end
 #######################################
 : $((i++))
-start "merge release with uncommited changes and --stash"
+start "unmerged changes on release"
   take "${i}"
   { omgf --init \
-    && echo a > a \
-    && git add . \
-    && git commit -m "add file a" \
     && gch release \
-    && omgf --yes release \
-    && echo b > b
+    && touch a \
+    && git add . \
+    && git commit -am "version"
   } >/dev/null
-  debug "omgf -v --yes --stash release"
+  debug "omgf --yes release"
+  assert_equal "${status}" 3
+  assert_startwith "${errlines[0]}" "Branch 'release' is not merged to 'dev'."
+end
+#######################################
+: $((i++))
+start "unmerged changes on release --conform"
+  take "${i}"
+  { omgf --init \
+    && gch release \
+    && touch a \
+    && git add . \
+    && git commit -am "version"
+  } >/dev/null
+  debug "omgf --yes --conform release"
   assert_equal "${status}" 0
-  assert_contains "${outlines[0]}" "Stashing files"
   load_log
   assert_contains "${loglines[0]}" "Merge branch 'release'"
   gref
@@ -563,7 +573,6 @@ start "merge release with uncommited changes and --stash"
   assert_equal "$(git show release:VERSION)" "0.1.0"
   assert_equal "$(git show master:VERSION)" "0.1.0"
   assert_equal "$(git_current_branch)" "dev"
-  assert_equal "$(gsp)" "A  b"
 end
 #######################################
 # : $((i++))

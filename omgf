@@ -676,9 +676,8 @@ function main {
     [[ ${request} == 1 ]] \
       && confirm "* Request merge '${OMGF_RELEASE}' to '${OMGF_MASTER}'?" \
       || confirm "* Merge '${OMGF_RELEASE}' to '${OMGF_MASTER}'?"
-    #TODO: technically this check is irrelevant
-    is_merged_to "${OMGF_MASTER}" "${OMGF_RELEASE}" \
-      || err 'Branch already released.' 6
+    is_merged_to "${OMGF_RELEASE}" "${OMGF_MASTER}" \
+      && err 'Branch already released.' 6
     update_changelog_header
     git_commit -am "Update control files"
     merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}"
