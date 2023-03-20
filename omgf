@@ -1193,6 +1193,7 @@ function main {
   gf_validate "${@}"
 
   [[ ${dry} == 1 ]] \
+    && unstash_files \
     && exit
 
   [[ ${what_now} == 1 ]] \

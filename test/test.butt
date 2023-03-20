@@ -27,15 +27,12 @@ function gref {
   ref="$(git show-ref)"
 }
 
-function arrowToComma {
-  echo "${1// ->/,}"
-}
-
 function checkInitRefs {
   assert_equal "$(echo "${ref}" | wc -l)" 5
   assert_contains "${ref}" "refs/heads/dev"
   assert_contains "${ref}" "refs/heads/master"
   assert_contains "${ref}" "refs/heads/release"
+  assert_contains "${ref}" "refs/heads/prod-0"
   assert_contains "${ref}" "refs/tags/0.0.0"
 }
 
@@ -43,6 +40,7 @@ function checkInitFiles {
   assert_equal "$(git show dev:VERSION)" "0.1.0"
   assert_equal "$(git show master:VERSION)" "0.0.0"
   assert_equal "$(git show release:VERSION)" "0.0.0"
+  assert_equal "$(git show prod-0:VERSION)" "0.0.0"
   assert_equal "$(head -n1 CHANGELOG.md)" "# Change Log"
 }
 
@@ -72,7 +70,6 @@ loglines=()
 chglog=
 chgloglines=()
 outlines=()
-user="$(echo "${USER}" | tr '[:upper:]' '[:lower:]')"
 
 #######################################
 ## Integration
@@ -386,7 +383,7 @@ start "merge feature"
   assert_equal "${status}" 0
   load_log
   assert_contains "${log}" "Update changelog"
-  assert_contains "$(arrowToComma "${loglines[0]}")" "(HEAD, dev) Merge branch 'feature-myfeature' into dev"
+  assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'feature-myfeature' into dev"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/feature-myfeature)" ""
   load_changelog
@@ -407,7 +404,7 @@ start "merge empty feature"
 end
 #######################################
 : $((i++))
-start "merge feature with uncommited changes and --stash"
+start "merge feature with uncommitted changes and --stash"
   take "${i}"
   { omgf --init \
     && omgf --yes feature myfeature \
@@ -421,7 +418,7 @@ start "merge feature with uncommited changes and --stash"
   #assert_contains "${outlines[0]}" "Stashing files"
   load_log
   assert_contains "${log}" "Update changelog"
-  assert_contains "$(arrowToComma "${loglines[0]}")" "(HEAD, dev) Merge branch 'feature-myfeature' into dev"
+  assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'feature-myfeature' into dev"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/feature-myfeature)" ""
   assert_equal "$(gsp)" "A  b"
@@ -509,9 +506,9 @@ start "merge release"
   debug "omgf -v --yes release"
   assert_equal "${status}" 0
   load_log
-  assert_contains "$(arrowToComma "${log}")" "(HEAD, dev) Increment minor version"
-  assert_contains "$(arrowToComma "${log}")" "(release) Merge branch 'dev' into release"
-  assert_contains "$(arrowToComma "${log}")" "Merge branch 'release' into dev"
+  assert_contains "${log}" "(HEAD -> dev) Increment minor version"
+  assert_contains "${log}" "(release) Merge branch 'dev' into release"
+  assert_contains "${log}" "Merge branch 'release' into dev"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/release)" ""
   assert_equal "$(gsp)" ""
