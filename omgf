@@ -296,7 +296,7 @@ function main {
 
   function validate_git_remote {
     git config remote."${OMGF_ORIGIN}".url >/dev/null \
-      || err "Remote url for '${OMGF_ORIGIN}' does not exist."
+      || err "Remote url for '${OMGF_ORIGIN}' not found."
   }
 
   function git_current_branch {
@@ -368,8 +368,8 @@ function main {
   }
 
   function delete_branch {
-    [[ "$(git_current_branch)" != "${1}" ]] \
-      || err "Cannot delete checked branch" 1
+    [[ "$(git_current_branch)" == "${1}" ]] \
+      && err "Unable to delete checked branch"
     delete_remote_branch "${1}"
     msg_start "Deleting local branch '${1}'"
     git_branch -d "${1}"
@@ -381,7 +381,7 @@ function main {
     branch=${1:-$(git_current_branch)}
     ver=$(git_show "${branch}:${OMGF_VERFILE}")
     [[ "${ver}" =~ ^[0-9]+\.[0-9]+\.[0-9]$ ]] \
-      || err "Invalid version format on branch '${branch}'." 3
+      || err "Invalid version format on branch '${branch}'." 4
     echo "${ver}"
   }
 
@@ -439,7 +439,7 @@ function main {
       && ! local_branch_exists "${OMGF_MASTER}" \
       && err "Missing commit on '${OMGF_MASTER}'." 3
     [[ "$(ls -A .)" && "${stash}" == 0 ]] \
-      && err "Folder is not empty."
+      && err "Folder is not empty." 3
     msg_start "Initializing repository"
     local out
     git_init .
@@ -470,7 +470,7 @@ function main {
       && return
     has_tag "${OMGF_MASTER}" "${verr}" \
       && [[ $(git_rev_list "tags/${verr}") != "${base}" ]] \
-      && err "Invalid release tag ${verr} commit." 3
+      && err "Invalid release tag ${verr} commit." 4
     [[ ${conform} == 0 ]] \
       && err "Missing release tag '${verr}' on branch '${OMGF_MASTER}'." 3
     git_tag "${verr}" "${OMGF_MASTER}"
@@ -486,18 +486,24 @@ function main {
     merge_fromto "${1}" "${2}"
   }
 
-  function validate_release_ver {
+  function validate_release_branch {
     local verm verr
     verm=$(load_version "${OMGF_MASTER}")
     verr=$(load_version "${OMGF_RELEASE}")
     version_gt "${verr%.*}" "${verm%.*}" \
+      && validate_merged_to "${OMGF_RELEASE}" "${OMGF_DEV}" \
       && return
-    [[ "${verm%.*}" == "${verr%.*}" ]] \
-      && is_merged_to "${OMGF_RELEASE}" "${OMGF_MASTER}" \
+    [[ "${verr%.*}" == "${verm%.*}" ]] \
+      && validate_attached "${OMGF_RELEASE}" "${OMGF_MASTER}" \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Branch '${OMGF_RELEASE}' has lower version or is not merged to '${OMGF_MASTER}'." 3
+      && err "Branch '${OMGF_RELEASE}' version is lower than '${OMGF_MASTER}'." 3
     update_version "${OMGF_RELEASE}" "$(increment_version "${verm}" minor)"
+  }
+
+  function validate_attached {
+    [[ $(git_rev_list "heads/${1}") == $(git_rev_list "heads/${2}") ]] \
+      || err "Branch '${1}' is detached from '${2}'." 4
   }
 
   function update_version {
@@ -512,7 +518,7 @@ function main {
     gch "${gcb}"
   }
 
-  function validate_dev_ver {
+  function validate_dev_branch {
     local verd verr
     verr=$(load_version "${OMGF_RELEASE}")
     verd=$(load_version "${OMGF_DEV}")
@@ -530,7 +536,7 @@ function main {
     [[ ${stash} == 1 ]] \
       && stash_files \
       && return
-    err "Uncommitted changes." 4
+    err "Uncommitted changes." 5
   }
 
   function validate_changelog {
@@ -565,23 +571,24 @@ function main {
       && gcb=$(git_current_branch)
     validate_repository
     validate_status_empty
+    # branches and control files existence
     validate_branch "${OMGF_MASTER}"
     validate_branch "${OMGF_RELEASE}"
     validate_branch "${OMGF_DEV}"
-    validate_merged_to "${OMGF_MASTER}" "${OMGF_DEV}"
-    validate_merged_to "${OMGF_MASTER}" "${OMGF_RELEASE}"
-    validate_merged_to "${OMGF_RELEASE}" "${OMGF_DEV}"
     validate_verfile "${OMGF_MASTER}"
     validate_verfile "${OMGF_RELEASE}"
     validate_verfile "${OMGF_DEV}"
     validate_changelog "${OMGF_MASTER}"
     validate_changelog "${OMGF_RELEASE}"
     validate_changelog "${OMGF_DEV}"
+    # gitflow dependencies
     validate_prod_branch
-    validate_release_ver
-    validate_dev_ver
+    validate_merged_to "${OMGF_MASTER}" "${OMGF_RELEASE}"
+    validate_merged_to "${OMGF_MASTER}" "${OMGF_DEV}"
+    validate_release_branch
+    validate_dev_branch
     # Validate release tag before hotfix tag
-    # to revent confusion if no hotfix exists.
+    # to prevent confusion if no hotfix exists.
     # E.g. "Missing hotfix tag 0.1.0" is confusing.
     validate_release_tag
     validate_hotfix_tag
@@ -667,12 +674,12 @@ function main {
     #TODO: technically this check is irrelevant
     is_merged_to "${OMGF_RELEASE}" "${OMGF_DEV}" \
       || err 'Branch already released.' 6
-    merge_fromto "${OMGF_DEV}" "${OMGF_RELEASE}"
-    gch "${OMGF_DEV}"
-    merge_fromto "${OMGF_RELEASE}" "${OMGF_DEV}"
     update_changelog_header
+    git_commit -am "Add changelog header"
+    merge_fromto "${OMGF_DEV}" "${OMGF_RELEASE}"
+    merge_fromto "${OMGF_RELEASE}" "${OMGF_DEV}"
     increment_version "$(load_version)" minor > "${OMGF_VERFILE}"
-    git_commit -am "Update control files"
+    git_commit -am "Increment minor version"
   }
 
   function feature_create {
@@ -709,7 +716,10 @@ function main {
       && gf_request "${OMGF_MASTER}" \
       && return
     merge_fromto "${OMGF_RELEASE}" "${OMGF_MASTER}"
+    msg_start "Updating branching structure"
     git_tag "$(load_version)"
+    gch "${OMGF_RELEASE}"
+    git_merge "${OMGF_MASTER}"
     local prod
     prod=$(prod_name)
     # shellcheck disable=SC2015
@@ -717,9 +727,9 @@ function main {
       && gch "${prod}" \
       && git_merge "${OMGF_MASTER}" \
       || git_branch "${prod}" "${OMGF_MASTER}"
+    msg_end "${DONE}"
     merge_fromto "${OMGF_MASTER}" "${OMGF_DEV}"
-    merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}"
-    merge_fromto "${OMGF_RELEASE}" "${OMGF_DEV}"
+    #merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}"
   }
 
   function get_diff_url {
@@ -923,7 +933,7 @@ function main {
         (( patch ++ ))
         ;;
       *)
-        err "Invalid argument"
+        err "Invalid version type."
     esac
     echo "${major}.${minor}.${patch}"
   }
@@ -935,7 +945,7 @@ function main {
     vers=$(load_version "${source}")
     verd=$(load_version "${OMGF_MASTER}")
     [[ "${vers%%.*}" > "${verd%%.*}" ]] \
-      && err "Hotfix version is greater than '${OMGF_MASTER}'."
+      && err "Hotfix version is greater than '${OMGF_MASTER}'." 4
     # shellcheck disable=SC2015
     [[ "${vers%%.*}" < "${verd%%.*}" ]] \
       && dest="$(prod_name "${vers}")" \
@@ -943,7 +953,7 @@ function main {
       && confirm "* Obsolete major version. Merge to branch '${dest}'?" \
       || confirm "* Release the hotfix?"
     ! local_branch_exists "${dest}" \
-      && err "Branch '${dest} not found."
+      && err "Branch '${dest} not found." 4
     is_merged_to "${source}" "${dest}" \
       && err "Nothing to merge." 6
     msg_start "Updating control files"
@@ -1037,7 +1047,7 @@ function main {
           || echo "https://${url}/compare/${gcb}..$(echo "${upstream_url}" | cut -d'/' -f2-3)%3A${to}"
       ;;
       *)
-        err "Remote server name not recognized."
+        err "Unsupported remote server name."
       ;;
     esac
     stdout_silent
@@ -1175,9 +1185,9 @@ function main {
   declare -r CHANGELOG_KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
   declare -r REFSHEADS="refs/heads"
   declare DONE
-  DONE="$(colorize "  ok  " ${GREEN})"
+  DONE="$(colorize " done " ${GREEN})"
   declare SKIP
-  SKIP="$(colorize " skip " ${BLUE})"
+  SKIP="$(colorize " pass " ${BLUE})"
 
   stdout_silent
   gf_validate "${@}"

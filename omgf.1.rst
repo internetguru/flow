@@ -229,11 +229,11 @@ EXIT STATUS
 2
     Parse or invalid option error.
 3
-    Git is not conform with **OMGF** model.
+    Git is not conform with the branching model, probably fixable with omgf.
 4
-    Git status is not empty.
+    Git is not conform with the branching model, unfixable with omgf.
 5
-    Git conflict occurred.
+    Git status is not empty AKA uncommitted changes.
 6
     Nothing to do (e. g. empty merge).
 

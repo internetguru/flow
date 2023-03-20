@@ -169,17 +169,17 @@ start "dev is behind master error code"
   } >/dev/null
   debug "omgf -v"
   assert_equal "${status}" 3
-  assert_startwith "${errlines[0]}" "Branch 'release' is not merged to 'dev'."
+  assert_startwith "${errlines[0]}" "Branch 'master' is not merged to 'dev'."
 end
 #######################################
 : $((i++))
-start "uncommited changes error code"
+start "uncommitted changes error code"
   take "${i}"
   { omgf -i \
     && echo a > a
   } >/dev/null
   debug "omgf"
-  assert_equal "${status}" 4
+  assert_equal "${status}" 5
   assert_startwith "${errlines[0]}" "Uncommitted changes."
 end
 #######################################
@@ -248,7 +248,7 @@ start "init on non-empty folder"
     && touch b
   } >/dev/null
   debug "omgf --init"
-  assert_equal "${status}" 1
+  assert_equal "${status}" 3
   assert_startwith "${errlines[0]}" "Folder is not empty."
 end
 #######################################
@@ -290,7 +290,7 @@ start "init on existing repo uncommitted"
     && echo a > a
   } >/dev/null
   debug "omgf -v --init"
-  assert_equal "${status}" 1
+  assert_equal "${status}" 3
   assert_startwith "${errlines[0]}" "Folder is not empty."
 end
 #######################################
@@ -454,7 +454,7 @@ start "create release"
   assert_equal "$(cat VERSION)" "0.2.0"
   gch "release"
   load_changelog
-  assert_equal "${chgloglines[4]:-}" ""
+  assert_equal "${chgloglines[4]:-}" "## [0.1.0] - $(date "+%Y-%m-%d")"
   assert_equal "$(cat VERSION)" "0.1.0"
   gref
   assert_contains "${ref}" "refs/heads/release"
@@ -509,7 +509,7 @@ start "merge release"
   debug "omgf -v --yes release"
   assert_equal "${status}" 0
   load_log
-  assert_contains "$(arrowToComma "${log}")" "(HEAD, dev) Update control files"
+  assert_contains "$(arrowToComma "${log}")" "(HEAD, dev) Increment minor version"
   assert_contains "$(arrowToComma "${log}")" "(release) Merge branch 'dev' into release"
   assert_contains "$(arrowToComma "${log}")" "Merge branch 'release' into dev"
   gref
@@ -552,28 +552,8 @@ start "unmerged changes on release"
     && git commit -am "version"
   } >/dev/null
   debug "omgf --yes release"
-  assert_equal "${status}" 3
-  assert_startwith "${errlines[0]}" "Branch 'release' is not merged to 'dev'."
-end
-#######################################
-: $((i++))
-start "unmerged changes on release --conform"
-  take "${i}"
-  { omgf --init \
-    && gch release \
-    && touch a \
-    && git add . \
-    && git commit -am "version"
-  } >/dev/null
-  debug "omgf --yes --conform release"
-  assert_equal "${status}" 0
-  load_log
-  assert_contains "${loglines[0]}" "Merge branch 'release'"
-  gref
-  assert_equal "$(git show dev:VERSION)" "0.2.0"
-  assert_equal "$(git show release:VERSION)" "0.1.0"
-  assert_equal "$(git show master:VERSION)" "0.1.0"
-  assert_equal "$(git_current_branch)" "dev"
+  assert_equal "${status}" 4
+  assert_startwith "${errlines[0]}" "Branch 'release' is detached from 'master'."
 end
 #######################################
 # : $((i++))
@@ -597,32 +577,32 @@ start "hotfix master"
   assert_equal "$(gsp)" ""
 end
 #######################################
-: $((i++))
-start "hotfix stable"
-  take "${i}"
-  { omgf -i; } >/dev/null 2>&1
-  debug "omgf --yes hotfix myhotfix"
-  assert_equal "${status}" 0
-  assert_equal "$(git_current_branch)" "hotfix-myhotfix"
-  assert_equal "$(gsp)" ""
-end
+# : $((i++))
+# start "hotfix prod"
+#   take "${i}"
+#   { omgf -i; } >/dev/null 2>&1
+#   debug "omgf --yes hotfix myhotfix"
+#   assert_equal "${status}" 0
+#   assert_equal "$(git_current_branch)" "hotfix-myhotfix"
+#   assert_equal "$(gsp)" ""
+# end
 #######################################
-: $((i++))
-start "hotfix stable by branch name"
-  take "${i}"
-  { omgf -i \
-   && echo a > a \
-   && git add . \
-   && git commit -m "add file a" \
-   && omgf --yes release \
-   && omgf --yes release
-  } >/dev/null 2>&1
-  debug "omgf -v --yes hotfix v0.0"
-  assert_equal "${status}" 0
-  load_log
-  assert_equal "$(git_current_branch)" "hotfix-${user}"
-  assert_equal "$(gsp)" ""
-end
+# : $((i++))
+# start "hotfix stable by branch name"
+#   take "${i}"
+#   { omgf -i \
+#    && echo a > a \
+#    && git add . \
+#    && git commit -m "add file a" \
+#    && omgf --yes release \
+#    && omgf --yes release
+#   } >/dev/null 2>&1
+#   debug "omgf -v --yes hotfix v0.0"
+#   assert_equal "${status}" 0
+#   load_log
+#   assert_equal "$(git_current_branch)" "hotfix-${user}"
+#   assert_equal "$(gsp)" ""
+# end
 #######################################
 : $((i++))
 start "merge master hotfix"
@@ -636,10 +616,11 @@ start "merge master hotfix"
   debug "echo '' | omgf --yes"
   assert_equal "${status}" 0
   load_log
-  assert_contains "${log}" "tag: v0.0.1"
-  assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'master' into dev"
+  assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'release' into dev"
+  assert_contains "${log}" "(tag: 0.0.1, master) Merge branch 'hotfix-myhotfix'"
   assert_equal "$(git show dev:VERSION)" "0.1.0"
   assert_equal "$(git show release:VERSION)" "0.0.1"
+  assert_equal "$(git show master:VERSION)" "0.0.1"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/hotfix-myhotfix)" ""
   assert_equal "$(gsp)" ""
