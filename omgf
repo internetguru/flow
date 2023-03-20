@@ -19,7 +19,7 @@ set -u
 # shellcheck disable=SC2223
 : ${OMGF_MASTER:=master}
 # shellcheck disable=SC2223
-: ${OMGF_PROD_PREFIX:=prod-}
+: ${OMGF_PROD:=prod}
 # shellcheck disable=SC2223
 : ${OMGF_ORIGIN:=origin}
 # shellcheck disable=SC2223
@@ -591,7 +591,7 @@ function main {
   function prod_name {
     local ver
     ver="${1:-$(load_version "${OMGF_MASTER}")}"
-    echo "${OMGF_PROD_PREFIX}${ver%%.*}"
+    echo "${OMGF_PROD}-${ver%%.*}"
   }
 
   function validate_prod_branch {
@@ -616,7 +616,7 @@ function main {
     git check-ref-format "${REFSHEADS}/${name}" \
       || err "Invalid branch name format '${name}'." 2
     case "${1:-"${kw,,}"}" in
-      ${HOTFIX}|${OMGF_MASTER})
+      ${HOTFIX}|${OMGF_MASTER}|${OMGF_PROD})
         [[ "${gcb%%-*}" == "${HOTFIX}" ]] \
           && hotfix_release \
           && return
@@ -685,10 +685,13 @@ function main {
   }
 
   function hotfix_create {
-    #[[ "${gf_branch}" != "${OMGF_MASTER}" ]] \
-    #  && create_stable_branch
-    confirm "* Create hotfix '${1}' from '${OMGF_MASTER}'?"
-    gch "${OMGF_MASTER}"
+    local gcb source
+    gcb=$(git_current_branch)
+    source=${OMGF_MASTER}
+    [[ "${gcb%%-*}" == "${OMGF_PROD}" ]] \
+      && source=${gcb}
+    confirm "* Create hotfix '${1}' from '${source}'?"
+    gch "${source}"
     create_branch "${1}"
   }
 
@@ -696,7 +699,7 @@ function main {
     # shellcheck disable=SC2015
     [[ ${request} == 1 ]] \
       && confirm "* Request merge '${OMGF_RELEASE}' to '${OMGF_MASTER}'?" \
-      || confirm "* Merge '${OMGF_RELEASE}' to '${OMGF_MASTER}'?"
+      || confirm "* Release '${OMGF_RELEASE}' branch to '${OMGF_MASTER}'?"
     is_merged_to "${OMGF_RELEASE}" "${OMGF_MASTER}" \
       && err 'Branch already released.' 6
     update_changelog_header
@@ -707,10 +710,13 @@ function main {
       && return
     merge_fromto "${OMGF_RELEASE}" "${OMGF_MASTER}"
     git_tag "$(load_version)"
+    local prod
+    prod=$(prod_name)
     # shellcheck disable=SC2015
-    local_branch_exists "$(prod_name)" \
-      && git_merge "$(prod_name)" \
-      || git_branch "$(prod_name)" "${OMGF_MASTER}"
+    local_branch_exists "${prod}" \
+      && gch "${prod}" \
+      && git_merge "${OMGF_MASTER}" \
+      || git_branch "${prod}" "${OMGF_MASTER}"
     merge_fromto "${OMGF_MASTER}" "${OMGF_DEV}"
     merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}"
     merge_fromto "${OMGF_RELEASE}" "${OMGF_DEV}"
