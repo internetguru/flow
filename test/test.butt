@@ -627,39 +627,9 @@ start "merge master hotfix"
 end
 #######################################
 : $((i++))
-start "merge hotfix (merged release)"
+start "merge hotfix with unmerged release"
   take "${i}"
   { omgf -i \
-   && echo a > a \
-   && git add . \
-   && git commit -m "add file a" \
-   && omgf --yes hotfix myhotfix \
-   && echo b > b \
-   && git add . \
-   && git commit -m "add file b"
-  } >/dev/null
-  # assume conflicts
-  debug "echo '' | omgf --yes"
-  assert_equal "${status}" 0
-  load_log
-  assert_contains "${log}" "(tag: v0.0.1, master)"
-  assert_contains "${log}" "Merge branch 'master' into release"
-  assert_contains "${log}" "Merge branch 'master' into dev"
-  assert_equal "$(git show master:VERSION)" "0.0.1"
-  assert_equal "$(git show release:VERSION)" "0.0.1"
-  assert_equal "$(git show dev:VERSION)" "0.1.0"
-  gref
-  assert_equal "$(echo "${ref}" | grep /refs/heads/hotfix-myhotfix)" ""
-  assert_equal "$(gsp)" ""
-end
-#######################################
-: $((i++))
-start "merge hotfix (unmerged release)"
-  take "${i}"
-  { omgf -i \
-   && echo a > a \
-   && git add . \
-   && git commit -m "add file a" \
    && omgf --yes release \
    && omgf --yes hotfix myhotfix \
    && echo b > b \
@@ -670,12 +640,11 @@ start "merge hotfix (unmerged release)"
   debug "echo '' | omgf --yes"
   assert_equal "${status}" 0
   load_log
-  assert_contains "${log}" "(tag: v0.0.1, master)"
-  assert_contains "${log}" "Merge branch 'master' into release"
-  assert_contains "${log}" "Merge branch 'master' into dev"
-  assert_equal "$(git show master:VERSION)" "0.0.1"
-  assert_equal "$(git show release:VERSION)" "0.1.0"
+  assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'release' into dev"
+  assert_contains "${log}" "(tag: 0.0.1, master) Merge branch 'hotfix-myhotfix'"
   assert_equal "$(git show dev:VERSION)" "0.2.0"
+  assert_equal "$(git show release:VERSION)" "0.1.0"
+  assert_equal "$(git show master:VERSION)" "0.0.1"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/hotfix-myhotfix)" ""
   assert_equal "$(gsp)" ""
