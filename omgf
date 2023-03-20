@@ -19,6 +19,8 @@ set -u
 # shellcheck disable=SC2223
 : ${OMGF_MASTER:=master}
 # shellcheck disable=SC2223
+: ${OMGF_PROD_PREFIX:=prod-}
+# shellcheck disable=SC2223
 : ${OMGF_ORIGIN:=origin}
 # shellcheck disable=SC2223
 : ${OMGF_UPSTREAM:=${OMGF_ORIGIN}}
@@ -222,8 +224,8 @@ function main {
     git show "${@}" >/dev/null 2>&1
   }
 
-  function git_tag_commit {
-    git rev-list -n 1 "tags/${1}"
+  function git_rev_list {
+    git rev-list -n1 "${1}"
   }
 
   function git_merge_base {
@@ -268,7 +270,7 @@ function main {
     # shellcheck disable=SC2015
     remote_branch_exists "${1}" \
       && git_branch "${1}" "${OMGF_ORIGIN}/${1}" \
-      || git_branch "${1}"
+      || git_branch "${1}" "${OMGF_MASTER}"
     msg_end "${DONE}"
   }
 
@@ -464,10 +466,10 @@ function main {
     verr=${ver%.*}.0
     base=$(git_merge_base "${OMGF_MASTER}" "${OMGF_RELEASE}")
     has_tag "${OMGF_MASTER}" "${verr}" \
-      && [[ $(git_tag_commit "${verr}") == "${base}" ]] \
+      && [[ $(git_rev_list "tags/${verr}") == "${base}" ]] \
       && return
     has_tag "${OMGF_MASTER}" "${verr}" \
-      && [[ $(git_tag_commit "${verr}") != "${base}" ]] \
+      && [[ $(git_rev_list "tags/${verr}") != "${base}" ]] \
       && err "Invalid release tag ${verr} commit." 3
     [[ ${conform} == 0 ]] \
       && err "Missing release tag '${verr}' on branch '${OMGF_MASTER}'." 3
@@ -572,17 +574,36 @@ function main {
     validate_verfile "${OMGF_MASTER}"
     validate_verfile "${OMGF_RELEASE}"
     validate_verfile "${OMGF_DEV}"
-    # validate release tag before hotfix tag
-    # to prevent confusion if no hotfix exists
-    # e.g. "Missing hotfix tag 0.1.0"
-    validate_release_tag
-    validate_hotfix_tag
-    validate_release_ver
-    validate_dev_ver
     validate_changelog "${OMGF_MASTER}"
     validate_changelog "${OMGF_RELEASE}"
     validate_changelog "${OMGF_DEV}"
+    validate_prod_branch
+    validate_release_ver
+    validate_dev_ver
+    # Validate release tag before hotfix tag
+    # to revent confusion if no hotfix exists.
+    # E.g. "Missing hotfix tag 0.1.0" is confusing.
+    validate_release_tag
+    validate_hotfix_tag
     gch "${gcb}"
+  }
+
+  function prod_name {
+    local ver
+    ver="${1:-$(load_version "${OMGF_MASTER}")}"
+    echo "${OMGF_PROD_PREFIX}${ver%%.*}"
+  }
+
+  function validate_prod_branch {
+    local prod
+    prod=$(prod_name)
+    validate_branch "${prod}"
+    [[ $(git_rev_list "heads/${prod}") == $(git_rev_list "heads/${OMGF_MASTER}") ]] \
+      && return
+    [[ ${conform} == 0 ]] \
+      && err "Branch '${prod}' is behind '${OMGF_MASTER}'." 3
+    gch "${prod}"
+    git_merge "${OMGF_MASTER}"
   }
 
   function gf_process {
@@ -686,6 +707,10 @@ function main {
       && return
     merge_fromto "${OMGF_RELEASE}" "${OMGF_MASTER}"
     git_tag "$(load_version)"
+    # shellcheck disable=SC2015
+    local_branch_exists "$(prod_name)" \
+      && git_merge "$(prod_name)" \
+      || git_branch "$(prod_name)" "${OMGF_MASTER}"
     merge_fromto "${OMGF_MASTER}" "${OMGF_DEV}"
     merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}"
     merge_fromto "${OMGF_RELEASE}" "${OMGF_DEV}"
@@ -898,17 +923,21 @@ function main {
   }
 
   function hotfix_release {
-    local source dest verh verd
+    local source dest vers verd
     source=$(git_current_branch)
     dest=${OMGF_MASTER}
-    verh=$(load_version "${source}")
+    vers=$(load_version "${source}")
     verd=$(load_version "${OMGF_MASTER}")
+    [[ "${vers%%.*}" > "${verd%%.*}" ]] \
+      && err "Hotfix version is greater than '${OMGF_MASTER}'."
     # shellcheck disable=SC2015
-    [[ "${verd%.*}" != "${verh%.*}" ]] \
-      && dest="${verh%.*}" \
+    [[ "${vers%%.*}" < "${verd%%.*}" ]] \
+      && dest="$(prod_name "${vers}")" \
       && verd="$(load_version "${dest}")" \
-      && confirm "* Obsolete version. Merge to a seperate stable branch instead of releasing?" \
+      && confirm "* Obsolete major version. Merge to branch '${dest}'?" \
       || confirm "* Release the hotfix?"
+    ! local_branch_exists "${dest}" \
+      && err "Branch '${dest} not found."
     is_merged_to "${source}" "${dest}" \
       && err "Nothing to merge." 6
     msg_start "Updating control files"
@@ -923,6 +952,8 @@ function main {
     merge_fromto "${source}" "${dest}"
     git_tag "$(load_version)"
     [[ "${dest}" == "${OMGF_MASTER}" ]] \
+      && gch "${dest}" \
+      && git_merge "${OMGF_MASTER}" \
       && merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}" \
       && merge_fromto "${OMGF_MASTER}" "${OMGF_DEV}" \
       && merge_fromto "${OMGF_RELEASE}" "${OMGF_DEV}"

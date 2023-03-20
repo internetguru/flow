@@ -32,7 +32,7 @@ function arrowToComma {
 }
 
 function checkInitRefs {
-  assert_equal "$(echo "${ref}" | wc -l)" 4
+  assert_equal "$(echo "${ref}" | wc -l)" 5
   assert_contains "${ref}" "refs/heads/dev"
   assert_contains "${ref}" "refs/heads/master"
   assert_contains "${ref}" "refs/heads/release"
@@ -190,7 +190,8 @@ start "version change on dev"
     && echo 1.0.0 > VERSION \
     && git commit -am "bump version" \
     && omgf --yes hotfix a \
-    && echo aa >> CHANGELOG.md \
+    && echo a > a \
+    && git add . \
     && git commit -am "fix changelog"
   } >/dev/null
   debug "echo '' | omgf --yes"
@@ -598,6 +599,7 @@ end
 #######################################
 : $((i++))
 start "hotfix stable"
+  echo "XX"
   take "${i}"
   { omgf -i \
    && echo a > a \
