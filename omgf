@@ -15,7 +15,7 @@ set -u
 # shellcheck disable=SC2223
 : ${OMGF_DEV:=dev}
 # shellcheck disable=SC2223
-: ${OMGF_RELEASE:=release}
+: ${OMGF_STAGING:=release}
 # shellcheck disable=SC2223
 : ${OMGF_MASTER:=master}
 # shellcheck disable=SC2223
@@ -464,12 +464,12 @@ function main {
     local ver verr base
     ver=$(load_version "${OMGF_MASTER}")
     verr=${ver%.*}.0
-    base=$(git_merge_base "${OMGF_MASTER}" "${OMGF_RELEASE}")
+    base=$(git_merge_base "${OMGF_MASTER}" "${OMGF_STAGING}")
     has_tag "${OMGF_MASTER}" "${verr}" \
-      && [[ $(git_rev_list "tags/${verr}") == "${base}" ]] \
+      && [[ $(git_rev_list "${REFSTAGS}/${verr}") == "${base}" ]] \
       && return
     has_tag "${OMGF_MASTER}" "${verr}" \
-      && [[ $(git_rev_list "tags/${verr}") != "${base}" ]] \
+      && [[ $(git_rev_list "${REFSTAGS}/${verr}") != "${base}" ]] \
       && err "Invalid release tag ${verr} commit." 4
     [[ ${conform} == 0 ]] \
       && err "Missing release tag '${verr}' on branch '${OMGF_MASTER}'." 3
@@ -489,20 +489,20 @@ function main {
   function validate_release_branch {
     local verm verr
     verm=$(load_version "${OMGF_MASTER}")
-    verr=$(load_version "${OMGF_RELEASE}")
+    verr=$(load_version "${OMGF_STAGING}")
     version_gt "${verr%.*}" "${verm%.*}" \
-      && validate_merged_to "${OMGF_RELEASE}" "${OMGF_DEV}" \
+      && validate_merged_to "${OMGF_STAGING}" "${OMGF_DEV}" \
       && return
     [[ "${verr%.*}" == "${verm%.*}" ]] \
-      && validate_attached "${OMGF_RELEASE}" "${OMGF_MASTER}" \
+      && validate_attached "${OMGF_STAGING}" "${OMGF_MASTER}" \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Branch '${OMGF_RELEASE}' version is lower than '${OMGF_MASTER}'." 3
-    update_version "${OMGF_RELEASE}" "$(increment_version "${verm}" minor)"
+      && err "Branch '${OMGF_STAGING}' version is lower than '${OMGF_MASTER}'." 3
+    update_version "${OMGF_STAGING}" "$(increment_version "${verm}" minor)"
   }
 
   function validate_attached {
-    [[ $(git_rev_list "heads/${1}") == $(git_rev_list "heads/${2}") ]] \
+    [[ $(git_rev_list "${REFSHEADS}/${1}") == $(git_rev_list "${REFSHEADS}/${2}") ]] \
       || err "Branch '${1}' is detached from '${2}'." 4
   }
 
@@ -520,12 +520,12 @@ function main {
 
   function validate_dev_branch {
     local verd verr
-    verr=$(load_version "${OMGF_RELEASE}")
+    verr=$(load_version "${OMGF_STAGING}")
     verd=$(load_version "${OMGF_DEV}")
     version_gt "${verd%.*}" "${verr%.*}" \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Branch '${OMGF_DEV}' version is lower or equal to '${OMGF_RELEASE}'." 3
+      && err "Branch '${OMGF_DEV}' version is lower or equal to '${OMGF_STAGING}'." 3
     update_version "${OMGF_DEV}" "$(increment_version "${verr}" minor)"
   }
 
@@ -573,17 +573,17 @@ function main {
     validate_status_empty
     # branches and control files existence
     validate_branch "${OMGF_MASTER}"
-    validate_branch "${OMGF_RELEASE}"
+    validate_branch "${OMGF_STAGING}"
     validate_branch "${OMGF_DEV}"
     validate_verfile "${OMGF_MASTER}"
-    validate_verfile "${OMGF_RELEASE}"
+    validate_verfile "${OMGF_STAGING}"
     validate_verfile "${OMGF_DEV}"
     validate_changelog "${OMGF_MASTER}"
-    validate_changelog "${OMGF_RELEASE}"
+    validate_changelog "${OMGF_STAGING}"
     validate_changelog "${OMGF_DEV}"
     # gitflow dependencies
     validate_prod_branch
-    validate_merged_to "${OMGF_MASTER}" "${OMGF_RELEASE}"
+    validate_merged_to "${OMGF_MASTER}" "${OMGF_STAGING}"
     validate_merged_to "${OMGF_MASTER}" "${OMGF_DEV}"
     validate_release_branch
     validate_dev_branch
@@ -605,7 +605,7 @@ function main {
     local prod
     prod=$(prod_name)
     validate_branch "${prod}"
-    [[ $(git_rev_list "heads/${prod}") == $(git_rev_list "heads/${OMGF_MASTER}") ]] \
+    [[ $(git_rev_list "${REFSHEADS}/${prod}") == $(git_rev_list "${REFSHEADS}/${OMGF_MASTER}") ]] \
       && return
     [[ ${conform} == 0 ]] \
       && err "Branch '${prod}' is behind '${OMGF_MASTER}'." 3
@@ -613,48 +613,64 @@ function main {
     git_merge "${OMGF_MASTER}"
   }
 
+  function unexpected_argument {
+    [[ -n ${1} ]] \
+      && err "Unexpected argument" 2
+  }
+
+  # 1 name
+  # 2 current branch
+  # 3 kw
+  function is_releasable {
+    [[ -z ${1} && "${2%%-*}" == "${3}" ]] \
+      || [[ -n ${1} && "${2}" == "${3}-${1}" ]]
+  }
+
   function gf_process {
     [[ ${#} -gt 2 ]] \
       && err "Too many arguments." 2
-    local gcb
+    local gcb kw name
     gcb=$(git_current_branch)
     kw=${1:-"${gcb%%-*}"}
     name=${2:-"$(whoami)"}
     git check-ref-format "${REFSHEADS}/${name}" \
       || err "Invalid branch name format '${name}'." 2
-    case "${1:-"${kw,,}"}" in
+    case "${kw,,}" in
+      ${PULL})
+        unexpected_argument "${2-}"
+        gf_pull
+        ;;
+      ${PUSH})
+        unexpected_argument "${2-}"
+        gf_push
+        ;;
       ${HOTFIX}|${OMGF_MASTER}|${OMGF_PROD})
-        [[ "${gcb%%-*}" == "${HOTFIX}" ]] \
-          && hotfix_release \
+        is_releasable "${2-}" "${gcb}" "${HOTFIX}" \
+          && release_hotfix \
           && return
-        confirm_checkout_if_exists "${HOTFIX}-${name}" \
+        checkout_if_exists "${HOTFIX}-${name}" \
           && return
         hotfix_create "${HOTFIX}-${name}"
         ;;
       ${FEATURE}|${OMGF_DEV})
-        [[ "${gcb%%-*}" == "${FEATURE}" ]] \
-          && feature_merge \
+        is_releasable "${2-}" "${gcb}" "${FEATURE}" \
+          && release_feature \
           && return
-        confirm_checkout_if_exists "${FEATURE}-${name}" \
+        checkout_if_exists "${FEATURE}-${name}" \
           && return
         feature_create "${FEATURE}-${name}"
         ;;
-      ${OMGF_RELEASE})
+      ${OMGF_STAGING})
+        unexpected_argument "${2-}"
         [[ "${gcb}" == "${OMGF_DEV}" ]] \
           && release_dev \
           && return
-        [[ "${gcb}" == "${OMGF_RELEASE}" ]] \
-          && release_release \
+        [[ "${gcb}" == "${OMGF_STAGING}" ]] \
+          && release_staging \
           && return
-        confirm_checkout_if_exists "${OMGF_RELEASE}" \
+        checkout_if_exists "${FEATURE}-${name}" \
           && return
-        err "Expected branch not found." 1
-        ;;
-      ${PULL})
-        gf_pull
-        ;;
-      ${PUSH})
-        gf_push
+        err "Required branch '${OMGF_STAGING}' not found."
         ;;
       *)
         err "Unknown keyword or branch." 2
@@ -662,7 +678,7 @@ function main {
     esac
   }
 
-  function confirm_checkout_if_exists {
+  function checkout_if_exists {
     local_branch_exists "${1}" \
       || return 1
     confirm "* Checkout to branch '${1}'?"
@@ -672,12 +688,12 @@ function main {
   function release_dev {
     confirm "* Release '${OMGF_DEV}' branch?"
     #TODO: technically this check is irrelevant
-    is_merged_to "${OMGF_RELEASE}" "${OMGF_DEV}" \
+    is_merged_to "${OMGF_STAGING}" "${OMGF_DEV}" \
       || err 'Branch already released.' 6
     update_changelog_header
     git_commit -am "Add changelog header"
-    merge_fromto "${OMGF_DEV}" "${OMGF_RELEASE}"
-    merge_fromto "${OMGF_RELEASE}" "${OMGF_DEV}"
+    merge_fromto "${OMGF_DEV}" "${OMGF_STAGING}"
+    merge_fromto "${OMGF_STAGING}" "${OMGF_DEV}"
     increment_version "$(load_version)" minor > "${OMGF_VERFILE}"
     git_commit -am "Increment minor version"
   }
@@ -685,7 +701,7 @@ function main {
   function feature_create {
     local feature_name
     feature_name="${1}"
-    confirm_checkout_if_exists "${feature_name}" \
+    checkout_if_exists "${feature_name}" \
       && return
     confirm "* Create branch '${feature_name}' from branch '${OMGF_DEV}'?"
     create_branch "${feature_name}"
@@ -702,23 +718,23 @@ function main {
     create_branch "${1}"
   }
 
-  function release_release {
+  function release_staging {
     # shellcheck disable=SC2015
     [[ ${request} == 1 ]] \
-      && confirm "* Request merge '${OMGF_RELEASE}' to '${OMGF_MASTER}'?" \
-      || confirm "* Release '${OMGF_RELEASE}' branch to '${OMGF_MASTER}'?"
-    is_merged_to "${OMGF_RELEASE}" "${OMGF_MASTER}" \
+      && confirm "* Request merge '${OMGF_STAGING}' to '${OMGF_MASTER}'?" \
+      || confirm "* Release '${OMGF_STAGING}' branch to '${OMGF_MASTER}'?"
+    is_merged_to "${OMGF_STAGING}" "${OMGF_MASTER}" \
       && err 'Branch already released.' 6
     update_changelog_header
     git_commit -am "Update control files"
-    merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}"
+    merge_fromto "${OMGF_MASTER}" "${OMGF_STAGING}"
     [[ ${request} == 1 ]] \
       && gf_request "${OMGF_MASTER}" \
       && return
-    merge_fromto "${OMGF_RELEASE}" "${OMGF_MASTER}"
+    merge_fromto "${OMGF_STAGING}" "${OMGF_MASTER}"
     msg_start "Updating branching structure"
     git_tag "$(load_version)"
-    gch "${OMGF_RELEASE}"
+    gch "${OMGF_STAGING}"
     git_merge "${OMGF_MASTER}"
     local prod
     prod=$(prod_name)
@@ -729,7 +745,7 @@ function main {
       || git_branch "${prod}" "${OMGF_MASTER}"
     msg_end "${DONE}"
     merge_fromto "${OMGF_MASTER}" "${OMGF_DEV}"
-    #merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}"
+    #merge_fromto "${OMGF_MASTER}" "${OMGF_STAGING}"
   }
 
   function get_diff_url {
@@ -892,7 +908,7 @@ function main {
     stdout_silent
   }
 
-  function feature_merge {
+  function release_feature {
     local source
     source=$(git_current_branch)
     is_merged_to "${source}" "${OMGF_DEV}" \
@@ -903,8 +919,8 @@ function main {
       || confirm "* Merge '${source}' into '${OMGF_DEV}'?"
     merge_fromto "${OMGF_DEV}" "${source}"
     gf_update_changelog 0 "${OMGF_DEV}"
-    git_add .
-    git_commit -m "Update changelog"
+    git_status_empty \
+      || git_commit -am "Update changelog"
     [[ ${request} == 1 ]] \
       && gf_request "${OMGF_DEV}"
     merge_fromto "${source}" "${OMGF_DEV}"
@@ -938,7 +954,7 @@ function main {
     echo "${major}.${minor}.${patch}"
   }
 
-  function hotfix_release {
+  function release_hotfix {
     local source dest vers verd
     source=$(git_current_branch)
     dest=${OMGF_MASTER}
@@ -970,9 +986,9 @@ function main {
     [[ "${dest}" == "${OMGF_MASTER}" ]] \
       && gch "${dest}" \
       && git_merge "${OMGF_MASTER}" \
-      && merge_fromto "${OMGF_MASTER}" "${OMGF_RELEASE}" \
+      && merge_fromto "${OMGF_MASTER}" "${OMGF_STAGING}" \
       && merge_fromto "${OMGF_MASTER}" "${OMGF_DEV}" \
-      && merge_fromto "${OMGF_RELEASE}" "${OMGF_DEV}"
+      && merge_fromto "${OMGF_STAGING}" "${OMGF_DEV}"
     delete_branch "${source}"
   }
 
@@ -987,7 +1003,7 @@ function main {
     git_fetch --tags
     gf_pull_branch "${OMGF_DEV}"
     gf_pull_branch "${OMGF_MASTER}"
-    gf_pull_branch "${OMGF_RELEASE}"
+    gf_pull_branch "${OMGF_STAGING}"
     local stable
     for stable in $(git_branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
       gf_pull_branch "${stable}"
@@ -999,7 +1015,7 @@ function main {
     git_push --tags
     git_push "${OMGF_ORIGIN}" "${OMGF_DEV}"
     git_push "${OMGF_ORIGIN}" "${OMGF_MASTER}"
-    git_push "${OMGF_ORIGIN}" "${OMGF_RELEASE}"
+    git_push "${OMGF_ORIGIN}" "${OMGF_STAGING}"
     for stable in $(git_branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
       local_branch_exists "${stable}" \
         && git_push "${OMGF_ORIGIN}" "${stable}"
@@ -1101,7 +1117,7 @@ function main {
         echo "* - Run 'omgf MYFEATURE' to create new feature."
         echo "* - Run 'omgf release' to release dev."
         ;;
-      ${OMGF_RELEASE})
+      ${OMGF_STAGING})
         echo "a release branch."
         echo "* - Make some bugfixes..."
         echo "* - Run '${script_name}' to merge only into '${OMGF_DEV}'."
@@ -1184,6 +1200,7 @@ function main {
   declare -r PUSH="push"
   declare -r CHANGELOG_KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
   declare -r REFSHEADS="refs/heads"
+  declare -r REFSTAGS="refs/tags"
   declare DONE
   DONE="$(colorize " done " ${GREEN})"
   declare SKIP
