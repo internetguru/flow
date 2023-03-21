@@ -1097,44 +1097,61 @@ function main {
   }
 
   function what_now {
+    [[ ${#} -gt 0 ]] \
+      && err "Unexpected arguments." 2
+    local gcb
+    gcb=$(git_current_branch)
     stdout_verbose
     echo "***"
-    echo -n "* Current revision is considered "
-    case $(git_current_branch) in
+    echo "* Currently on '${gcb}'"
+    echo "*"
+    case ${gcb%%-*} in
       HEAD)
-        echo "elusive."
-        echo "* - Checkout to existing branch, e.g. '${OMGF_DEV}'."
+        echo "* You are detached from branches with no direct git flow action."
+        echo "*"
+        echo "* 1. Checkout to an existing branch, e.g. to '${OMGF_DEV}'."
         ;;
-      ${OMGF_MASTER}|${OMGF_STABLE_PREFIX}+([0-9]).+([0-9]))
-        echo "a stable branch."
-        echo "* - Run '${script_name}' to create hotfix or leave this branch."
+      ${OMGF_MASTER}|${OMGF_STABLE_PREFIX})
+        echo "* This is considered a read-only stable branch."
+        echo "* Do not commit any changes directly to this branch ever!"
+        echo "*"
+        echo "* 1. Run '${script_name}' to create hotfix or leave."
         ;;
       ${OMGF_DEV})
-        echo "a develop branch."
-        echo "* - Make some bugfixes..."
-        echo "* - Run 'omgf MYFEATURE' to create new feature."
-        echo "* - Run 'omgf release' to release dev."
+        echo "* This is considered a development branch."
+        echo "* It is designed for bug fixing and merging features."
+        echo "*"
+        echo "* 1. Make some fixes and feel free to commit directly."
+        echo "* 2. Run '${script_name}' to create a new feature."
+        echo "* 3. Run '${script_name} release' to release this branch."
         ;;
       ${OMGF_STAGING})
-        echo "a release branch."
-        echo "* - Make some bugfixes..."
-        echo "* - Run '${script_name}' to merge only into '${OMGF_DEV}'."
-        echo "* - Run 'omgf release' to create stable branch."
+        echo "* This is a staging branch meant solely for bug fixing."
+        echo "* It is also known as a release candidate branch (RC)."
+        echo "*"
+        echo "* 1. Make some fixes and feel free to commit directly."
+        echo "* 2. Run '${script_name}' to release this branch."
         ;;
-      ${HOTFIX}-+([0-9]).+([0-9]).+([0-9]))
-        echo "a hotfix branch."
-        echo "* - Do some hotfixes..."
-        echo "* - Run '${script_name}' to merge hotfix into stable branch."
+      ${HOTFIX})
+        echo "* This is a temporary branch created from a stable branch."
+        echo "* Its purpose is to fix one critical problem and dissolve."
+        echo "* WARNING: Make only minimum necessary changes here!"
+        echo "*"
+        echo "* 1. Make sure you really HAVE to solve the problem now."
+        echo "* 2. Fix the critical problem and commit changes."
+        echo "* 3. Run '${script_name}' to merge the hotfix back into stable branch."
+        echo "* 4. Good luck."
+        ;;
+      ${FEATURE})
+        echo "* This is a temporary branch created from the development branch."
+        echo "* Its purpose is to create a (one) new feature."
+        echo "*"
+        echo "* 1. Create and develop the (one) feature. Stick to it."
+        echo "* 2. Run '${script_name}' to merge it back into '${OMGF_DEV}'."
         ;;
       *)
-        echo "feature branch."
-        echo "* - Develop current feature..."
-        echo "* - Run '${script_name}' to merge it into '${OMGF_DEV}'."
+        echo "* Not sure what this means (confused unga bunga)."
     esac
-    if ! git_status_empty 2>/dev/null; then
-      echo "*"
-      echo "* - Local changes detected; see 'git status' for more info"
-    fi
     echo "***"
     stdout_silent
   }
