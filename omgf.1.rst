@@ -190,7 +190,7 @@ EXIT CODES
 SEE ALSO
 ========
 
-[1] `OMGF on GitHub <https://github.com/internetguru/omgf/>`__
+[1] `OMGF on GitHub <https://github.com/InternetGuru/omgf/>`__
 
 [2] `Git flow model <https://nvie.com/posts/a-successful-git-branching-model/>`__
 

@@ -327,6 +327,24 @@ start "conform on existing repo without commits"
 end
 #######################################
 : $((i++))
+start "init on existing repo with commits and --stash"
+  take "${i}"
+  { git init \
+    && echo a > a \
+    && git add . \
+    && git commit -am "first commit" \
+    && echo b > b
+  } >/dev/null
+  debug "omgf --init --stash --yes"
+  assert_equal "${status}" 0
+  checkInitFiles
+  gref
+  #checkInitRefs
+  assert_equal "$(git_current_branch)" "dev"
+  assert_equal "$(gsp | wc -l)" 1
+end
+#######################################
+: $((i++))
 start "conform on existing repo with commits and --stash"
   take "${i}"
   { git init \

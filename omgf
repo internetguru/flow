@@ -1224,6 +1224,7 @@ function main {
     && exit
 
   [[ ${init} == 1 ]] \
+    && gch "${OMGF_DEV}" \
     && unstash_files \
     && exit
 
