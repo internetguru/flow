@@ -127,14 +127,6 @@ function main {
     tput cup $(( pos_x-1 )) $(( pos_y-1 ))
   }
 
-  function strtolower {
-    echo "${1}" | tr '[:upper:]' '[:lower:]'
-  }
-
-  function trim {
-    echo "${1}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
-  }
-
   function confirm {
     [[ ${dry} == 1 ]] \
       && exit
@@ -162,11 +154,17 @@ function main {
     [[ -z "$(git status --porcelain)" ]]
   }
 
-  # make git return only error to stderr
   function gch {
     local out
     out="$(git checkout "${@}" 2>&1)" \
       || err "${out}"
+  }
+
+  function git_log {
+    local out
+    out="$(git log "${@}" 2>&1)" \
+      || err "${out}"
+    echo "${out}"
   }
 
   function git_init {
@@ -809,6 +807,8 @@ function main {
     msg_end "${DONE}"
   }
 
+  # 1: keyword
+  # 2: message
   function add_changelog_entry {
     local tmpfile diff_url
     tmpfile="$(mktemp)"
@@ -816,7 +816,8 @@ function main {
     [[ -n "${diff_url}" ]] \
       && diff_url="[Unreleased]: ${diff_url}" \
       || diff_url="[Unreleased]: ${OMGF_MASTER}..${OMGF_DEV}"
-    gawk -v keyword="${1}" -v next_keywords="${2}" -v message="${3}" -v diff_url="${diff_url}" '
+    gawk -v keyword="${1}" -v message="${2}" -v diff_url="${diff_url}" \
+      -v next_keywords="${CHANGELOG_KEYWORDS#*${1}}" '
       function print_unreleased () { print "## [Unreleased]" }
       function print_keyword () { print "### " keyword }
       function print_message () { print " - " message }
@@ -862,55 +863,43 @@ function main {
     cat "${tmpfile}" > "${OMGF_CHANGELOG}"
   }
 
-  function gf_update_changelog {
-    local commits
-    commits="$(git log "${2}".."$(git_current_branch)" --pretty=format:"*   %h %s")"
+  # 1: default keyword
+  # 2: source branch
+  function update_changelog {
+    local gcb kw=
+    gcb=$(git_current_branch)
+    [[ "${entry}" == 1 ]] \
+      && add_changelog_entry "${1}" "${gcb}" \
+      && return
     stdout_verbose
     echo
     echo "***"
-    echo "* Please enter the $(git_current_branch) description for ${OMGF_CHANGELOG}."
+    echo "* Please enter the ${gcb} description for ${OMGF_CHANGELOG}."
     echo "*"
-    echo "* Keywords:"
-    echo "*   $(echo "${CHANGELOG_KEYWORDS[@]}" | sed "s/ /, /g;s/${CHANGELOG_KEYWORDS[${1}]}/${CHANGELOG_KEYWORDS[${1}]} (default)/")"
+    echo "* Supported keywords:"
+    echo "*   ${CHANGELOG_KEYWORDS/ ${1} / ${1} (default) }"
     echo "*"
-    echo "* Commits of '$(git_current_branch)':"
-    echo "${commits}"
+    echo "* Commits of '${gcb}':"
+    git_log "${2}".."${gcb}" --pretty=format:"*   %h %s"
     echo "*"
     echo "***"
+    # What for?
     REPLY=
-    if [[ ${is_stdin} == 0 ]]; then
-      echo "Type \"Keyword: Message\", empty line to end:"
-      clear_stdin
-    fi
-    local message keyword next_keywords i found
-    while read -e -r message; do
-      [[ -z "${message}" ]] && break
-      history -s "${message}"
-      keyword="$(trim "$(echo "${message}" | cut -sd':' -f1)")"
-      next_keywords=
-      found=0
-      i=
-      if [[ -n "${keyword}" ]]; then
-        for i in "${!CHANGELOG_KEYWORDS[@]}"; do
-          [[ "${CHANGELOG_KEYWORDS[i]}" != "${keyword}"* ]] && continue
-          keyword="${CHANGELOG_KEYWORDS[i]}"
-          found=1
-          break
-        done
-        if [[ "${found}" == 0 ]]; then
-          echo "'${keyword}' is not a valid keyword"
-          continue
-        fi
-      else
-        i=${1}
-        keyword="${CHANGELOG_KEYWORDS[${i}]}"
-      fi
-      for ((index="${i}+1"; index < ${#CHANGELOG_KEYWORDS[@]}; index++)); do
-        next_keywords="${next_keywords}|^### ${CHANGELOG_KEYWORDS[index]}"
-      done
-      [[ "${found}" == 1 ]] && message="$(echo "${message}" | cut -d':' -f2-)"
-      add_changelog_entry "${keyword}" "${next_keywords}" "$(trim "${message}")"
+    [[ ${is_stdin} == 0 ]] \
+      && echo 'Type "Keyword: Message". Empty line to end editting.' \
+      && echo "Leave empty (press Enter) for default message: '${1}: ${gcb}'." \
+      && clear_stdin
+    while read -e -r line; do
+      [[ -z "${line}" ]] \
+        && break
+      history -s "${line}"
+      kw="${line%%:*}"
+      [[ " ${CHANGELOG_KEYWORDS} " != *" ${kw} "* ]] \
+        && kw=${1}
+      add_changelog_entry "${kw}" "$(echo "${line#*:}" | xargs)"
     done
+    [[ -z "${kw}" ]] \
+      && add_changelog_entry "${1}" "${gcb}"
     stdout_silent
   }
 
@@ -924,9 +913,8 @@ function main {
       && confirm "* Request merge '${source}' into '${OMGF_DEV}'?" \
       || confirm "* Merge '${source}' into '${OMGF_DEV}'?"
     merge_fromto "${OMGF_DEV}" "${source}"
-    gf_update_changelog 0 "${OMGF_DEV}"
-    git_status_empty \
-      || git_commit -am "Update changelog"
+    update_changelog Added "${OMGF_DEV}"
+    git_commit -am "Update changelog"
     [[ ${request} == 1 ]] \
       && gf_request "${OMGF_DEV}"
     merge_fromto "${source}" "${OMGF_DEV}"
@@ -981,8 +969,8 @@ function main {
       && confirm "* Release the hotfix?" \
       || confirm "* Obsolete major version. Merge to branch '${dest}'?"
     msg_start "Updating control files"
-    gf_update_changelog 4 "${dest}"
     increment_version "${verd}" patch > "${OMGF_VERFILE}"
+    update_changelog Fixed "${dest}"
     update_changelog_header
     git_commit -am "Update control files"
     msg_end "${DONE}"
@@ -1156,6 +1144,7 @@ function main {
   declare is_stdin=${?}
   declare what_now=0
   declare dry=0
+  declare entry=0
   declare stashed=0
   declare verbose=0
   declare yes=0
@@ -1169,8 +1158,8 @@ function main {
   # shellcheck disable=SC2048
   if ! line=$(
     IFS=" " getopt -n "${0}" \
-      -o chinrsvVwy\? \
-      -l conform,color::,colour::,help,init,dry-run,request,stash,verbose,version,what-now,yes \
+      -o cehinrsvVwy\? \
+      -l conform,color::,colour::,auto-entry,help,init,dry-run,request,stash,verbose,version,what-now,yes \
       -- "${@}"
   ); then gf_usage; return 2; fi
   eval set -- "${line}"
@@ -1183,6 +1172,7 @@ function main {
   while [[ ${#} -gt 0 ]]; do
     case ${1} in
      -c|--conform) conform=1; shift ;;
+     -e|--auto-entry) entry=1; shift ;;
      --color|--colour) shift; setcolor "${1}" || { gf_usage; return 2; }; shift ;;
      -s|--stash) stash=1; shift ;;
      -h|-\?|--help) gf_usage; return ;;
@@ -1208,7 +1198,7 @@ function main {
   declare -r FEATURE="feature"
   declare -r PULL="pull"
   declare -r PUSH="push"
-  declare -r CHANGELOG_KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
+  declare -r CHANGELOG_KEYWORDS='Added Changed Deprecated Removed Fixed Security'
   declare -r REFSHEADS="refs/heads"
   declare -r REFSTAGS="refs/tags"
   declare DONE

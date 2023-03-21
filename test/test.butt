@@ -189,7 +189,7 @@ start "version change on dev"
     && omgf --yes hotfix a \
     && echo a > a \
     && git add . \
-    && git commit -am "fix changelog"
+    && git commit -am "fix a"
   } >/dev/null
   debug "echo '' | omgf --yes"
   assert_equal "${status}" 0

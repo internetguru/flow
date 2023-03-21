@@ -78,6 +78,9 @@ OPTIONS
 \--color[=WHEN], --colour[=WHEN]
     Use markers to highlight command status; WHEN is 'always', 'never', or 'auto'. Empty WHEN sets color to 'always'. Default color value is 'auto'.
 
+\-e, --auto-entry
+    Do not show changelog editor and insert general entry instead about the current action.
+
 \-h, --help
     Print help.
 
