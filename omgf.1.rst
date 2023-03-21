@@ -13,33 +13,35 @@ omgf [-cfhinrvVwy] [--color[=WHEN]] [KEYWORD [NAME]]
 DESCRIPTION
 ===========
 
-**Oh My Git Flow**\ [1] (AKA 'OMGF') maintains **git flow branching model**\ [2] including versioning and keeping a changelog. It advances the model according to current state, branch, and optional arguments.
+**Oh My Git Flow**\ [1] (AKA 'OMGF') maintains the **git flow branching model**\ [2] including versioning and keeping a changelog. It advances the model according to the current state, branch, and optional arguments.
 
-**OMGF** is an alternative to *git-flow cheatsheet*\ [3] command with the following:
+OMGF is an alternative to the *git-flow cheatsheet*\ [3] command with the following features:
 
--  Has even simpler usage. No arguments are required.
+* It has a simpler usage and does not require arguments.
 
--  Validates and **fixes projects** automatically to conform the branching model.
+* It validates and automatically **fixes projects** to conform to the branching model.
 
--  Supports dry run and "what now" (see options).
+* It can initiate a new repository on an empty or existing folder.
 
--  Helps to pull and push all main branches.
+* It can convert an existing repository into a git flow branching model.
 
--  Supports **pull requests** for GitHub and GitLab.
+* It helps pull and push all main branches.
 
--  Controls **semantic versioning**\ [4] in a ``VERSION`` file.
+* It supports pull requests for GitHub and GitLab.
 
--  Keeps track of release history following **Keep a CHANGELOG**\ [5] convention.
+* It controls **semantic versioning**\ [4] in a ``VERSION`` file.
 
--  Shows tips on how to advance based on current state, branch, and arguments.
+* It keeps track of release history following the **Keep a CHANGELOG**\ [5] convention.
 
--  Maintains separate production branches for major versions, e.g. ``prod-1``.
+* It shows tips on how to advance based on the current state, branch, and arguments.
 
--  Supports parallel hotfix branches even for separate production branches.
+* It maintains separate production branches for major versions, e.g., ``prod-1``.
+
+* It supports parallel hotfix branches even for separate production branches.
 
 
-KEYWORDS
-========
+ARGUMENTS
+=========
 
 Argument KEYWORD determines the action. Default KEYWORD value is branch name, the part before first dash. E.g. ``dev`` branch results to ``dev``, ``feature-abc-1`` results to ``feature`` KEYWORD. Default NAME (where applicable) is current user name, command ``whois``.
 
@@ -74,21 +76,19 @@ OPTIONS
     Repair (initialize) project to be conform with **OMGF** model and proceed.
 
 \--color[=WHEN], --colour[=WHEN]
-    Use markers to highlight command status; WHEN is 'always', 'never', or
-    'auto'. Empty WHEN sets color to 'always'. Default color value is 'auto'.
+    Use markers to highlight command status; WHEN is 'always', 'never', or 'auto'. Empty WHEN sets color to 'always'. Default color value is 'auto'.
 
 \-h, --help
     Print help.
 
 \-i, --init
-    Same as conform, but do not proceed.
+    Same as 'conform', but also initialize git repository if not exists and do not proceed to action.
 
 \-n, --dry-run
-    Do not run commands; only parse user options.
+    Do not run commands; only parse user options and arguments.
 
 \-r, --request
-    Instead of merging prepare current branch for pull request and push it to
-    the origin.
+    Instead of merging prepare current branch for pull request and push it to the origin.
 
 \-s, --stash
     Temporary remove (stash and pop) uncommitted changes.
@@ -106,8 +106,8 @@ OPTIONS
     Assume yes for all questions.
 
 
-BASIC EXAMPLE
-=============
+FLOW EXAMPLE
+============
 
 1. Initialize the branching model on an empty folder::
 
@@ -163,7 +163,7 @@ Note: The ``staging`` branch, the ``prod-0``, and the ``main`` are all on the sa
 
 You will be prompted to release the hotfix and to describe it in a changelog. You have seen this before, haven't you?
 
-Note: Don't look at the git log now. It looks like a drunk spider's web. If you want to see it condensed, you can use the following command::
+Note: The git log now looks like a drunk spider's web. It will make much more sense over time unless you have some experience already. If you still want to see it, you can use the following command::
 
     git log --oneline --decorate --color --graph --all
 
@@ -190,31 +190,31 @@ EXIT CODES
 SEE ALSO
 ========
 
-``OMGF on GitHub[1] <https://github.com/InternetGuru/omgf/>``__
+[1] `OMGF on GitHub <https://github.com/internetguru/omgf/>`__
 
-``Git flow model[2] <https://nvie.com/posts/a-successful-git-branching-model/>``__
+[2] `Git flow model <https://nvie.com/posts/a-successful-git-branching-model/>`__
 
-``Git-flow cheatsheet[3] <https://danielkummer.github.io/git-flow-cheatsheet/>``__
+[3] `Git flow cheatsheet <https://danielkummer.github.io/git-flow-cheatsheet/>`__
 
-``Semantic Versioning[4] <https://semver.org/>``__
+[4] `Semantic Versioning <https://semver.org/>`__
 
-``Keep a CHANGELOG[5] <https://keepachangelog.com/en/0.3.0/>``__
+[5] `Keep a CHANGELOG <https://keepachangelog.com/en/0.3.0/>`__
 
 
 REPORTING BUGS
 ==============
 
-``Issue tracker <https://github.com/InternetGuru/omgf/issues>``__
+`Issue tracker <https://github.com/InternetGuru/omgf/issues>`__
 
 
 COPYRIGHT
 =========
 
-Copyright (C) 2016--2023 ``Internet Guru <https://www.internetguru.io>``__
+Copyright (C) 2016--2023 `Internet Guru <https://www.internetguru.io>`__
 
-``License GPLv3+: GNU GPL version 3 or later <https://www.gnu.org/licenses/gpl-3.0.html>``__
+`License GPLv3 <https://www.gnu.org/licenses/gpl-3.0.html>`__ or later
 
-This is free software: you are free to change and redistribute it.
+This is a free software. You are free to change and redistribute it.
 
 There is NO WARRANTY, to the extent permitted by law.
 
@@ -228,13 +228,13 @@ suggest that the company make a donation. We appreciate contributions of any
 size. Donations enable us to spend more time working on this package, and help
 cover our infrastructure expenses.
 
-If you’d like to make a donation of any value, please send it to the following
+If you'd like to make a donation of any value, please send it to the following
 PayPal address:
 
-``PayPal Donation <https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=G6A49JPWQKG7A>``__
+`PayPal Donation <https://www.paypal.com/cgi-bin/webscr?cmd=__s-xclick&hosted__button__id=G6A49JPWQKG7A>`__
 
-Since we aren’t a tax-exempt organization, we can’t offer you a tax deduction.
-But for all donations over 50 USD, we’d be happy to recognize your
+Since we aren't a tax-exempt organization, we can't offer you a tax deduction.
+But for all donations over 50 USD, we'd be happy to recognize your
 contribution on the **OMGF** page[1] and on this README file (including manual
 page) for the next release.
 
@@ -253,11 +253,11 @@ Thanks for your support!
 DONORS
 ======
 
-``Faculty of Information Technology, CTU Prague <https://www.fit.cvut.cz/en>``__
+`Faculty of Information Technology, CTU Prague <https://www.fit.cvut.cz/en>`__
 
-``WebExpo Conference, Prague <https://webexpo.net/>``__
+`WebExpo Conference, Prague <https://webexpo.net/>`__
 
-``DATAMOLE, data mining & machine learning <https://www.datamole.cz/>``__
+`DATAMOLE, data mining & machine learning <https://www.datamole.cz/>`__
 
 
 AUTHORS
