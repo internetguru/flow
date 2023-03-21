@@ -136,7 +136,10 @@ function main {
   }
 
   function confirm {
-    [[ ${yes} == 1 ]] && return
+    [[ ${dry} == 1 ]] \
+      && exit
+    [[ ${yes} == 1 ]] \
+      && return
     if [[ ${is_stdin} == 0 ]]; then
       stdout_verbose
       echo -n "${1:-"Are you sure?"} [YES/No] "
@@ -148,8 +151,10 @@ function main {
     else
       read -r
     fi
-    [[ "${REPLY,,}" =~ ^y(es)?$ || -z "${REPLY}" ]] && return 0
-    [[ "${REPLY,,}" =~ ^no?$ ]] && exit
+    [[ "${REPLY,,}" =~ ^y(es)?$ || -z "${REPLY}" ]] \
+      && return
+    [[ "${REPLY,,}" =~ ^no?$ ]] \
+      && exit
     confirm "Type"
   }
 
@@ -871,6 +876,7 @@ function main {
     echo "* Commits of '$(git_current_branch)':"
     echo "${commits}"
     echo "*"
+    echo "***"
     REPLY=
     if [[ ${is_stdin} == 0 ]]; then
       echo "Type \"Keyword: Message\", empty line to end:"
@@ -965,13 +971,15 @@ function main {
     # shellcheck disable=SC2015
     [[ "${vers%%.*}" < "${verd%%.*}" ]] \
       && dest="$(prod_name "${vers}")" \
-      && verd="$(load_version "${dest}")" \
-      && confirm "* Obsolete major version. Merge to branch '${dest}'?" \
-      || confirm "* Release the hotfix?"
+      && verd="$(load_version "${dest}")"
     ! local_branch_exists "${dest}" \
       && err "Branch '${dest} not found." 4
     is_merged_to "${source}" "${dest}" \
       && err "Nothing to merge." 6
+    # shellcheck disable=SC2015
+    [[ "${dest}" == "${OMGF_MASTER}" ]] \
+      && confirm "* Release the hotfix?" \
+      || confirm "* Obsolete major version. Merge to branch '${dest}'?"
     msg_start "Updating control files"
     gf_update_changelog 4 "${dest}"
     increment_version "${verd}" patch > "${OMGF_VERFILE}"
@@ -1000,6 +1008,7 @@ function main {
 
   function gf_pull {
     validate_git_remote
+    confirm "* Pull from the remote repository?"
     git_fetch --tags
     gf_pull_branch "${OMGF_DEV}"
     gf_pull_branch "${OMGF_MASTER}"
@@ -1012,6 +1021,7 @@ function main {
 
   function gf_push {
     validate_git_remote
+    confirm "* Push to the remote repository?"
     git_push --tags
     git_push "${OMGF_ORIGIN}" "${OMGF_DEV}"
     git_push "${OMGF_ORIGIN}" "${OMGF_MASTER}"
@@ -1208,10 +1218,6 @@ function main {
 
   stdout_silent
   gf_validate "${@}"
-
-  [[ ${dry} == 1 ]] \
-    && unstash_files \
-    && exit
 
   [[ ${what_now} == 1 ]] \
     && what_now \
