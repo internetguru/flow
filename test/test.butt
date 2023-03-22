@@ -53,11 +53,6 @@ function load_log {
   IFS=$'\n' read -d '' -r -a loglines <<< "${log}" || return 0
 }
 
-function load_changelog {
-  chglog="$(git show HEAD:CHANGELOG.md)"
-  IFS=$'\n' read -d '' -r -a chgloglines <<< "${chglog}" || return 0
-}
-
 export OMGF_OPTIONS=""
 export COLUMNS=30
 
@@ -68,7 +63,6 @@ ref=
 log=
 loglines=()
 chglog=
-chgloglines=()
 outlines=()
 
 #######################################
@@ -159,7 +153,6 @@ start "dev is behind main error code"
     && git add a \
     && git commit -am "add file a" \
     && omgf staging --yes \
-    && gch staging \
     && omgf staging --yes \
     && gch dev \
     && git reset --hard HEAD~1
@@ -194,9 +187,8 @@ start "version change on dev"
   debug "echo '' | omgf --yes"
   assert_equal "${status}" 0
   load_log
-  assert_contains "${log}" "(HEAD -> dev)"
-  assert_contains "${log}" "(tag: 0.0.1, main)"
-  assert_contains "${log}" "Merge branch 'main' into staging"
+  assert_contains "${log}" "(HEAD -> dev) Merge branch 'main' into dev"
+  assert_contains "${log}" "(tag: 0.0.1, staging, prod-0, main) Merge branch 'hotfix-a' into main"
   assert_contains "${log}" "Merge branch 'main' into dev"
   assert_equal "$(git show main:VERSION)" "0.0.1"
   assert_equal "$(git show staging:VERSION)" "0.0.1"
@@ -404,9 +396,8 @@ start "merge feature"
   assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'feature-myfeature' into dev"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/feature-myfeature)" ""
-  load_changelog
-  assert_contains "${chglog}" "## Added"
-  assert_contains "${chglog}" " - feature1"
+  assert_equal "$(git show dev:CHANGELOG.md | head -8 | tail -1)" "### Added"
+  assert_equal "$(git show dev:CHANGELOG.md | head -9 | tail -1)" " - feature1"
   assert_equal "$(gsp)" ""
 end
 #######################################
@@ -464,13 +455,10 @@ start "create staging"
   } >/dev/null
   debug "omgf -v --yes staging"
   assert_equal "${status}" 0
-  load_changelog
-  assert_equal "${chgloglines[4]:-}" "## [0.1.0] - $(date "+%Y-%m-%d")"
-  assert_equal "$(cat VERSION)" "0.2.0"
-  gch "staging"
-  load_changelog
-  assert_equal "${chgloglines[4]:-}" "## [0.1.0] - $(date "+%Y-%m-%d")"
-  assert_equal "$(cat VERSION)" "0.1.0"
+  assert_equal "$(git show dev:VERSION)" "0.2.0"
+  assert_equal "$(git show staging:VERSION)" "0.1.0"
+  assert_equal "$(git show dev:CHANGELOG.md | head -6 | tail -1)" "## [0.1.0] - $(date "+%Y-%m-%d")"
+  assert_equal "$(git show staging:CHANGELOG.md | head -6 | tail -1)" "## [0.1.0] - $(date "+%Y-%m-%d")"
   gref
   assert_contains "${ref}" "refs/heads/staging"
   assert_equal "$(gsp)" ""
@@ -523,10 +511,13 @@ start "merge staging"
   } >/dev/null
   debug "omgf -v --yes staging"
   assert_equal "${status}" 0
+  assert_equal "$(git show dev:VERSION)" "0.2.0"
+  assert_equal "$(git show staging:VERSION)" "0.1.0"
+  assert_equal "$(git show main:VERSION)" "0.1.0"
   load_log
-  assert_contains "${log}" "(HEAD -> dev) Increment minor version"
-  assert_contains "${log}" "(staging) Merge branch 'dev' into staging"
-  assert_contains "${log}" "Merge branch 'staging' into dev"
+  assert_contains "${log}" "(HEAD -> dev) Merge branch 'main' into dev"
+  assert_contains "${log}" "(tag: 0.1.0, staging, prod-0, main) Merge branch 'staging' into main"
+  assert_contains "${log}" "Increment minor version"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/staging)" ""
   assert_equal "$(gsp)" ""
@@ -631,8 +622,8 @@ start "merge main hotfix"
   debug "echo '' | omgf --yes"
   assert_equal "${status}" 0
   load_log
-  assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'staging' into dev"
-  assert_contains "${log}" "(tag: 0.0.1, main) Merge branch 'hotfix-myhotfix'"
+  assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'main' into dev"
+  assert_contains "${log}" "(tag: 0.0.1, staging, prod-0, main) Merge branch 'hotfix-myhotfix' into main"
   assert_equal "$(git show dev:VERSION)" "0.1.0"
   assert_equal "$(git show staging:VERSION)" "0.0.1"
   assert_equal "$(git show main:VERSION)" "0.0.1"
@@ -656,11 +647,13 @@ start "merge hotfix with unmerged staging"
   assert_equal "${status}" 0
   load_log
   assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'staging' into dev"
-  assert_contains "${log}" "(tag: 0.0.1, main) Merge branch 'hotfix-myhotfix'"
+  assert_contains "${log}" "(tag: 0.0.1, prod-0, main) Merge branch 'hotfix-myhotfix' into main"
   assert_equal "$(git show dev:VERSION)" "0.2.0"
   assert_equal "$(git show staging:VERSION)" "0.1.0"
   assert_equal "$(git show main:VERSION)" "0.0.1"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/hotfix-myhotfix)" ""
   assert_equal "$(gsp)" ""
+  debug "omgf -n"
+  assert_equal "${status}" 0
 end

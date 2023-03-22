@@ -154,7 +154,7 @@ function main {
     [[ -z "$(git status --porcelain)" ]]
   }
 
-  function gch {
+  function git_checkout {
     local out
     out="$(git checkout "${@}" 2>&1)" \
       || err "${out}"
@@ -227,6 +227,10 @@ function main {
     git show "${@}" >/dev/null 2>&1
   }
 
+  function latest_commit {
+    git rev-parse "${1}"
+  }
+
   function git_rev_list {
     git rev-list -n1 "${1}"
   }
@@ -266,7 +270,7 @@ function main {
   function create_branch {
     msg_start "Creating branch '${1}'"
     local out
-    out="$(gch -b "${1}")" \
+    out="$(git_checkout -b "${1}")" \
       || err "${out}"
     msg_end "${DONE}"
   }
@@ -350,7 +354,7 @@ function main {
     is_merged_to "${1}" "${2}" \
       && msg_end "${SKIP}" \
       && return
-    gch "${2}"
+    git_checkout "${2}"
     git_merge_stream "${1}" "${stream}"
     msg_end "${DONE}"
   }
@@ -360,9 +364,9 @@ function main {
       && git_merge --no-ff "${1}" \
       && return
     git_merge_nocommit --no-ff --no-commit "${1}"
-    gch --ours "${OMGF_VERFILE}"
+    git_checkout --ours "${OMGF_VERFILE}"
     #TODO: resolve changelog automatically
-    #gch --ours "${OMGF_CHANGELOG}"
+    #git_checkout --ours "${OMGF_CHANGELOG}"
     git_add .
     git_merge --continue
   }
@@ -457,30 +461,17 @@ function main {
     msg_end "${DONE}"
   }
 
-  function validate_hotfix_tag {
+  function validate_tag {
     local ver
     ver=$(load_version "${OMGF_MAIN}")
     has_tag "${OMGF_MAIN}" "${ver}" \
+      && [[ $(git_rev_list "${REFSTAGS}/${ver}") == "$(latest_commit "${OMGF_MAIN}")" ]] \
       && return
+    has_tag "${OMGF_MAIN}" "${ver}" \
+      && err "Invalid version tag '${ver}' commit." 4
     [[ ${conform} == 0 ]] \
-      && err "Missing hotfix tag '${ver}' on branch '${OMGF_MAIN}'." 3
+      && err "Missing version tag '${ver}'." 3
     git_tag "${ver}" "${OMGF_MAIN}"
-  }
-
-  function validate_release_tag {
-    local ver verr base
-    ver=$(load_version "${OMGF_MAIN}")
-    verr=${ver%.*}.0
-    base=$(git_merge_base "${OMGF_MAIN}" "${OMGF_STAGING}")
-    has_tag "${OMGF_MAIN}" "${verr}" \
-      && [[ $(git_rev_list "${REFSTAGS}/${verr}") == "${base}" ]] \
-      && return
-    has_tag "${OMGF_MAIN}" "${verr}" \
-      && [[ $(git_rev_list "${REFSTAGS}/${verr}") != "${base}" ]] \
-      && err "Invalid release tag ${verr} commit." 4
-    [[ ${conform} == 0 ]] \
-      && err "Missing release tag '${verr}' on branch '${OMGF_MAIN}'." 3
-    git_tag "${verr}" "${OMGF_MAIN}"
   }
 
   # 1) validate ${OMGF_DEV} branch
@@ -493,7 +484,7 @@ function main {
     merge_fromto "${1}" "${2}"
   }
 
-  function validate_release_branch {
+  function validate_staging_branch {
     local verm verr
     verm=$(load_version "${OMGF_MAIN}")
     verr=$(load_version "${OMGF_STAGING}")
@@ -517,12 +508,12 @@ function main {
     local gcb
     gcb=$(git_current_branch)
     msg_start "Updating version number"
-    gch "${1}"
+    git_checkout "${1}"
     echo "${2}" > "${OMGF_VERFILE}"
     git_add "${OMGF_VERFILE}"
     git_commit -am "Update version number"
     msg_end "${DONE}"
-    gch "${gcb}"
+    git_checkout "${gcb}"
   }
 
   function validate_dev_branch {
@@ -552,11 +543,11 @@ function main {
       && return
     local gcb
     gcb=$(git_current_branch)
-    gch "${1}"
+    git_checkout "${1}"
     init_file "${OMGF_CHANGELOG}" "${OMGF_CHANGELOG_HEADER}"
     git_add .
     git_commit -am "Add changelog file"
-    gch "${gcb}"
+    git_checkout "${gcb}"
   }
 
   function validate_verfile {
@@ -564,11 +555,11 @@ function main {
       && return
     local gcb
     gcb=$(git_current_branch)
-    gch "${1}"
+    git_checkout "${1}"
     init_file "${OMGF_VERFILE}" "0.0.0"
     git_add "${OMGF_VERFILE}"
     git_commit -am "Add version file"
-    gch "${gcb}"
+    git_checkout "${gcb}"
   }
 
   function find_branch_or_first {
@@ -587,7 +578,6 @@ function main {
       && gcb=$(git_current_branch)
     validate_repository
     validate_status_empty
-    # branches and control files existence
     OMGF_MAIN=$(find_branch_or_first "${OMGF_MAIN}" main master production prod live)
     OMGF_STAGING=$(find_branch_or_first "${OMGF_STAGING}" staging release rc release-candidate preprod)
     OMGF_DEV=$(find_branch_or_first "${OMGF_DEV}" dev devel develop next)
@@ -600,18 +590,13 @@ function main {
     validate_branch "${OMGF_DEV}"
     validate_verfile "${OMGF_DEV}"
     validate_changelog "${OMGF_DEV}"
-    # gitflow dependencies
     validate_prod_branch
     validate_merged_to "${OMGF_MAIN}" "${OMGF_STAGING}"
     validate_merged_to "${OMGF_MAIN}" "${OMGF_DEV}"
-    validate_release_branch
+    validate_staging_branch
     validate_dev_branch
-    # Validate release tag before hotfix tag
-    # to prevent confusion if no hotfix exists.
-    # E.g. "Missing hotfix tag 0.1.0" is confusing.
-    validate_release_tag
-    validate_hotfix_tag
-    gch "${gcb}"
+    validate_tag
+    git_checkout "${gcb}"
   }
 
   function prod_name {
@@ -628,7 +613,7 @@ function main {
       && return
     [[ ${conform} == 0 ]] \
       && err "Branch '${prod}' is behind '${OMGF_MAIN}'." 3
-    gch "${prod}"
+    git_checkout "${prod}"
     git_merge "${OMGF_MAIN}"
   }
 
@@ -701,7 +686,7 @@ function main {
     local_branch_exists "${1}" \
       || return 1
     confirm "* Checkout to branch '${1}'?"
-    gch "${1}"
+    git_checkout "${1}"
   }
 
   function release_dev {
@@ -715,6 +700,7 @@ function main {
     merge_fromto "${OMGF_STAGING}" "${OMGF_DEV}"
     increment_version "$(load_version)" minor > "${OMGF_VERFILE}"
     git_commit -am "Increment minor version"
+    git_checkout "${OMGF_STAGING}"
   }
 
   function feature_create {
@@ -733,7 +719,7 @@ function main {
     [[ "${gcb%%-*}" == "${OMGF_PROD}" ]] \
       && source=${gcb}
     confirm "* Create hotfix '${1}' from '${source}'?"
-    gch "${source}"
+    git_checkout "${source}"
     create_branch "${1}"
   }
 
@@ -753,18 +739,17 @@ function main {
     merge_fromto "${OMGF_STAGING}" "${OMGF_MAIN}"
     msg_start "Updating branching structure"
     git_tag "$(load_version)"
-    gch "${OMGF_STAGING}"
+    git_checkout "${OMGF_STAGING}"
     git_merge "${OMGF_MAIN}"
     local prod
     prod=$(prod_name)
     # shellcheck disable=SC2015
     local_branch_exists "${prod}" \
-      && gch "${prod}" \
+      && git_checkout "${prod}" \
       && git_merge "${OMGF_MAIN}" \
-      || git_branch "${prod}" "${OMGF_MAIN}"
+      || git_branch "${prod}"
     msg_end "${DONE}"
     merge_fromto "${OMGF_MAIN}" "${OMGF_DEV}"
-    #merge_fromto "${OMGF_MAIN}" "${OMGF_STAGING}"
   }
 
   function get_diff_url {
@@ -995,12 +980,20 @@ function main {
       && return
     merge_fromto "${source}" "${dest}"
     git_tag "$(load_version)"
-    [[ "${dest}" == "${OMGF_MAIN}" ]] \
-      && gch "${dest}" \
+    [[ "${dest}" != "${OMGF_MAIN}" ]] \
+      && delete_branch "${source}" \
+      && return
+    git_checkout "$(prod_name "${verd}")"
+    git_merge "${OMGF_MAIN}"
+    verr=$(load_version "${OMGF_STAGING}")
+    [[ "${verr%.*}" == "${verd%.*}" ]] \
+      && git_checkout "${OMGF_STAGING}" \
       && git_merge "${OMGF_MAIN}" \
-      && merge_fromto "${OMGF_MAIN}" "${OMGF_STAGING}" \
       && merge_fromto "${OMGF_MAIN}" "${OMGF_DEV}" \
-      && merge_fromto "${OMGF_STAGING}" "${OMGF_DEV}"
+      && delete_branch "${source}" \
+      && return
+    merge_fromto "${OMGF_MAIN}" "${OMGF_STAGING}"
+    merge_fromto "${OMGF_STAGING}" "${OMGF_DEV}"
     delete_branch "${source}"
   }
 
@@ -1247,7 +1240,7 @@ function main {
     && exit
 
   [[ ${init} == 1 ]] \
-    && gch "${OMGF_DEV}" \
+    && git_checkout "${OMGF_DEV}" \
     && unstash_files \
     && exit
 

@@ -13,7 +13,7 @@ omgf [-cfhinrvVwy] [--color[=WHEN]] [KEYWORD [NAME]]
 DESCRIPTION
 ===========
 
-**Oh My Git Flow**\ [1] (AKA 'OMGF') maintains the **git flow branching model**\ [2] including versioning and keeping a changelog. It advances the model according to the current state, branch, and optional arguments.
+**Oh My Git Flow**\ [1] (AKA 'OMGF') maintains the **git flow branching model**\ [2] including versioning and keeping a changelog (using editor or STDIN). It advances the model according to the current state, branch, and arguments.
 
 OMGF is an alternative to the *git-flow cheatsheet*\ [3] command with the following features:
 
@@ -120,55 +120,55 @@ FLOW EXAMPLE
     cd a
     omgf --init
 
-There are now several branches and even a tag in your git repository. The default version number is ``0.0.0`` on all branches except for ``dev`` where it is ``0.1.0``. See for yourself.
+There are now several branches and even a tag in your git repository. The default version number is ``0.0.0`` on all branches except for dev where it is ``0.1.0``.
 
 2. Create and release a feature::
 
-    omgf feature
+    omgf --yes feature
     touch a
     git add a
     git commit -m "Add file a"
-    omgf feature
+    omgf --yes --auto-entry feature
 
-You will be prompted to confirm and insert a changelog description. This will also list the feature commits as a reminder. How handy.
+Without the 'yes' and the 'auto-entry' options, you will be prompted for a confirmation and a changelog entry respectively.
 
-Note: Technically, there is no need to use the ``feature`` argument in either cases from the example above. Why? Because the initialization finishes on the ``dev`` branch, where ``feature`` is the default value.
+Note: Technically, there is no need to use the 'feature' argument in either of occurrences above. Why? Because the OMGF initialization (step 1) finishes on the dev branch, where creating a feature is the default action. From feature branches, the default action is to release it. Use the 'what-now' option to find out more about individual branches.
 
 3. Fix some bugs on ``dev`` and release to ``staging`` branch::
 
     touch b
     git add b
     git commit -m "Add file b"
-    omgf staging
+    omgf --yes staging
 
-You will be prompted to confirm the release. You can suppress the confirmation using the ``--yes`` option.
+Note: This time the 'staging' argument is necessary, because the default action for the dev branch is to create or checkout a feature.
 
-Note: This time the ``staging`` argument is necessary, because the default action for the ``dev`` branch is to create or checkout a feature.
+Notice the version number ``0.1.0`` from dev branch moves to the staging branch and increments on dev to ``0.2.0``. Stable branches still have ``0.0.0``. You can use the following set of commands to check it up::
 
-Notice the version number from ``dev`` gets to ``staging`` branch, ``dev`` version is incremented to ``0.2.0`` and stable branches still have ``0.0.0``. Isn't it cool?
+    git show dev:VERSION
+    git show staging:VERSION
+    git show main:VERSION
 
 4. Fix some bugs on the ``staging`` branch and release to stable branches::
 
     touch c
     git add c
     git commit -m "Add file c"
-    omgf --yes
+    omgf --yes --conform
 
-No prompt, no unnecessary argument as the flow is currently on ``staging`` branch. We are getting advanced.
+In theory, every commit of the staging branch needs to be merged into dev (until it is released). OMGF will recognize unmerged state and fix it using the 'conform' option. At the same time it advances with the release as the default action.
 
-Note: The ``staging`` branch, the ``prod-0``, and the ``main`` are all on the same commit. It may seem far fetched. There is also a tag with the newly released version number.
+Note: The staging branch, the 'prod-0', and the main are all on the same commit. It may seem a little too far fetched. There is also a tag with the newly released version number. It will make more sense over time as the project grows.
 
 5. Hotfix the production::
 
-    omgf hotfix
-    touch c
-    git add c
-    git commit -m "Add file c"
-    omgf
+    omgf --yes hotfix
+    touch d
+    git add d
+    git commit -m "Add file d"
+    omgf --yes --auto-entry
 
-You will be prompted to release the hotfix and to describe it in a changelog. You have seen this before, haven't you?
-
-Note: The git log now looks like a drunk spider's web. It will make much more sense over time unless you have some experience already. If you still want to see it, you can use the following command::
+Note: The git log now looks like spiders on the wall. It gets a better shape with real data. If you want to see it, you can use the following command::
 
     git log --oneline --decorate --color --graph --all
 
