@@ -76,6 +76,8 @@ start "omgf help"
   assert_equal "${status}" 0
   assert_startwith "${outlines[0]}" "Usage: omgf [-"
   assert_startwith "${outlines[1]}" "  -c, --conform"
+  debug "omgf -n"
+  assert_equal "${status}" 3
 end
 #######################################
 : $((i++))
@@ -84,6 +86,8 @@ start "omgf --version shows version"
   debug "omgf --version"
   assert_equal "${status}" 0
   assert_startwith "${outlines[0]}" "OMGF "
+  debug "omgf -n"
+  assert_equal "${status}" 3
 end
 #######################################
 : $((i++))
@@ -92,6 +96,8 @@ start "omgf -V shows version"
   debug "omgf -V"
   assert_equal "${status}" 0
   assert_startwith "${outlines[0]}" "OMGF "
+  debug "omgf -n"
+  assert_equal "${status}" 3
 end
 #######################################
 # : $((i++))
@@ -100,6 +106,8 @@ end
 #   debug "man 2>/dev/null omgf"
 #   assert_equal "${status}" 0
 #   assert_startwith "${outlines[0]}" "GF(1)"
+#   debug "omgf -n"
+#   assert_equal "${status}" 0
 # end
 #######################################
 ## Error codes
@@ -110,6 +118,8 @@ start "invalid option error code"
   debug "omgf --invalid-option"
   assert_equal "${status}" 2
   assert_startwith "${outlines[0]}" "Usage: omgf [-"
+  debug "omgf -n"
+  assert_equal "${status}" 3
 end
 #######################################
 : $((i++))
@@ -196,6 +206,8 @@ start "version change on dev"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/hotfix-a)" ""
   assert_equal "$(gsp)" ""
+  debug "omgf -n"
+  assert_equal "${status}" 0
 end
 #######################################
 ## Dry run
@@ -228,6 +240,8 @@ start "init on empty folder"
   gref
   checkInitRefs
   assert_equal "$(gsp)" ""
+  debug "omgf -n"
+  assert_equal "${status}" 0
 end
 #######################################
 : $((i++))
@@ -254,6 +268,8 @@ start "init on non-empty folder with stash"
   gref
   checkInitRefs
   assert_equal "$(gsp | wc -l)" 2
+  debug "omgf -n"
+  assert_equal "${status}" 5
 end
 #######################################
 : $((i++))
@@ -270,6 +286,8 @@ start "init on existing repo with commits"
   gref
   checkInitRefs master
   assert_equal "$(gsp)" ""
+  debug "omgf -n"
+  assert_equal "${status}" 0
 end
 #######################################
 : $((i++))
@@ -295,6 +313,8 @@ start "init on existing repo without commits with --stash"
   gref
   checkInitRefs master
   assert_equal "$(gsp)" "A  a"
+  debug "omgf -n"
+  assert_equal "${status}" 5
 end
 #######################################
 ## Conform
@@ -334,6 +354,8 @@ start "init on existing repo with commits and --stash"
   #checkInitRefs
   assert_equal "$(git_current_branch)" "dev"
   assert_equal "$(gsp | wc -l)" 1
+  debug "omgf -n"
+  assert_equal "${status}" 5
 end
 #######################################
 : $((i++))
@@ -352,6 +374,8 @@ start "conform on existing repo with commits and --stash"
   #checkInitRefs
   assert_equal "$(git_current_branch)" "hotfix-$(whoami)"
   assert_equal "$(gsp | wc -l)" 1
+  debug "omgf -n"
+  assert_equal "${status}" 5
 end
 #######################################
 ## Feature
@@ -365,6 +389,8 @@ start "create feature"
   gref
   assert_contains "${ref}" "refs/heads/feature-$(whoami)"
   assert_equal "$(git_current_branch)" "feature-$(whoami)"
+  debug "omgf -n"
+  assert_equal "${status}" 6
 end
 #######################################
 : $((i++))
@@ -378,6 +404,8 @@ start "create feature with uncommited changes and --stash"
   assert_contains "${outlines[0]}" "Stashing files"
   assert_equal "$(git_current_branch)" "feature-myfeature"
   assert_equal "$(gsp)" "A  a"
+  debug "omgf -n"
+  assert_equal "${status}" 5
 end
 #######################################
 : $((i++))
@@ -399,6 +427,8 @@ start "merge feature"
   assert_equal "$(git show dev:CHANGELOG.md | head -8 | tail -1)" "### Added"
   assert_equal "$(git show dev:CHANGELOG.md | head -9 | tail -1)" " - feature1"
   assert_equal "$(gsp)" ""
+  debug "omgf -n"
+  assert_equal "${status}" 0
 end
 #######################################
 : $((i++))
@@ -431,6 +461,8 @@ start "merge feature with uncommitted changes and --stash"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/feature-myfeature)" ""
   assert_equal "$(gsp)" "A  b"
+  debug "omgf -n"
+  assert_equal "${status}" 5
 end
 #######################################
 # start "merge feature with --request"
@@ -462,6 +494,8 @@ start "create staging"
   gref
   assert_contains "${ref}" "refs/heads/staging"
   assert_equal "$(gsp)" ""
+  debug "omgf -n"
+  assert_equal "${status}" 0
 end
 #######################################
 # : $((i++))
@@ -481,6 +515,8 @@ end
 #   assert_equal "${status}" 0
 #   assert_equal "$(git_current_branch)" "staging"
 #   assert_equal "$(gsp)" ""
+#   debug "omgf -n"
+#   assert_equal "${status}" 0
 # end
 #######################################
 : $((i++))
@@ -498,6 +534,8 @@ start "staging with uncommited changes and --stash"
   gref
   assert_contains "${ref}" "refs/heads/staging"
   assert_equal "$(gsp)" "A  b"
+  debug "omgf -n"
+  assert_equal "${status}" 5
 end
 #######################################
 : $((i++))
@@ -521,6 +559,8 @@ start "merge staging"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/staging)" ""
   assert_equal "$(gsp)" ""
+  debug "omgf -n"
+  assert_equal "${status}" 0
 end
 #######################################
 : $((i++))
@@ -546,6 +586,8 @@ start "invalid version number --conform"
   debug "omgf --conform --yes"
   assert_equal "${status}" 0
   assert_equal "$(cat VERSION)" "1.1.0"
+  debug "omgf -n"
+  assert_equal "${status}" 0
 end
 #######################################
 : $((i++))
@@ -581,6 +623,8 @@ start "hotfix main"
   assert_equal "${status}" 0
   assert_equal "$(git_current_branch)" "hotfix-myhotfix"
   assert_equal "$(gsp)" ""
+  debug "omgf -n"
+  assert_equal "${status}" 6
 end
 #######################################
 # : $((i++))
@@ -591,6 +635,8 @@ end
 #   assert_equal "${status}" 0
 #   assert_equal "$(git_current_branch)" "hotfix-myhotfix"
 #   assert_equal "$(gsp)" ""
+#   debug "omgf -n"
+#   assert_equal "${status}" 0
 # end
 #######################################
 # : $((i++))
@@ -608,6 +654,8 @@ end
 #   load_log
 #   assert_equal "$(git_current_branch)" "hotfix-${user}"
 #   assert_equal "$(gsp)" ""
+#   debug "omgf -n"
+#   assert_equal "${status}" 0
 # end
 #######################################
 : $((i++))
@@ -630,6 +678,8 @@ start "merge main hotfix"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/hotfix-myhotfix)" ""
   assert_equal "$(gsp)" ""
+  debug "omgf -n"
+  assert_equal "${status}" 0
 end
 #######################################
 : $((i++))
@@ -654,6 +704,8 @@ start "merge hotfix with unmerged staging"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/hotfix-myhotfix)" ""
   assert_equal "$(gsp)" ""
+  debug "omgf -n"
+  assert_equal "${status}" 0
   debug "omgf -n"
   assert_equal "${status}" 0
 end
