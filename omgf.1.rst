@@ -35,9 +35,11 @@ OMGF is an alternative to the *git-flow cheatsheet*\ [3] command with the follow
 
 * It shows tips on how to advance based on the current state, branch, and arguments.
 
-* It maintains separate production branches for major versions, e.g., ``prod-1``.
+* It maintains separate production branches for major versions, such as ``prod-1``.
 
 * It supports parallel hotfix branches even for separate production branches.
+
+* It adapts to pre-existing branches, such as ``master`` instead of the default ``main``.
 
 
 ARGUMENTS
