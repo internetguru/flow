@@ -31,7 +31,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).}
 # shellcheck disable=SC2223
-: ${OMGF_STABLE_PREFIX:=v}
 : ${COLUMNS:=$(tput cols)}
 : ${LINES:=$(tput lines)}
 
@@ -72,6 +71,8 @@ function main {
 
   function err {
     echo "${1}" >&2
+    [[ "${2}" == 2 ]] \
+      && gf_usage
     exit "${2:-1}"
   }
 
@@ -84,7 +85,7 @@ function main {
         return 0
       ;;
     esac
-    return 2
+    err "Unknown color value" 2
   }
 
   function stdoutpipe {
@@ -1112,7 +1113,7 @@ function main {
         echo "*"
         echo "* 1. Checkout to an existing branch, e.g. to '${OMGF_DEV}'."
         ;;
-      ${OMGF_MAIN}|${OMGF_STABLE_PREFIX})
+      ${OMGF_MAIN}|${OMGF_PROD})
         echo "* This is considered a read-only stable branch."
         echo "* Do not commit any changes directly to this branch ever!"
         echo "*"
@@ -1172,17 +1173,14 @@ function main {
   declare pos_y=1
 
   # process options
-  # shellcheck disable=SC2223
-  # shellcheck disable=SC2048
-  if ! line=$(
-    IFS=" " getopt -n "${0}" \
-      -o cehinrsvVwy\? \
-      -l conform,color::,colour::,auto-entry,help,init,dry-run,request,stash,verbose,version,what-now,yes \
-      -- "${@}"
-  ); then gf_usage; return 2; fi
+  line=$(IFS=" " getopt -n "${0}" \
+    -o cehinrsvVwy\? \
+    -l conform,color::,colour::,auto-entry,help,init,dry-run,request,stash,verbose,version,what-now,yes \
+    -- "${@}") \
+    || err "Error parsing options" 2
   eval set -- "${line}"
 
-  # load user options
+  # load options
   stash=0
   conform=0
   init=0
@@ -1191,7 +1189,7 @@ function main {
     case ${1} in
      -c|--conform) conform=1; shift ;;
      -e|--auto-entry) entry=1; shift ;;
-     --color|--colour) shift; setcolor "${1}" || { gf_usage; return 2; }; shift ;;
+     --color|--colour) shift; setcolor "${1}"; shift ;;
      -s|--stash) stash=1; shift ;;
      -h|-\?|--help) gf_usage; return ;;
      -i|--init) init=1; conform=1; shift ;;
@@ -1202,7 +1200,7 @@ function main {
      -w|--what-now) what_now=1; shift ;;
      -y|--yes) yes=1; shift ;;
       --) shift; break ;;
-      *-) echo "${script_name}: Unrecognized option '${1}'" >&2; gf_usage; return 2 ;;
+      *-) err "Unrecognized option '${1}'." 2 ;;
        *) break ;;
     esac
   done
@@ -1224,18 +1222,16 @@ function main {
   declare SKIP
   SKIP="$(colorize " pass " ${BLUE})"
 
+  # process
   stdout_silent
   gf_validate "${@}"
-
   [[ ${what_now} == 1 ]] \
     && what_now \
     && exit
-
   [[ ${init} == 1 ]] \
     && git_checkout "${OMGF_DEV}" \
     && unstash_files \
     && exit
-
   gf_process "${@}"
   unstash_files
 
