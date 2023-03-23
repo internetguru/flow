@@ -235,10 +235,6 @@ function main {
     git rev-list -n1 "${1}"
   }
 
-  function git_merge_base {
-    git merge-base "${1}" "${2}"
-  }
-
   function git_branch {
     local out
     out="$(git branch "${@}" 2>&1)" \
@@ -295,10 +291,6 @@ function main {
 
   function remote_branch_exists {
     git ls-remote --heads "${OMGF_ORIGIN}" 2>/dev/null | grep -q "${REFSHEADS}/${1}\$"
-  }
-
-  function git_tag_exists {
-    git tag | grep -q "^${1}"
   }
 
   function has_tag {

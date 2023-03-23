@@ -45,7 +45,7 @@ function checkInitFiles {
 }
 
 function grep_log {
-  git log --no-color --oneline --all | grep --quiet "${1}"
+  git log --no-color --oneline --decorate --all | grep --quiet "${1}"
 }
 
 function load_log {
@@ -62,8 +62,8 @@ curdir="$(pwd)"
 ref=
 log=
 loglines=()
-chglog=
 outlines=()
+status=
 
 #######################################
 ## Integration
