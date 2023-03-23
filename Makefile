@@ -52,7 +52,7 @@ define compile_usage
 	@ echo -n "$(USAGEHEADER)" > $(COMPILEDIR)/$(USAGEFILE)
 	@ grep "^$(PROG) \[" $(MANRST) | sed 's/\\|/|/g' >> $(COMPILEDIR)/$(USAGEFILE)
 	@ echo ".TH" >> $(COMPILEDIR)/$(USAGEFILE)
-	@ sed -n '/^OPTIONS/,/^BASIC FLOW EXAMPLES/p' $(MANRST)  | grep -v "^\(BASIC FLOW EXAMPLES\|OPTIONS\|======\)" \
+	@ sed -n '/^OPTIONS/,/^FLOW EXAMPLE/p' $(MANRST)  | grep -v "^\(FLOW EXAMPLE\|OPTIONS\|======\)" \
 	| sed 's/^\\//;s/^-/.TP 18\n-/' | sed 's/^    //' | sed '/^$$/d' >> $(COMPILEDIR)/$(USAGEFILE)
 	@ echo DONE
 endef
