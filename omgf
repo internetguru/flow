@@ -1,45 +1,29 @@
 #!/usr/bin/env bash
 
 shopt -s extglob
-# exit when any command fails
-#set -e
-# treat unset variables as error
 set -u
 
-# shellcheck disable=SC2223
-: ${OMGF_DATAPATH:=$(dirname "${BASH_SOURCE[0]}")}
-# shellcheck disable=SC2223
-: ${OMGF_USAGE:=}
-# shellcheck disable=SC2223
-: ${OMGF_VERNUM:=}
-# shellcheck disable=SC2223
-: ${OMGF_VERFILE:=${OMGF_DATAPATH}/VERSION}
+LINES=${LINES:-$(tput lines)}
+COLUMNS=${COLUMNS:-$(tput cols)}
 
-# shellcheck disable=SC2223
-: ${GF_CHANGELOG:=CHANGELOG.md}
-# shellcheck disable=SC2223
-: ${GF_VERFILE:=VERSION}
-# shellcheck disable=SC2223
-: ${GF_DEV:=dev}
-# shellcheck disable=SC2223
-: ${GF_STAGING:=staging}
-# shellcheck disable=SC2223
-: ${GF_MAIN:=main}
-# shellcheck disable=SC2223
-: ${GF_PROD:=prod}
-# shellcheck disable=SC2223
-: ${GF_ORIGIN:=origin}
-# shellcheck disable=SC2223
-: ${GF_UPSTREAM:=${GF_ORIGIN}}
-# shellcheck disable=SC2223
-: ${GF_CHANGELOG_HEADER:=# Change Log
+OMGF_DATAPATH=${OMGF_DATAPATH:-$(dirname "${BASH_SOURCE[0]}")}
+OMGF_USAGE=${OMGF_USAGE:-}
+OMGF_VERNUM=${OMGF_VERNUM:-}
+OMGF_VERFILE=${OMGF_VERFILE:-${OMGF_DATAPATH}/VERSION}
+
+GF_CHANGELOG=${GF_CHANGELOG:-CHANGELOG.md}
+GF_VERFILE=${GF_VERFILE:-VERSION}
+GF_DEV=${GF_DEV:-dev}
+GF_STAGING=${GF_STAGING:-staging}
+GF_MAIN=${GF_MAIN:-main}
+GF_PROD=${GF_PROD:-prod}
+GF_ORIGIN=${GF_ORIGIN:-origin}
+GF_UPSTREAM=${GF_UPSTREAM:-${GF_ORIGIN}}
+GF_CHANGELOG_HEADER=${GF_CHANGELOG_HEADER:-'# Change Log
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
-and this project adheres to [Semantic Versioning](http://semver.org/).}
-# shellcheck disable=SC2223
-: ${COLUMNS:=$(tput cols)}
-: ${LINES:=$(tput lines)}
+and this project adheres to [Semantic Versioning](http://semver.org/).'}
 
 function main {
 
