@@ -1186,6 +1186,8 @@ function main {
   declare -r REFSTAGS='refs/tags'
   declare USAGE
   USAGE=$(gf_usage)
+  declare VERSION
+  VERSION=$(gf_version)
 
   # global variables
   [ -t 0 ]
@@ -1224,7 +1226,7 @@ function main {
      -n|--dry-run) dry=1; shift ;;
      -r|--request) request=1; shift ;;
      -v|--verbose) verbose=1; shift ;;
-     -V|--version) gf_version; return ;;
+     -V|--version) echo "${VERSION}"; return ;;
      -w|--what-now) what_now=1; shift ;;
      -y|--yes) yes=1; shift ;;
       --) shift; break ;;
