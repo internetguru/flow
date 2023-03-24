@@ -70,9 +70,11 @@ function main {
   }
 
   function err {
-    echo "${1}" >&2
-    [[ "${2}" == 2 ]] \
+    echo "${1:-Generic error}" >&2
+    [[ "${2:-}" == 2 ]] \
       && gf_usage
+    [[ "${2:-}" == 3 ]] \
+      && echo "${FIXABLE}" >&2
     exit "${2:-1}"
   }
 
@@ -264,7 +266,7 @@ function main {
     msg_end "${DONE}"
   }
 
-  function create_branch {
+  function checkout_branch {
     msg_start "Creating branch '${1}'"
     local out
     out="$(git_checkout -b "${1}")" \
@@ -273,25 +275,28 @@ function main {
   }
 
   function validate_branch {
-    local_branch_exists "${1}" \
+    branch_exists "${1}" \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Branch '${1}' not found." 3
+      && err "Local branch '${1}' not found." 3
     msg_start "Creating branch '${1}'"
-    # shellcheck disable=SC2015
-    remote_branch_exists "${1}" \
-      && git_branch "${1}" "${OMGF_ORIGIN}/${1}" \
-      || git_branch "${1}" "${OMGF_MAIN}"
+    create_branch "${1}"
     msg_end "${DONE}"
   }
 
-  function local_branch_exists {
-    [[ $(git_current_branch) == "${1}" ]] \
-     || git_branch_format --list | grep -q "${1}"
+  function create_branch {
+    branch_exists "${OMGF_ORIGIN}/${1}" \
+      && git_branch "${1}" "${OMGF_ORIGIN}/${1}" \
+      && return
+    branch_exists "${OMGF_MAIN}" \
+      && git_branch "${1}" "${OMGF_MAIN}" \
+      && return
+    git_branch "${1}"
   }
 
-  function remote_branch_exists {
-    git ls-remote --heads "${OMGF_ORIGIN}" 2>/dev/null | grep -q "${REFSHEADS}/${1}\$"
+  function branch_exists {
+    [[ $(git_current_branch) == "${1}" ]] \
+     || git_branch_format --all | grep -q -E "^${1}\$"
   }
 
   function has_tag {
@@ -366,7 +371,7 @@ function main {
 
   function delete_remote_branch {
     msg_start "Deleting remote branch '${1}'"
-    ! remote_branch_exists "${1}" \
+    ! branch_exists "${OMGF_ORIGIN}/${1}" \
       && msg_end "${SKIP}" \
       && return
     #TODO: used to be:
@@ -557,7 +562,12 @@ function main {
 
   function find_branch_or_first {
     for branch in "${@}"; do
-      local_branch_exists "${branch}" \
+      branch_exists "${branch}" \
+        && echo "${branch}" \
+        && return
+    done
+    for branch in "${@}"; do
+      branch_exists "${OMGF_ORIGIN}/${branch}" \
         && echo "${branch}" \
         && return
     done
@@ -676,7 +686,7 @@ function main {
   }
 
   function checkout_if_exists {
-    local_branch_exists "${1}" \
+    branch_exists "${1}" \
       || return 1
     confirm "* Checkout to branch '${1}'?"
     git_checkout "${1}"
@@ -702,7 +712,7 @@ function main {
     checkout_if_exists "${feature_name}" \
       && return
     confirm "* Create branch '${feature_name}' from branch '${OMGF_DEV}'?"
-    create_branch "${feature_name}"
+    checkout_branch "${feature_name}"
   }
 
   function hotfix_create {
@@ -713,7 +723,7 @@ function main {
       && source=${gcb}
     confirm "* Create hotfix '${1}' from '${source}'?"
     git_checkout "${source}"
-    create_branch "${1}"
+    checkout_branch "${1}"
   }
 
   function release_staging {
@@ -737,7 +747,7 @@ function main {
     local prod
     prod=$(prod_name)
     # shellcheck disable=SC2015
-    local_branch_exists "${prod}" \
+    branch_exists "${prod}" \
       && git_checkout "${prod}" \
       && git_merge "${OMGF_MAIN}" \
       || git_branch "${prod}"
@@ -954,7 +964,7 @@ function main {
     [[ "${vers%%.*}" < "${verd%%.*}" ]] \
       && dest="$(prod_name "${vers}")" \
       && verd="$(load_version "${dest}")"
-    ! local_branch_exists "${dest}" \
+    ! branch_exists "${dest}" \
       && err "Branch '${dest} not found." 4
     is_merged_to "${source}" "${dest}" \
       && err "Nothing to merge." 6
@@ -991,7 +1001,7 @@ function main {
   }
 
   function gf_pull_branch {
-    remote_branch_exists "${1}" \
+    branch_exists "${OMGF_ORIGIN}/${1}" \
       || return
     git_fetch "${OMGF_ORIGIN}" "${1}:${1}"
   }
@@ -1017,7 +1027,7 @@ function main {
     git_push "${OMGF_ORIGIN}" "${OMGF_MAIN}"
     git_push "${OMGF_ORIGIN}" "${OMGF_STAGING}"
     for stable in $(git_branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
-      local_branch_exists "${stable}" \
+      branch_exists "${stable}" \
         && git_push "${OMGF_ORIGIN}" "${stable}"
     done
   }
@@ -1070,7 +1080,7 @@ function main {
   }
 
   function gf_usage {
-    local usage_file shift_left first_line other_content
+    local usage_file first_line other_content
     if [[ -z "${OMGF_USAGE+x}" ]]; then
       usage_file="${OMGF_DATAPATH}/${script_name}.usage"
       [ -f "${usage_file}" ] \
@@ -1083,7 +1093,7 @@ function main {
     fi
     echo "${first_line}"
     echo
-    shift_left=0
+    local shift_left=0
     # shellcheck disable=SC2004
     [[ ${COLUMNS} -gt 1 ]] && shift_left=5 && export MANWIDTH=$((COLUMNS+${shift_left}))
     # shellcheck disable=SC2005
@@ -1214,6 +1224,7 @@ function main {
   declare -r FEATURE="feature"
   declare -r PULL="pull"
   declare -r PUSH="push"
+  declare -r FIXABLE="This appears to be fixable with the --conform option."
   declare -r CHANGELOG_KEYWORDS='Added Changed Deprecated Removed Fixed Security'
   declare -r REFSHEADS="refs/heads"
   declare -r REFSTAGS="refs/tags"

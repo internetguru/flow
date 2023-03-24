@@ -140,7 +140,7 @@ start "missing branch dev error code"
   } >/dev/null 2>&1
   debug "omgf"
   assert_equal "${status}" 3
-  assert_startwith "${errlines[0]}" "Branch 'dev' not found."
+  assert_startwith "${errlines[0]}" "Local branch 'dev' not found."
 end
 #######################################
 : $((i++))
