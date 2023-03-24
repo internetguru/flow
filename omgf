@@ -85,7 +85,7 @@ function main {
   }
 
   function err {
-    echo "${1:-Generic error}" >&2
+    echo "${0}: ${1:-Generic error}" >&2
     [[ "${2:-}" == 2 ]] \
       && echo "${USAGE}" >&2
     [[ "${2:-}" == 3 ]] \
