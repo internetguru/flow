@@ -63,6 +63,7 @@ ref=
 log=
 loglines=()
 outlines=()
+errlines=()
 status=
 
 #######################################
@@ -117,7 +118,7 @@ start "invalid option error code"
   take "${i}"
   debug "omgf --invalid-option"
   assert_equal "${status}" 2
-  assert_startwith "${outlines[0]}" "Usage: omgf [-"
+  assert_contains "${errlines[0]}" "unrecognized option"
   debug "omgf -n"
   assert_equal "${status}" 3
 end
@@ -225,8 +226,7 @@ start "dry run and invalid option"
   take "${i}"
   debug "omgf --dry-run --invalid-option"
   assert_equal "${status}" 2
-  #assert_startwith "${outlines[0]}" "getopt: unknown"
-  assert_startwith "${outlines[0]}" "Usage: omgf [-"
+  assert_contains "${errlines[0]}" "unrecognized option"
 end
 #######################################
 ## Init
