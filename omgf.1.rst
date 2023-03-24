@@ -118,9 +118,9 @@ FLOW EXAMPLE
 
     mkdir a
     cd a
-    omgf --init
+    omgf --init --yes
 
-There are now several branches and even a tag in your git repository. The default version number is ``0.0.0`` on all branches except for dev where it is ``0.1.0``.
+This creates a git repository with key branches and a tag. The default version number is ``0.0.0`` on all branches except for dev where it is ``0.1.0``. The --yes option servers to skip prompting individual steps.
 
 2. Create and release a feature::
 
@@ -130,35 +130,35 @@ There are now several branches and even a tag in your git repository. The defaul
     git commit -m "Add file a"
     omgf --yes --auto-entry feature
 
-Without the 'yes' and the 'auto-entry' options, you will be prompted for a confirmation and a changelog entry respectively.
+This creates a feature branch from dev and merges it back after changes are made. Without the --yes and the --auto-entry options, it prompts for a confirmation and a changelog entry respectively.
 
-Note: Technically, there is no need to use the 'feature' argument in either of occurrences above. Why? Because the OMGF initialization (step 1) finishes on the dev branch, where creating a feature is the default action. From feature branches, the default action is to release it. Use the 'what-now' option to find out more about individual branches.
+Note: Technically, there is no need to use the 'feature' argument in either of occurrences above. Why? Because the OMGF initialization in step 1 finishes on the dev branch, where creating a feature is the default action. From feature branches, the default action is to release it. Use the --what-now option to find out more about individual branches.
 
-3. Fix some bugs on ``dev`` and release to ``staging`` branch::
+3. Fix some bugs on dev and release it::
 
     touch b
     git add b
     git commit -m "Add file b"
     omgf --yes staging
 
-Note: This time the 'staging' argument is necessary, because the default action for the dev branch is to create or checkout a feature.
+This makes changes and commits directly to dev branch and releases it. This time the 'staging' argument is necessary, because the default action for the dev branch is to create or checkout a feature.
 
-Notice the version number ``0.1.0`` from dev branch moves to the staging branch and increments on dev to ``0.2.0``. Stable branches still have ``0.0.0``. You can use the following set of commands to check it up::
+Notice the version number ``0.1.0`` from dev branch moves to the staging branch and gets incremented on dev to ``0.2.0``. Stable branches still have ``0.0.0``. You can use the following set of commands to check it up::
 
     git show dev:VERSION
     git show staging:VERSION
     git show main:VERSION
 
-4. Fix some bugs on the ``staging`` branch and release to stable branches::
+4. Fix some bugs on the staging branch and release::
 
     touch c
     git add c
     git commit -m "Add file c"
     omgf --yes --conform
 
-In theory, every commit of the staging branch needs to be merged into dev (until it is released). OMGF will recognize unmerged state and fix it using the 'conform' option. At the same time it advances with the release as the default action.
+In theory, every commit of the staging branch must be merged into dev. The scriptrecognizes the unmerged state and fix it using the --conform option. At the same time it advances with releasing as a default action on staging branch.
 
-Note: The staging branch, the 'prod-0', and the main are all on the same commit. It may seem a little too far fetched. There is also a tag with the newly released version number. It will make more sense over time as the project grows.
+Note: The staging branch, the 'prod-0', and the main are now on the same commit. There is also a tag with the newly released version number. Seems a little too far fetched? It will make more sense over time as the project grows.
 
 5. Hotfix the production::
 
@@ -167,6 +167,8 @@ Note: The staging branch, the 'prod-0', and the main are all on the same commit.
     git add d
     git commit -m "Add file d"
     omgf --yes --auto-entry
+
+This increments the patch version and merges the hotfix to the main branch, creates a tag and advances all attached branches with it. To keep the model compliant, it also merges the main branch into dev.
 
 Note: The git log now looks like spiders on the wall. It gets a better shape with real data. If you want to see it, you can use the following command::
 
