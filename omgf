@@ -34,17 +34,17 @@ function main {
       echo -n "${1}" \
         && return
     fi
-    echo -n "[ "
+    echo -n '[ '
     save_cursor_position
     echo " ....  ] ${1}"
   }
 
   function msg_done {
-    msg_end "$(colorize " done " "${GREEN}")"
+    msg_end "$(colorize ' done ' "${GREEN}")"
   }
 
   function msg_pass {
-    msg_end "$(colorize " pass " "${BLUE}")"
+    msg_end "$(colorize ' pass ' "${BLUE}")"
   }
 
   function msg_end {
@@ -86,11 +86,11 @@ function main {
         return 0
       ;;
     esac
-    err "Unknown color value" 2
+    err 'Unknown color value' 2
   }
 
   function stdoutpipe {
-    readlink /proc/$$/fd/1 | grep -q "^pipe:"
+    readlink /proc/$$/fd/1 | grep -q '^pipe:'
   }
 
   function colorize {
@@ -112,16 +112,16 @@ function main {
 
   function save_cursor_position {
     local curpos oldstty
-    curpos="1;1"
+    curpos='1;1'
     exec < /dev/tty
     oldstty=$(stty -g)
     stty raw -echo min 0
-    echo -en "\033[6n" >/dev/tty
+    echo -en '\033[6n' >/dev/tty
     # shellcheck disable=SC2162
-    read -d"R" curpos </dev/tty
+    read -d'R' curpos </dev/tty
     stty "${oldstty}"
-    pos_x=$( echo "${curpos#??}" | cut -d";" -f1 )
-    pos_y=$( echo "${curpos#??}" | cut -d";" -f2 )
+    pos_x=$( echo "${curpos#??}" | cut -d';' -f1 )
+    pos_y=$( echo "${curpos#??}" | cut -d';' -f2 )
   }
 
   function set_cursor_position {
@@ -136,11 +136,11 @@ function main {
       && return
     if [[ ${is_stdin} == 0 ]]; then
       stdout_verbose
-      echo -n "${1:-"Are you sure?"} [YES/No] "
+      echo -n "${1:-'Are you sure?'} [YES/No] "
       save_cursor_position
       clear_stdin
       read -r
-      [[ -z "${REPLY}" ]] && set_cursor_position && echo "yes"
+      [[ -z "${REPLY}" ]] && set_cursor_position && echo 'yes'
       stdout_silent
     else
       read -r
@@ -149,7 +149,7 @@ function main {
       && return
     [[ "${REPLY,,}" =~ ^no?$ ]] \
       && exit
-    confirm "Type"
+    confirm 'Type'
   }
 
   function git_status_empty {
@@ -258,7 +258,7 @@ function main {
   }
 
   function git_push {
-    msg_start "Pushing to remote"
+    msg_start 'Pushing to remote'
     local out
     out="$(git push "${@}" 2>&1)" \
       || err "${out}"
@@ -315,7 +315,7 @@ function main {
   }
 
   function stash_files {
-    msg_start "Stashing files"
+    msg_start 'Stashing files'
     git_status_empty \
       && msg_pass \
       && return
@@ -328,7 +328,7 @@ function main {
   function unstash_files {
     [[ ${stashed} == 0 ]] \
       && return 0
-    msg_start "Unstashing files"
+    msg_start 'Unstashing files'
     git_stash pop
     msg_done
   }
@@ -356,7 +356,7 @@ function main {
   }
 
   function git_merge_stream {
-    [[ "${2}" == "upwards" ]] \
+    [[ "${2}" == 'upwards' ]] \
       && git_merge --no-ff "${1}" \
       && return
     git_merge_nocommit --no-ff --no-commit "${1}"
@@ -380,7 +380,7 @@ function main {
 
   function delete_branch {
     [[ "$(git_current_branch)" == "${1}" ]] \
-      && err "Unable to delete checked branch"
+      && err 'Unable to delete checked branch'
     delete_remote_branch "${1}"
     msg_start "Deleting local branch '${1}'"
     git_branch -d "${1}"
@@ -442,19 +442,19 @@ function main {
       && return
     [[ ${init} == 0 ]] \
       && ! git_repo_exists \
-      && err "Git repository not found." 3
+      && err 'Git repository not found.' 3
     [[ ${init} == 0 ]] \
       && [[ -z "$(git_branch_format)" ]] \
-      && err "Missing initial commit." 3
+      && err 'Missing initial commit.' 3
     [[ "$(ls -A .)" && "${stash}" == 0 ]] \
-      && err "Folder is not empty." 3
-    msg_start "Initializing repository"
+      && err 'Folder is not empty.' 3
+    msg_start 'Initializing repository'
     # this requires newer git version
     #git_init --initial-branch="${GF_MAIN}"
     ! git_repo_exists \
       && git_init . \
       && git symbolic-ref HEAD "refs/heads/${GF_MAIN}"
-    git_commit --allow-empty -m "Initial empty commit"
+    git_commit --allow-empty -m 'Initial empty commit'
     msg_done
   }
 
@@ -468,7 +468,7 @@ function main {
       && err "Invalid version tag '${ver}' commit." 4
     [[ ${conform} == 0 ]] \
       && err "Missing version tag '${ver}'." 3
-    confirm "Create a version tag?"
+    confirm 'Create a version tag?'
     git_tag "${ver}" "${GF_MAIN}"
   }
 
@@ -507,11 +507,11 @@ function main {
   function update_version {
     local gcb
     gcb=$(git_current_branch)
-    msg_start "Updating version number"
+    msg_start 'Updating version number'
     git_checkout "${1}"
     echo "${2}" > "${GF_VERFILE}"
     git_add "${GF_VERFILE}"
-    git_commit -am "Update version number"
+    git_commit -am 'Update version number'
     msg_done
     git_checkout "${gcb}"
   }
@@ -535,7 +535,7 @@ function main {
     [[ ${stash} == 1 ]] \
       && stash_files \
       && return
-    err "Uncommitted changes." 5
+    err 'Uncommitted changes.' 5
   }
 
   function validate_changelog {
@@ -547,7 +547,7 @@ function main {
     git_checkout "${1}"
     init_file "${GF_CHANGELOG}" "${GF_CHANGELOG_HEADER}"
     git_add .
-    git_commit -am "Add changelog file"
+    git_commit -am 'Add changelog file'
     git_checkout "${gcb}"
   }
 
@@ -557,9 +557,9 @@ function main {
     local gcb
     gcb=$(git_current_branch)
     git_checkout "${1}"
-    init_file "${GF_VERFILE}" "0.0.0"
+    init_file "${GF_VERFILE}" '0.0.0'
     git_add "${GF_VERFILE}"
-    git_commit -am "Add version file"
+    git_commit -am 'Add version file'
     git_checkout "${gcb}"
   }
 
@@ -626,7 +626,7 @@ function main {
 
   function unexpected_argument {
     [[ -n ${1} ]] \
-      && err "Unexpected argument" 2
+      && err 'Unexpected argument' 2
   }
 
   # 1 name
@@ -639,7 +639,7 @@ function main {
 
   function gf_process {
     [[ ${#} -gt 2 ]] \
-      && err "Too many arguments." 2
+      && err 'Too many arguments.' 2
     local gcb kw name
     gcb=$(git_current_branch)
     kw=${1:-"${gcb%%-*}"}
@@ -684,7 +684,7 @@ function main {
         err "Required branch '${GF_STAGING}' not found."
         ;;
       *)
-        err "Unknown keyword or branch." 2
+        err 'Unknown keyword or branch.' 2
         ;;
     esac
   }
@@ -702,11 +702,11 @@ function main {
     is_merged_to "${GF_STAGING}" "${GF_DEV}" \
       || err 'Branch already released.' 6
     update_changelog_header
-    git_commit -am "Add changelog header"
+    git_commit -am 'Add changelog header'
     merge_fromto "${GF_DEV}" "${GF_STAGING}"
     merge_fromto "${GF_STAGING}" "${GF_DEV}"
     increment_version "$(load_version)" minor > "${GF_VERFILE}"
-    git_commit -am "Increment minor version"
+    git_commit -am 'Increment minor version'
     git_checkout "${GF_STAGING}"
   }
 
@@ -738,13 +738,13 @@ function main {
     is_merged_to "${GF_STAGING}" "${GF_MAIN}" \
       && err 'Branch already released.' 6
     update_changelog_header
-    git_commit -am "Update control files"
+    git_commit -am 'Update control files'
     merge_fromto "${GF_MAIN}" "${GF_STAGING}"
     [[ ${request} == 1 ]] \
       && gf_request "${GF_MAIN}" \
       && return
     merge_fromto "${GF_STAGING}" "${GF_MAIN}"
-    msg_start "Updating branching structure"
+    msg_start 'Updating branching structure'
     git_tag "$(load_version)"
     git_checkout "${GF_STAGING}"
     git_merge "${GF_MAIN}"
@@ -773,7 +773,7 @@ function main {
         return
         ;;
       *)
-        err "Unsupported git remote."
+        err 'Unsupported git remote.'
         ;;
     esac
   }
@@ -781,8 +781,8 @@ function main {
   function update_changelog_header {
     local header tmpfile diff_url prev_tag ver
     ver=$(load_version)
-    msg_start "Updating changelog header"
-    header="## [${ver}] - $(date "+%Y-%m-%d")"
+    msg_start 'Updating changelog header'
+    header="## [${ver}] - $(date '+%Y-%m-%d')"
     prev_tag="$(git tag | sort -V | tail -n1 )"
     diff_url="$(get_diff_url "${prev_tag}" "${ver}" )"
     [[ -n "${diff_url}" ]] \
@@ -881,16 +881,16 @@ function main {
       && return
     stdout_verbose
     echo
-    echo "***"
+    echo '***'
     echo "* Please enter the ${gcb} description for ${GF_CHANGELOG}."
-    echo "*"
-    echo "* Supported keywords:"
+    echo '*'
+    echo '* Supported keywords:'
     echo "*   ${CHANGELOG_KEYWORDS/ ${1} / ${1} (default) }"
-    echo "*"
+    echo '*'
     echo "* Commits of '${gcb}':"
-    git_log "${2}".."${gcb}" --pretty=format:"*   %h %s"
-    echo "*"
-    echo "***"
+    git_log "${2}".."${gcb}" --pretty=format:'*   %h %s'
+    echo '*'
+    echo '***'
     # What for?
     REPLY=
     [[ ${is_stdin} == 0 ]] \
@@ -915,14 +915,14 @@ function main {
     local source
     source=$(git_current_branch)
     is_merged_to "${source}" "${GF_DEV}" \
-      && err "Nothing to merge." 6
+      && err 'Nothing to merge.' 6
     # shellcheck disable=SC2015
     [[ ${request} == 1 ]] \
       && confirm "* Request merge '${source}' into '${GF_DEV}'?" \
       || confirm "* Merge '${source}' into '${GF_DEV}'?"
     merge_fromto "${GF_DEV}" "${source}"
     update_changelog Added "${GF_DEV}"
-    git_commit -am "Update changelog"
+    git_commit -am 'Update changelog'
     [[ ${request} == 1 ]] \
       && gf_request "${GF_DEV}"
     merge_fromto "${source}" "${GF_DEV}"
@@ -951,7 +951,7 @@ function main {
         (( patch ++ ))
         ;;
       *)
-        err "Invalid version type."
+        err 'Invalid version type.'
     esac
     echo "${major}.${minor}.${patch}"
   }
@@ -971,16 +971,16 @@ function main {
     ! branch_exists "${dest}" \
       && err "Branch '${dest} not found." 4
     is_merged_to "${source}" "${dest}" \
-      && err "Nothing to merge." 6
+      && err 'Nothing to merge.' 6
     # shellcheck disable=SC2015
     [[ "${dest}" == "${GF_MAIN}" ]] \
-      && confirm "* Release the hotfix?" \
+      && confirm '* Release the hotfix?' \
       || confirm "* Obsolete major version. Merge to branch '${dest}'?"
-    msg_start "Updating control files"
+    msg_start 'Updating control files'
     increment_version "${verd}" patch > "${GF_VERFILE}"
     update_changelog Fixed "${dest}"
     update_changelog_header
-    git_commit -am "Update control files"
+    git_commit -am 'Update control files'
     msg_done
     [[ ${request} == 1 ]] \
       && gf_request "${dest}" \
@@ -1012,7 +1012,7 @@ function main {
 
   function gf_pull {
     validate_git_remote
-    confirm "* Pull from the remote repository?"
+    confirm '* Pull from the remote repository?'
     git_fetch --tags
     gf_pull_branch "${GF_DEV}"
     gf_pull_branch "${GF_MAIN}"
@@ -1025,7 +1025,7 @@ function main {
 
   function gf_push {
     validate_git_remote
-    confirm "* Push to the remote repository?"
+    confirm '* Push to the remote repository?'
     git_push --tags
     git_push "${GF_ORIGIN}" "${GF_DEV}"
     git_push "${GF_ORIGIN}" "${GF_MAIN}"
@@ -1062,7 +1062,7 @@ function main {
     upstream_url="$(trim_url "${upstream_url}")"
     gcb=$(git_current_branch)
     stdout_verbose
-    echo -n "Pull request URL: "
+    echo -n 'Pull request URL: '
     case "${url}" in
       *"${GITHUB}"*)
         # shellcheck disable=SC1003
@@ -1077,7 +1077,7 @@ function main {
           || echo "https://${url}/compare/${gcb}..$(echo "${upstream_url}" | cut -d'/' -f2-3)%3A${to}"
       ;;
       *)
-        err "Unsupported remote server name."
+        err 'Unsupported remote server name.'
       ;;
     esac
     stdout_silent
@@ -1090,7 +1090,7 @@ function main {
     file="${OMGF_DATAPATH}/omgf.usage"
     [[ -z "${head}" ]] \
       && [[ ! -f "${file}" ]] \
-      && echo "Usage is not available in source file." \
+      && echo 'Usage is not available in source file.' \
       && return
     [[ -z "${head}" ]] \
       && head="$(head -n1 "${file}")" \
@@ -1114,77 +1114,77 @@ function main {
 
   function what_now {
     [[ ${#} -gt 0 ]] \
-      && err "Unexpected arguments." 2
+      && err 'Unexpected arguments.' 2
     local gcb
     gcb=$(git_current_branch)
     stdout_verbose
-    echo "***"
+    echo '***'
     echo "* Currently on '${gcb}'"
-    echo "*"
+    echo '*'
     case ${gcb%%-*} in
       HEAD)
-        echo "* You are detached from branches with no direct git flow action."
-        echo "*"
+        echo '* You are detached from branches with no direct git flow action.'
+        echo '*'
         echo "* 1. Checkout to an existing branch, e.g. to '${GF_DEV}'."
         ;;
       ${GF_MAIN}|${GF_PROD})
-        echo "* This is considered a read-only stable branch."
-        echo "* Do not commit any changes directly to this branch ever!"
-        echo "*"
+        echo '* This is considered a read-only stable branch.'
+        echo '* Do not commit any changes directly to this branch ever!'
+        echo '*'
         echo "* 1. Run '${0}' to create hotfix or leave."
         ;;
       ${GF_DEV})
-        echo "* This is considered a development branch."
-        echo "* It is designed for bug fixing and merging features."
-        echo "*"
-        echo "* 1. Make some fixes and feel free to commit directly."
+        echo '* This is considered a development branch.'
+        echo '* It is designed for bug fixing and merging features.'
+        echo '*'
+        echo '* 1. Make some fixes and feel free to commit directly.'
         echo "* 2. Run '${0}' to create a new feature."
         echo "* 3. Run '${0} release' to release this branch."
         ;;
       ${GF_STAGING})
-        echo "* This is a staging branch meant solely for bug fixing."
-        echo "* It is also known as a release candidate branch (RC)."
-        echo "*"
-        echo "* 1. Make some fixes and feel free to commit directly."
+        echo '* This is a staging branch meant solely for bug fixing.'
+        echo '* It is also known as a release candidate branch (RC).'
+        echo '*'
+        echo '* 1. Make some fixes and feel free to commit directly.'
         echo "* 2. Run '${0}' to release this branch."
         ;;
       ${HOTFIX})
-        echo "* This is a temporary branch created from a stable branch."
-        echo "* Its purpose is to fix one critical problem and dissolve."
-        echo "* WARNING: Make only minimum necessary changes here!"
-        echo "*"
-        echo "* 1. Make sure you really HAVE to solve the problem now."
-        echo "* 2. Fix the critical problem and commit changes."
+        echo '* This is a temporary branch created from a stable branch.'
+        echo '* Its purpose is to fix one critical problem and dissolve.'
+        echo '* WARNING: Make only minimum necessary changes here!'
+        echo '*'
+        echo '* 1. Make sure you really HAVE to solve the problem now.'
+        echo '* 2. Fix the critical problem and commit changes.'
         echo "* 3. Run '${0}' to merge the hotfix back into stable branch."
-        echo "* 4. Good luck."
+        echo '* 4. Good luck.'
         ;;
       ${FEATURE})
-        echo "* This is a temporary branch created from the development branch."
-        echo "* Its purpose is to create a (one) new feature."
-        echo "*"
-        echo "* 1. Create and develop the (one) feature. Stick to it."
+        echo '* This is a temporary branch created from the development branch.'
+        echo '* Its purpose is to create a (one) new feature.'
+        echo '*'
+        echo '* 1. Create and develop the (one) feature. Stick to it.'
         echo "* 2. Run '${0}' to merge it back into '${GF_DEV}'."
         ;;
       *)
-        echo "* Not sure what this means (confused unga bunga)."
+        echo '* Not sure what this means (confused unga bunga).'
     esac
-    echo "***"
+    echo '***'
     stdout_silent
   }
 
   # global constants
   declare -r GREEN=2
   declare -r BLUE=4
-  declare -r GITHUB="github.com"
-  declare -r BITBUCKET="bitbucket.org"
-  declare -r HOTFIX="hotfix"
-  declare -r FEATURE="feature"
-  declare -r PULL="pull"
-  declare -r PUSH="push"
-  declare -r FIXABLE="This appears to be fixable with the --conform option."
+  declare -r GITHUB='github.com'
+  declare -r BITBUCKET='bitbucket.org'
+  declare -r HOTFIX='hotfix'
+  declare -r FEATURE='feature'
+  declare -r PULL='pull'
+  declare -r PUSH='push'
+  declare -r FIXABLE='This appears to be fixable with the --conform option.'
   declare -r CHANGELOG_KEYWORDS='Added Changed Deprecated Removed Fixed Security'
-  declare -r REFSHEADS="refs/heads"
-  declare -r REFSTAGS="refs/tags"
+  declare -r REFSHEADS='refs/heads'
+  declare -r REFSTAGS='refs/tags'
   declare USAGE
   USAGE=$(gf_usage)
 
@@ -1202,7 +1202,7 @@ function main {
   declare pos_y=1
 
   # process options
-  line=$(IFS=" " getopt -n "${0}" \
+  line=$(IFS=' ' getopt -n "${0}" \
     -o cehinrsvVwy\? \
     -l conform,color::,colour::,auto-entry,help,init,dry-run,request,stash,verbose,version,what-now,yes \
     -- "${@}" 2>&1) \
