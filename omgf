@@ -278,9 +278,8 @@ function main {
       && return
     [[ ${conform} == 0 ]] \
       && err "Local branch '${1}' not found." 3
-    msg_start "Creating branch '${1}'"
+    confirm "Create branch '${1}'?"
     create_branch "${1}"
-    msg_done
   }
 
   function create_branch {
@@ -404,6 +403,7 @@ function main {
       && return
     [[ ${conform} == 0 ]] \
       && err "Missing or empty file '${1}'." 3
+    confirm "Create '${1}' file?"
     echo "${2}" > "${1}" \
       || exit 1
   }
@@ -468,6 +468,7 @@ function main {
       && err "Invalid version tag '${ver}' commit." 4
     [[ ${conform} == 0 ]] \
       && err "Missing version tag '${ver}'." 3
+    confirm "Create a version tag?"
     git_tag "${ver}" "${GF_MAIN}"
   }
 
@@ -478,6 +479,7 @@ function main {
       && return
     [[ ${conform} == 0 ]] \
       && err "Branch '${1}' is not merged to '${2}'." 3
+    confirm "Merge branch '${1}' to '${2}'?"
     merge_fromto "${1}" "${2}"
   }
 
@@ -493,6 +495,7 @@ function main {
       && return
     [[ ${conform} == 0 ]] \
       && err "Branch '${GF_STAGING}' version is lower than '${GF_MAIN}'." 3
+    confirm "Update the ${GF_STAGING} version?"
     update_version "${GF_STAGING}" "$(increment_version "${verm}" minor)"
   }
 
@@ -521,6 +524,7 @@ function main {
       && return
     [[ ${conform} == 0 ]] \
       && err "Branch '${GF_DEV}' version is lower or equal to '${GF_STAGING}'." 3
+    confirm "Update the ${GF_DEV} version?"
     update_version "${GF_DEV}" "$(increment_version "${verr}" minor)"
   }
 
@@ -615,6 +619,7 @@ function main {
       && return
     [[ ${conform} == 0 ]] \
       && err "Branch '${prod}' is behind '${GF_MAIN}'." 3
+    confirm "Merge '${prod}' branch into '${GF_MAIN}'?"
     git_checkout "${prod}"
     git_merge "${GF_MAIN}"
   }
