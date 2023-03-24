@@ -964,7 +964,6 @@ function main {
     verd=$(load_version "${GF_MAIN}")
     [[ "${vers%%.*}" > "${verd%%.*}" ]] \
       && err "Hotfix version is greater than '${GF_MAIN}'." 4
-    # shellcheck disable=SC2015
     [[ "${vers%%.*}" < "${verd%%.*}" ]] \
       && dest="$(prod_name "${vers}")" \
       && verd="$(load_version "${dest}")"

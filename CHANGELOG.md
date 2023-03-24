@@ -3,8 +3,33 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
-## [2.2.0] - 2017-06-05
 
+### Added
+ - All key branches validation on existence and merge status.
+ - Version validation across all key branches.
+ - Tag validation on the main branch.
+ - Separate stable branch for each major version, e.g. `prod-1`.
+ - Key branch names adaptation to pre-existing branches.
+ - Option --auto-entry to skip changelog prompt.
+ - Consider remote branches if key branch not found.
+
+### Changed
+ - Exit codes validation error fixable and unfixable.
+ - Default branch names changed to main and staging.
+ - Options --conform and --init require confirmations (forceable with --yes).
+ - Merge staging branch into main after releasing (do not delete).
+ - Auto version increment after releasing dev branch.
+ - Keyword argument redesign.
+ - Option --what-now rephrased.
+ - Option --dry-run also checks attributes after validation.
+ - Documentation updated with new git flow example.
+ - Insert default changelog entry if empty or skipped.
+ - Environmental variable names now start with 'GF_'.
+ - Merge hotfix according to its major version number.
+ - Show usage after all invalid option error.
+ - Show hint after all fixable validation errors.
+
+## [2.2.0] - 2017-06-05
 ### Changed
  - Increment minor version when release is created #31
  

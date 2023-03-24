@@ -17,23 +17,23 @@ DESCRIPTION
 
 OMGF is an alternative to the *git-flow cheatsheet*\ [3] command with the following features:
 
-* It has a simpler usage and does not require arguments.
+* It has a simple usage and **requires no arguments** (has a decision tree).
 
 * It validates and automatically **fixes projects** to conform to the branching model.
 
-* It can initiate a new repository on an empty or existing folder.
+* It can initiate a git flow branching on an empty foler or an existing git repository.
 
 * It can convert an existing repository into a git flow branching model.
 
-* It helps pull and push all main branches.
+* It helps to pull and push all main branches.
 
-* It supports pull requests for GitHub and GitLab.
+* It supports **merge requests** (pull requests) for GitHub and GitLab.
 
 * It controls **semantic versioning**\ [4] in a ``VERSION`` file.
 
 * It keeps track of release history following the **Keep a CHANGELOG**\ [5] convention.
 
-* It shows tips on how to advance based on the current state, branch, and arguments.
+* It shows information and what to do on the current branch.
 
 * It maintains separate production branches for major versions, such as ``prod-1``.
 
