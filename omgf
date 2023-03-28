@@ -69,7 +69,7 @@ function main {
   }
 
   function err {
-    echo "${0}: ${1:-Generic error}" >&2
+    echo "${SCRIPT_NAME}: ${1:-Generic error}" >&2
     [[ "${2:-}" == 2 ]] \
       && echo "${USAGE}" >&2
     [[ "${2:-}" == 3 ]] \
@@ -1133,28 +1133,28 @@ function main {
       HEAD)
         echo '* You are detached from branches with no direct git flow action.'
         echo '*'
-        echo "* 1. Checkout to an existing branch, e.g. to '${GF_DEV}'."
+        echo "* 1. Checkout to an existing branch, e.g. to dev branch."
         ;;
       ${GF_STABLE}|${GF_PROD})
         echo '* This is considered a read-only stable branch.'
         echo '* Do not commit any changes directly to this branch ever!'
         echo '*'
-        echo "* 1. Run '${0}' to create hotfix or leave."
+        echo "* 1. Run '${SCRIPT_NAME}' to create hotfix or leave."
         ;;
       ${GF_DEV})
         echo '* This is considered a development branch.'
         echo '* It is designed for bug fixing and merging features.'
         echo '*'
         echo '* 1. Make some fixes and feel free to commit directly.'
-        echo "* 2. Run '${0}' to create a new feature."
-        echo "* 3. Run '${0} release' to release this branch."
+        echo "* 2. Run '${SCRIPT_NAME}' to create a new feature."
+        echo "* 3. Run '${SCRIPT_NAME} release' to release this branch."
         ;;
       ${GF_STAGING})
         echo '* This is a staging branch meant solely for bug fixing.'
         echo '* It is also known as a release candidate branch (RC).'
         echo '*'
         echo '* 1. Make some fixes and feel free to commit directly.'
-        echo "* 2. Run '${0}' to release this branch."
+        echo "* 2. Run '${SCRIPT_NAME}' to release this branch."
         ;;
       ${HOTFIX})
         echo '* This is a temporary branch created from a stable branch.'
@@ -1163,7 +1163,7 @@ function main {
         echo '*'
         echo '* 1. Make sure you really HAVE to solve the problem now.'
         echo '* 2. Fix the critical problem and commit changes.'
-        echo "* 3. Run '${0}' to merge the hotfix back into stable branch."
+        echo "* 3. Run '${SCRIPT_NAME}' to merge the hotfix back into stable branch."
         echo '* 4. Good luck.'
         ;;
       ${FEATURE})
@@ -1171,7 +1171,7 @@ function main {
         echo '* Its purpose is to create a (one) new feature.'
         echo '*'
         echo '* 1. Create and develop the (one) feature. Stick to it.'
-        echo "* 2. Run '${0}' to merge it back into '${GF_DEV}'."
+        echo "* 2. Run '${SCRIPT_NAME}' to merge it back into dev."
         ;;
       *)
         echo '* Not sure what this means (confused unga bunga).'
@@ -1181,6 +1181,7 @@ function main {
   }
 
   # global constants
+  declare -r SCRIPT_NAME=${0##*/}
   declare -r GREEN=2
   declare -r BLUE=4
   declare -r GITHUB='github.com'
@@ -1247,10 +1248,10 @@ function main {
 
   # process
   stdout_silent
-  gf_validate "${@}"
   [[ ${what_now} == 1 ]] \
     && what_now \
     && exit
+  gf_validate "${@}"
   [[ ${init} == 1 ]] \
     && git_checkout "${GF_DEV}" \
     && unstash_files \
