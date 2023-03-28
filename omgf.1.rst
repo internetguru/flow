@@ -197,7 +197,7 @@ EXIT CODES
 SEE ALSO
 ========
 
-[1] `OMGF on GitHub <https://github.com/InternetGuru/omgf/>`__
+[1] `OMGF on GitHub <https://github.com/internetguru/omgf/>`__
 
 [2] `Git flow model <https://nvie.com/posts/a-successful-git-branching-model/>`__
 
@@ -211,7 +211,7 @@ SEE ALSO
 REPORTING BUGS
 ==============
 
-`Issue tracker <https://github.com/InternetGuru/omgf/issues>`__
+`Issue tracker <https://github.com/internetguru/omgf/issues>`__
 
 
 COPYRIGHT
@@ -219,29 +219,27 @@ COPYRIGHT
 
 Copyright (C) 2016--2023 `Internet Guru <https://www.internetguru.io>`__
 
-This software is licensed under the CC BY-NC-SA license.
-
 
 LICENSE
 =======
 
-This project is licensed under the CC BY-NC-SA license - see the [LICENSE.md](LICENSE.md) file for details.
+This software is licensed under the CC BY-NC-SA license. Visit the following link for details.
 
-For commercial use of this software, training, and development, please contact us at the following email:
+`Creative Commons Attribution-NonCommercial-ShareAlike <https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode>`__
 
--  info@internetguru.io
+For commercial use of this software, training, and custom development, please contact us at info@internetguru.io
 
 
 DONATION
 ========
 
-If you find this script useful, please **consider a donation** to its developers. We appreciate contributions of any size. Donations allow us to spend more time working on this project, and help cover our infrastructure expenses.
+If you find this script useful, please consider making a donation to support its developers. We appreciate any contributions, no matter how small. Donations help us to dedicate more time and resources to this project, including covering our infrastructure expenses.
 
 `PayPal Donation <https://www.paypal.com/donate/?hosted_button_id=QC7HU967R4PHC>`__
 
-Since we aren't a tax-exempt organization, we can't offer you a tax deduction. But for all donations over $500, we'd be happy to recognize your contribution on the **OMGF** page[1] and in this README file (including the manual page) for the next period of time.
+Please note that we are not a tax-exempt organization and cannot provide tax deductions for your donation. However, for donations exceeding $500, we would like to acknowledge your contribution on our OMGF page [1] and in this README file (including the manual page) for a specified period of time.
 
-Thank you for your support!
+Thank you for your continued support!
 
 
 HONORED DONORS
