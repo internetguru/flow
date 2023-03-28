@@ -25,7 +25,7 @@ OMGF is an alternative to the *git-flow cheatsheet*\ [3] command with the follow
 
 * It can convert an existing repository into a git flow branching model.
 
-* It helps to pull and push all main branches.
+* It can pull and push all key model branches.
 
 * It supports **merge requests** (pull requests) for GitHub and GitLab.
 

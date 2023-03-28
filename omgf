@@ -15,7 +15,7 @@ GF_CHANGELOG=${GF_CHANGELOG:-CHANGELOG.md}
 GF_VERFILE=${GF_VERFILE:-VERSION}
 GF_DEV=${GF_DEV:-dev}
 GF_STAGING=${GF_STAGING:-staging}
-GF_MAIN=${GF_MAIN:-main}
+GF_STABLE=${GF_STABLE:-main}
 GF_PROD=${GF_PROD:-prod}
 GF_ORIGIN=${GF_ORIGIN:-origin}
 GF_UPSTREAM=${GF_UPSTREAM:-${GF_ORIGIN}}
@@ -193,13 +193,10 @@ function main {
       || err "${out}"
   }
 
-  # make git return only error to stderr
   function git_fetch {
-    msg_start "Fetching ${*}"
     local out
     out="$(git fetch --update-head-ok "${@}" 2>&1)" \
       || err "${out}"
-    msg_done
   }
 
   function git_tag {
@@ -258,11 +255,9 @@ function main {
   }
 
   function git_push {
-    msg_start 'Pushing to remote'
     local out
     out="$(git push "${@}" 2>&1)" \
       || err "${out}"
-    msg_done
   }
 
   function checkout_branch {
@@ -286,8 +281,8 @@ function main {
     branch_exists "${GF_ORIGIN}/${1}" \
       && git_branch "${1}" "${GF_ORIGIN}/${1}" \
       && return
-    branch_exists "${GF_MAIN}" \
-      && git_branch "${1}" "${GF_MAIN}" \
+    branch_exists "${GF_STABLE}" \
+      && git_branch "${1}" "${GF_STABLE}" \
       && return
     git_branch "${1}"
   }
@@ -344,7 +339,7 @@ function main {
   function merge_fromto {
     local stream
     stream='upwards'
-    [[ "${1}" == "${GF_MAIN}" || "${2}" == "${GF_DEV}" ]] \
+    [[ "${1}" == "${GF_STABLE}" || "${2}" == "${GF_DEV}" ]] \
       && stream='downwards'
     msg_start "Merging '${1}' to '${2}' (${stream})."
     is_merged_to "${1}" "${2}" \
@@ -450,26 +445,26 @@ function main {
       && err 'Folder is not empty.' 3
     msg_start 'Initializing repository'
     # this requires newer git version
-    #git_init --initial-branch="${GF_MAIN}"
+    #git_init --initial-branch="${GF_STABLE}"
     ! git_repo_exists \
       && git_init . \
-      && git symbolic-ref HEAD "refs/heads/${GF_MAIN}"
+      && git symbolic-ref HEAD "refs/heads/${GF_STABLE}"
     git_commit --allow-empty -m 'Initial empty commit'
     msg_done
   }
 
   function validate_tag {
     local ver
-    ver=$(load_version "${GF_MAIN}")
-    has_tag "${GF_MAIN}" "${ver}" \
-      && [[ $(git_rev_list "${REFSTAGS}/${ver}") == "$(latest_commit "${GF_MAIN}")" ]] \
+    ver=$(load_version "${GF_STABLE}")
+    has_tag "${GF_STABLE}" "${ver}" \
+      && [[ $(git_rev_list "${REFSTAGS}/${ver}") == "$(latest_commit "${GF_STABLE}")" ]] \
       && return
-    has_tag "${GF_MAIN}" "${ver}" \
+    has_tag "${GF_STABLE}" "${ver}" \
       && err "Invalid version tag '${ver}' commit." 4
     [[ ${conform} == 0 ]] \
       && err "Missing version tag '${ver}'." 3
     confirm 'Create a version tag?'
-    git_tag "${ver}" "${GF_MAIN}"
+    git_tag "${ver}" "${GF_STABLE}"
   }
 
   # 1) validate ${GF_DEV} branch
@@ -485,16 +480,16 @@ function main {
 
   function validate_staging_branch {
     local verm verr
-    verm=$(load_version "${GF_MAIN}")
+    verm=$(load_version "${GF_STABLE}")
     verr=$(load_version "${GF_STAGING}")
     version_gt "${verr%.*}" "${verm%.*}" \
       && validate_merged_to "${GF_STAGING}" "${GF_DEV}" \
       && return
     [[ "${verr%.*}" == "${verm%.*}" ]] \
-      && validate_attached "${GF_STAGING}" "${GF_MAIN}" \
+      && validate_attached "${GF_STAGING}" "${GF_STABLE}" \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Branch '${GF_STAGING}' version is lower than '${GF_MAIN}'." 3
+      && err "Branch '${GF_STAGING}' version is lower than '${GF_STABLE}'." 3
     confirm "Update the ${GF_STAGING} version?"
     update_version "${GF_STAGING}" "$(increment_version "${verm}" minor)"
   }
@@ -584,12 +579,12 @@ function main {
       && gcb=$(git_current_branch)
     validate_repository
     validate_status_empty
-    GF_MAIN=$(find_branch_or_first "${GF_MAIN}" main master production prod live)
-    GF_STAGING=$(find_branch_or_first "${GF_STAGING}" staging release rc release-candidate preprod)
-    GF_DEV=$(find_branch_or_first "${GF_DEV}" dev devel develop next)
-    validate_branch "${GF_MAIN}"
-    validate_verfile "${GF_MAIN}"
-    validate_changelog "${GF_MAIN}"
+    GF_STABLE=$(find_branch_or_first "${GF_STABLE}" "${STABLE_ARR[@]}")
+    GF_STAGING=$(find_branch_or_first "${GF_STAGING}" "${STAGING_ARR[@]}")
+    GF_DEV=$(find_branch_or_first "${GF_DEV}" "${DEV_ARR[@]}")
+    validate_branch "${GF_STABLE}"
+    validate_verfile "${GF_STABLE}"
+    validate_changelog "${GF_STABLE}"
     validate_branch "${GF_STAGING}"
     validate_verfile "${GF_STAGING}"
     validate_changelog "${GF_STAGING}"
@@ -597,8 +592,8 @@ function main {
     validate_verfile "${GF_DEV}"
     validate_changelog "${GF_DEV}"
     validate_prod_branch
-    validate_merged_to "${GF_MAIN}" "${GF_STAGING}"
-    validate_merged_to "${GF_MAIN}" "${GF_DEV}"
+    validate_merged_to "${GF_STABLE}" "${GF_STAGING}"
+    validate_merged_to "${GF_STABLE}" "${GF_DEV}"
     validate_staging_branch
     validate_dev_branch
     validate_tag
@@ -607,7 +602,7 @@ function main {
 
   function prod_name {
     local ver
-    ver="${1:-$(load_version "${GF_MAIN}")}"
+    ver="${1:-$(load_version "${GF_STABLE}")}"
     echo "${GF_PROD}-${ver%%.*}"
   }
 
@@ -615,13 +610,13 @@ function main {
     local prod
     prod=$(prod_name)
     validate_branch "${prod}"
-    [[ $(git_rev_list "${REFSHEADS}/${prod}") == $(git_rev_list "${REFSHEADS}/${GF_MAIN}") ]] \
+    [[ $(git_rev_list "${REFSHEADS}/${prod}") == $(git_rev_list "${REFSHEADS}/${GF_STABLE}") ]] \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Branch '${prod}' is behind '${GF_MAIN}'." 3
-    confirm "Merge '${prod}' branch into '${GF_MAIN}'?"
+      && err "Branch '${prod}' is behind '${GF_STABLE}'." 3
+    confirm "Merge '${prod}' branch into '${GF_STABLE}'?"
     git_checkout "${prod}"
-    git_merge "${GF_MAIN}"
+    git_merge "${GF_STABLE}"
   }
 
   function unexpected_argument {
@@ -637,25 +632,38 @@ function main {
       || [[ -n ${1} && "${2}" == "${3}-${1}" ]]
   }
 
+  function get_keyword {
+    [[ " ${STABLE_ARR[*]} " == *" ${1} "* ]] \
+      && echo "${GF_STABLE}" \
+      && return
+    [[ " ${DEV_ARR[*]} " == *" ${1} "* ]] \
+      && echo "${GF_DEV}" \
+      && return
+    [[ " ${STAGING_ARR[*]} " == *" ${1} "* ]] \
+      && echo "${GF_STAGING}" \
+      && return
+    echo "${1}"
+  }
+
   function gf_process {
     [[ ${#} -gt 2 ]] \
       && err 'Too many arguments.' 2
     local gcb kw name
     gcb=$(git_current_branch)
-    kw=${1:-"${gcb%%-*}"}
+    kw=$(get_keyword "${1:-"${gcb%%-*}"}")
     name=${2:-"$(whoami)"}
     git check-ref-format "${REFSHEADS}/${name}" \
       || err "Invalid branch name format '${name}'." 2
     case "${kw,,}" in
-      ${PULL})
+      pull|fetch)
         unexpected_argument "${2-}"
         gf_pull
         ;;
-      ${PUSH})
+      push)
         unexpected_argument "${2-}"
         gf_push
         ;;
-      ${HOTFIX}|${GF_MAIN}|${GF_PROD})
+      ${HOTFIX}|${GF_STABLE}|${GF_PROD})
         is_releasable "${2-}" "${gcb}" "${HOTFIX}" \
           && release_hotfix \
           && return
@@ -722,7 +730,7 @@ function main {
   function hotfix_create {
     local gcb source
     gcb=$(git_current_branch)
-    source=${GF_MAIN}
+    source=${GF_STABLE}
     [[ "${gcb%%-*}" == "${GF_PROD}" ]] \
       && source=${gcb}
     confirm "* Create hotfix '${1}' from '${source}'?"
@@ -733,30 +741,30 @@ function main {
   function release_staging {
     # shellcheck disable=SC2015
     [[ ${request} == 1 ]] \
-      && confirm "* Request merge '${GF_STAGING}' to '${GF_MAIN}'?" \
-      || confirm "* Release '${GF_STAGING}' branch to '${GF_MAIN}'?"
-    is_merged_to "${GF_STAGING}" "${GF_MAIN}" \
+      && confirm "* Request merge '${GF_STAGING}' to '${GF_STABLE}'?" \
+      || confirm "* Release '${GF_STAGING}' branch to '${GF_STABLE}'?"
+    is_merged_to "${GF_STAGING}" "${GF_STABLE}" \
       && err 'Branch already released.' 6
     update_changelog_header
     git_commit -am 'Update control files'
-    merge_fromto "${GF_MAIN}" "${GF_STAGING}"
+    merge_fromto "${GF_STABLE}" "${GF_STAGING}"
     [[ ${request} == 1 ]] \
-      && gf_request "${GF_MAIN}" \
+      && gf_request "${GF_STABLE}" \
       && return
-    merge_fromto "${GF_STAGING}" "${GF_MAIN}"
+    merge_fromto "${GF_STAGING}" "${GF_STABLE}"
     msg_start 'Updating branching structure'
     git_tag "$(load_version)"
     git_checkout "${GF_STAGING}"
-    git_merge "${GF_MAIN}"
+    git_merge "${GF_STABLE}"
     local prod
     prod=$(prod_name)
     # shellcheck disable=SC2015
     branch_exists "${prod}" \
       && git_checkout "${prod}" \
-      && git_merge "${GF_MAIN}" \
+      && git_merge "${GF_STABLE}" \
       || git_branch "${prod}"
     msg_done
-    merge_fromto "${GF_MAIN}" "${GF_DEV}"
+    merge_fromto "${GF_STABLE}" "${GF_DEV}"
   }
 
   function get_diff_url {
@@ -820,10 +828,10 @@ function main {
   function add_changelog_entry {
     local tmpfile diff_url
     tmpfile="$(mktemp)"
-    diff_url="$(get_diff_url "${GF_MAIN}" "${GF_DEV}")"
+    diff_url="$(get_diff_url "${GF_STABLE}" "${GF_DEV}")"
     [[ -n "${diff_url}" ]] \
       && diff_url="[Unreleased]: ${diff_url}" \
-      || diff_url="[Unreleased]: ${GF_MAIN}..${GF_DEV}"
+      || diff_url="[Unreleased]: ${GF_STABLE}..${GF_DEV}"
     gawk -v keyword="${1}" -v message="${2}" -v diff_url="${diff_url}" \
       -v next_keywords="${CHANGELOG_KEYWORDS#*${1}}" '
       function print_unreleased () { print "## [Unreleased]" }
@@ -959,11 +967,11 @@ function main {
   function release_hotfix {
     local source dest vers verd
     source=$(git_current_branch)
-    dest=${GF_MAIN}
+    dest=${GF_STABLE}
     vers=$(load_version "${source}")
-    verd=$(load_version "${GF_MAIN}")
+    verd=$(load_version "${GF_STABLE}")
     [[ "${vers%%.*}" > "${verd%%.*}" ]] \
-      && err "Hotfix version is greater than '${GF_MAIN}'." 4
+      && err "Hotfix version is greater than '${GF_STABLE}'." 4
     [[ "${vers%%.*}" < "${verd%%.*}" ]] \
       && dest="$(prod_name "${vers}")" \
       && verd="$(load_version "${dest}")"
@@ -972,7 +980,7 @@ function main {
     is_merged_to "${source}" "${dest}" \
       && err 'Nothing to merge.' 6
     # shellcheck disable=SC2015
-    [[ "${dest}" == "${GF_MAIN}" ]] \
+    [[ "${dest}" == "${GF_STABLE}" ]] \
       && confirm '* Release the hotfix?' \
       || confirm "* Obsolete major version. Merge to branch '${dest}'?"
     msg_start 'Updating control files'
@@ -986,53 +994,54 @@ function main {
       && return
     merge_fromto "${source}" "${dest}"
     git_tag "$(load_version)"
-    [[ "${dest}" != "${GF_MAIN}" ]] \
+    [[ "${dest}" != "${GF_STABLE}" ]] \
       && delete_branch "${source}" \
       && return
     git_checkout "$(prod_name "${verd}")"
-    git_merge "${GF_MAIN}"
+    git_merge "${GF_STABLE}"
     verr=$(load_version "${GF_STAGING}")
     [[ "${verr%.*}" == "${verd%.*}" ]] \
       && git_checkout "${GF_STAGING}" \
-      && git_merge "${GF_MAIN}" \
-      && merge_fromto "${GF_MAIN}" "${GF_DEV}" \
+      && git_merge "${GF_STABLE}" \
+      && merge_fromto "${GF_STABLE}" "${GF_DEV}" \
       && delete_branch "${source}" \
       && return
-    merge_fromto "${GF_MAIN}" "${GF_STAGING}"
+    merge_fromto "${GF_STABLE}" "${GF_STAGING}"
     merge_fromto "${GF_STAGING}" "${GF_DEV}"
     delete_branch "${source}"
   }
 
   function gf_pull_branch {
-    branch_exists "${GF_ORIGIN}/${1}" \
-      || return
     git_fetch "${GF_ORIGIN}" "${1}:${1}"
   }
 
   function gf_pull {
     validate_git_remote
-    confirm '* Pull from the remote repository?'
+    confirm '* Pull key branches from the remote repository?'
+    msg_start 'Fetching key branches'
     git_fetch --tags
     gf_pull_branch "${GF_DEV}"
-    gf_pull_branch "${GF_MAIN}"
+    gf_pull_branch "${GF_STABLE}"
     gf_pull_branch "${GF_STAGING}"
-    local stable
-    for stable in $(git_branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
-      gf_pull_branch "${stable}"
+    for prod in $(git_branch -r | grep 'origin/' | grep -o "${GF_PROD}-[0-9]\+"); do
+      gf_pull_branch "${prod}"
     done
+    msg_done
   }
 
   function gf_push {
     validate_git_remote
     confirm '* Push to the remote repository?'
+    msg_start 'Pushing key branches'
     git_push --tags
     git_push "${GF_ORIGIN}" "${GF_DEV}"
-    git_push "${GF_ORIGIN}" "${GF_MAIN}"
+    git_push "${GF_ORIGIN}" "${GF_STABLE}"
     git_push "${GF_ORIGIN}" "${GF_STAGING}"
-    for stable in $(git_branch -r | grep 'origin/' | grep -o 'v[0-9]\+\.[0-9]\+'); do
-      branch_exists "${stable}" \
-        && git_push "${GF_ORIGIN}" "${stable}"
+    for prod in $(git_branch -r | grep 'origin/' | grep -o "${GF_PROD}-[0-9]\+"); do
+      branch_exists "${prod}" \
+        && git_push "${GF_ORIGIN}" "${prod}"
     done
+    msg_done
   }
 
   function gf_request {
@@ -1126,7 +1135,7 @@ function main {
         echo '*'
         echo "* 1. Checkout to an existing branch, e.g. to '${GF_DEV}'."
         ;;
-      ${GF_MAIN}|${GF_PROD})
+      ${GF_STABLE}|${GF_PROD})
         echo '* This is considered a read-only stable branch.'
         echo '* Do not commit any changes directly to this branch ever!'
         echo '*'
@@ -1178,12 +1187,13 @@ function main {
   declare -r BITBUCKET='bitbucket.org'
   declare -r HOTFIX='hotfix'
   declare -r FEATURE='feature'
-  declare -r PULL='pull'
-  declare -r PUSH='push'
   declare -r FIXABLE='This appears to be fixable with the --conform option.'
   declare -r CHANGELOG_KEYWORDS='Added Changed Deprecated Removed Fixed Security'
   declare -r REFSHEADS='refs/heads'
   declare -r REFSTAGS='refs/tags'
+  declare -r STABLE_ARR=(main master production prod live)
+  declare -r STAGING_ARR=(staging release rc release-candidate preprod)
+  declare -r DEV_ARR=(dev devel develop next)
   declare USAGE
   USAGE=$(gf_usage)
   declare VERSION
