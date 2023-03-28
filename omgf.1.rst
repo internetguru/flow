@@ -29,7 +29,7 @@ OMGF is an alternative to the *git-flow cheatsheet*\ [3] command with the follow
 
 * It supports **merge requests** (pull requests) for GitHub and GitLab.
 
-* It controls **semantic versioning**\ [4] in a ``VERSION`` file.
+* It controls **semantic versioning**\ [4] in a VERSION file.
 
 * It keeps track of release history following the **Keep a CHANGELOG**\ [5] convention.
 
@@ -223,9 +223,7 @@ Copyright (C) 2016--2023 `Internet Guru <https://www.internetguru.io>`__
 LICENSE
 =======
 
-This software is licensed under the CC BY-NC-SA license. Visit the following link for details.
-
-`Creative Commons Attribution-NonCommercial-ShareAlike <https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode>`__
+This software is licensed under the CC BY-NC-SA license. See the LICENSE file.
 
 For commercial use of this software, training, and custom development, please contact us at info@internetguru.io
 
