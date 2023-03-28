@@ -1123,13 +1123,14 @@ function main {
   function what_now {
     [[ ${#} -gt 0 ]] \
       && err 'Unexpected arguments.' 2
-    local gcb
+    local gcb kw
     gcb=$(git_current_branch)
+    kw=$(get_keyword "${gcb%%-*}")
     stdout_verbose
     echo '***'
     echo "* Currently on '${gcb}'"
     echo '*'
-    case ${gcb%%-*} in
+    case ${kw} in
       HEAD)
         echo '* You are detached from branches with no direct git flow action.'
         echo '*'
