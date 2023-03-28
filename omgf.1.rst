@@ -219,46 +219,33 @@ COPYRIGHT
 
 Copyright (C) 2016--2023 `Internet Guru <https://www.internetguru.io>`__
 
-`License GPLv3 <https://www.gnu.org/licenses/gpl-3.0.html>`__ or later
+This software is licensed under the CC BY-NC-SA license.
 
-This is a free software. You are free to change and redistribute it.
 
-There is NO WARRANTY, to the extent permitted by law.
+LICENSE
+=======
+
+This project is licensed under the CC BY-NC-SA license - see the [LICENSE.md](LICENSE.md) file for details.
+
+For commercial use of this software, training, and development, please contact us at the following email:
+
+-  info@internetguru.io
 
 
 DONATION
 ========
 
-If you find this program useful, please **send a donation** to its developers
-to support their work. If you use this program at your workplace, please
-suggest that the company make a donation. We appreciate contributions of any
-size. Donations enable us to spend more time working on this package, and help
-cover our infrastructure expenses.
+If you find this script useful, please **consider a donation** to its developers. We appreciate contributions of any size. Donations allow us to spend more time working on this project, and help cover our infrastructure expenses.
 
-If you'd like to make a donation of any value, please send it to the following
-PayPal address:
+`PayPal Donation <https://www.paypal.com/donate/?hosted_button_id=QC7HU967R4PHC>`__
 
-`PayPal Donation <https://www.paypal.com/cgi-bin/webscr?cmd=__s-xclick&hosted__button__id=G6A49JPWQKG7A>`__
+Since we aren't a tax-exempt organization, we can't offer you a tax deduction. But for all donations over $500, we'd be happy to recognize your contribution on the **OMGF** page[1] and in this README file (including the manual page) for the next period of time.
 
-Since we aren't a tax-exempt organization, we can't offer you a tax deduction.
-But for all donations over 50 USD, we'd be happy to recognize your
-contribution on the **OMGF** page[1] and on this README file (including manual
-page) for the next release.
-
-We are also happy to consider making particular improvements or changes, or
-giving specific technical assistance, in return for a substantial donation
-over 100 USD. If you would like to discuss this possibility, write us at
-info@internetguru.io.
-
-Another possibility is to pay a software maintenance fee. Again, write us
-about this at info@internetguru.io to discuss how much you want to pay and how
-much maintenance we can offer in return.
-
-Thanks for your support!
+Thank you for your support!
 
 
-DONORS
-======
+HONORED DONORS
+==============
 
 `Faculty of Information Technology, CTU Prague <https://www.fit.cvut.cz/en>`__
 
