@@ -53,7 +53,7 @@ function load_log {
   IFS=$'\n' read -d '' -r -a loglines <<< "${log}" || return 0
 }
 
-export OMGF_OPTIONS=""
+export FLOW_OPTIONS=""
 export COLUMNS=30
 
 #local i curdir ref log loglines chglog chgloglines
@@ -69,45 +69,45 @@ status=
 #######################################
 ## Integration
 #######################################
-# TODO test omgf help on macOs, now it is skipped due to issue https://github.com/InternetGuru/omgf/issues/66
+# TODO test flow help on macOs, now it is skipped due to issue https://github.com/InternetGuru/flow/issues/66
 : $((i++))
-start "omgf help"
+start "flow help"
   take "${i}"
-  debug "omgf --help"
+  debug "flow --help"
   assert_equal "${status}" 0
-  assert_startwith "${outlines[0]}" "Usage: omgf [-"
+  assert_startwith "${outlines[0]}" "Usage: flow [-"
   assert_startwith "${outlines[1]}" "  -c, --conform"
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 3
 end
 #######################################
 : $((i++))
-start "omgf --version shows version"
+start "flow --version shows version"
   take "${i}"
-  debug "omgf --version"
+  debug "flow --version"
   assert_equal "${status}" 0
-  assert_startwith "${outlines[0]}" "OMGF "
-  debug "omgf -n"
+  assert_startwith "${outlines[0]}" "flow "
+  debug "flow -n"
   assert_equal "${status}" 3
 end
 #######################################
 : $((i++))
-start "omgf -V shows version"
+start "flow -V shows version"
   take "${i}"
-  debug "omgf -V"
+  debug "flow -V"
   assert_equal "${status}" 0
-  assert_startwith "${outlines[0]}" "OMGF "
-  debug "omgf -n"
+  assert_startwith "${outlines[0]}" "flow "
+  debug "flow -n"
   assert_equal "${status}" 3
 end
 #######################################
 # : $((i++))
-# start "man omgf"
+# start "man flow"
 #   take "${i}"
-#   debug "man 2>/dev/null omgf"
+#   debug "man 2>/dev/null flow"
 #   assert_equal "${status}" 0
 #   assert_startwith "${outlines[0]}" "GF(1)"
-#   debug "omgf -n"
+#   debug "flow -n"
 #   assert_equal "${status}" 0
 # end
 #######################################
@@ -116,17 +116,17 @@ end
 : $((i++))
 start "invalid option error code"
   take "${i}"
-  debug "omgf --invalid-option"
+  debug "flow --invalid-option"
   assert_equal "${status}" 2
   assert_contains "${errlines[0]}" "unrecognized option"
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 3
 end
 #######################################
 : $((i++))
 start "missing git error code"
   take "${i}"
-  debug "omgf"
+  debug "flow"
   assert_equal "${status}" 3
   # shellcheck disable=SC2154
   assert_contains "${errlines[0]}" "Git repository not found."
@@ -135,11 +135,11 @@ end
 : $((i++))
 start "missing branch dev error code"
   take "${i}"
-  { omgf -iy \
+  { flow -iy \
     && gch main \
     && git branch -D dev
   } >/dev/null 2>&1
-  debug "omgf"
+  debug "flow"
   assert_equal "${status}" 3
   assert_contains "${errlines[0]}" "Local branch 'dev' not found."
 end
@@ -147,11 +147,11 @@ end
 : $((i++))
 start "missing VERSION file error code"
   take "${i}"
-  { omgf -iy \
+  { flow -iy \
     && rm VERSION \
     && git commit -am "delete VERSION file"
   } >/dev/null
-  debug "omgf"
+  debug "flow"
   assert_equal "${status}" 3
   assert_contains "${errlines[0]}" "Missing or empty file 'VERSION'."
 end
@@ -159,16 +159,16 @@ end
 : $((i++))
 start "dev is behind main error code"
   take "${i}"
-  { omgf -iy \
+  { flow -iy \
     && echo a > a \
     && git add a \
     && git commit -am "add file a" \
-    && omgf staging --yes \
-    && omgf staging --yes \
+    && flow staging --yes \
+    && flow staging --yes \
     && gch dev \
     && git reset --hard HEAD~1
   } >/dev/null
-  debug "omgf -v"
+  debug "flow -v"
   assert_equal "${status}" 3
   assert_contains "${errlines[0]}" "Branch 'main' is not merged to 'dev'."
 end
@@ -176,10 +176,10 @@ end
 : $((i++))
 start "uncommitted changes error code"
   take "${i}"
-  { omgf -iy \
+  { flow -iy \
     && echo a > a
   } >/dev/null
-  debug "omgf"
+  debug "flow"
   assert_equal "${status}" 5
   assert_contains "${errlines[0]}" "Uncommitted changes."
 end
@@ -187,15 +187,15 @@ end
 : $((i++))
 start "version change on dev"
   take "${i}"
-  { omgf -iy \
+  { flow -iy \
     && echo 1.0.0 > VERSION \
     && git commit -am "bump version" \
-    && omgf --yes hotfix a \
+    && flow --yes hotfix a \
     && echo a > a \
     && git add . \
     && git commit -am "fix a"
   } >/dev/null
-  debug "echo '' | omgf --yes"
+  debug "echo '' | flow --yes"
   assert_equal "${status}" 0
   load_log
   assert_contains "${log}" "(HEAD -> dev) Merge branch 'main' into dev"
@@ -207,7 +207,7 @@ start "version change on dev"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/hotfix-a)" ""
   assert_equal "$(gsp)" ""
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 0
 end
 #######################################
@@ -216,7 +216,7 @@ end
 : $((i++))
 start "dry run"
   take "${i}"
-  debug "omgf --dry-run"
+  debug "flow --dry-run"
   assert_equal "${status}" 3
   assert_contains "${errlines[0]}" "Git repository not found."
 end
@@ -224,7 +224,7 @@ end
 : $((i++))
 start "dry run and invalid option"
   take "${i}"
-  debug "omgf --dry-run --invalid-option"
+  debug "flow --dry-run --invalid-option"
   assert_equal "${status}" 2
   assert_contains "${errlines[0]}" "unrecognized option"
 end
@@ -234,13 +234,13 @@ end
 : $((i++))
 start "init on empty folder"
   take "${i}"
-  debug "omgf --init --yes"
+  debug "flow --init --yes"
   assert_equal "${status}" 0
   checkInitFiles
   gref
   checkInitRefs
   assert_equal "$(gsp)" ""
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 0
 end
 #######################################
@@ -250,7 +250,7 @@ start "init on non-empty folder"
   { touch a \
     && touch b
   } >/dev/null
-  debug "omgf --init --yes"
+  debug "flow --init --yes"
   assert_equal "${status}" 3
   assert_contains "${errlines[0]}" "Folder is not empty."
 end
@@ -262,13 +262,13 @@ start "init on non-empty folder with stash"
     && touch b \
     && echo b > .gitignore
   } >/dev/null
-  debug "omgf --init --yes --stash"
+  debug "flow --init --yes --stash"
   assert_equal "${status}" 0
   checkInitFiles
   gref
   checkInitRefs
   assert_equal "$(gsp | wc -l)" 2
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 5
 end
 #######################################
@@ -280,13 +280,13 @@ start "init on existing repo with commits"
     && git add . \
     && git commit -am "first commit.."
   } >/dev/null
-  debug "omgf -v --init --yes"
+  debug "flow -v --init --yes"
   assert_equal "${status}" 0
   checkInitFiles master
   gref
   checkInitRefs master
   assert_equal "$(gsp)" ""
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 0
 end
 #######################################
@@ -296,7 +296,7 @@ start "init on existing repo uncommitted"
   { git init \
     && echo a > a
   } >/dev/null
-  debug "omgf -v --init --yes"
+  debug "flow -v --init --yes"
   assert_equal "${status}" 3
   assert_contains "${errlines[0]}" "Folder is not empty."
 end
@@ -307,13 +307,13 @@ start "init on existing repo without commits with --stash"
   { git init \
     && echo a > a
   } >/dev/null
-  debug "omgf -v --init --yes --stash"
+  debug "flow -v --init --yes --stash"
   assert_equal "${status}" 0
   checkInitFiles master
   gref
   checkInitRefs master
   assert_equal "$(gsp)" "A  a"
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 5
 end
 #######################################
@@ -322,7 +322,7 @@ end
 : $((i++))
 start "conform on empty folder"
   take "${i}"
-  debug "yes no | omgf --conform --yes"
+  debug "yes no | flow --conform --yes"
   assert_equal "${status}" 3
   assert_contains "${errlines[0]}" "Git repository not found."
 end
@@ -333,7 +333,7 @@ start "conform on existing repo without commits"
   { git init \
     && echo a > a
   } >/dev/null
-  debug "omgf --conform --yes"
+  debug "flow --conform --yes"
   assert_equal "${status}" 3
   assert_contains "${errlines[0]}" "Missing initial commit."
 end
@@ -347,14 +347,14 @@ start "init on existing repo with commits and --stash"
     && git commit -am "first commit" \
     && echo b > b
   } >/dev/null
-  debug "omgf --init --yes --stash --yes"
+  debug "flow --init --yes --stash --yes"
   assert_equal "${status}" 0
   checkInitFiles master
   gref
   #checkInitRefs
   assert_equal "$(git_current_branch)" "dev"
   assert_equal "$(gsp | wc -l)" 1
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 5
 end
 #######################################
@@ -367,14 +367,14 @@ start "conform on existing repo with commits and --stash"
     && git commit -am "first commit" \
     && echo b > b
   } >/dev/null
-  debug "omgf --conform --stash --yes"
+  debug "flow --conform --stash --yes"
   assert_equal "${status}" 0
   checkInitFiles master
   gref
   #checkInitRefs
   assert_equal "$(git_current_branch)" "hotfix-$(whoami)"
   assert_equal "$(gsp | wc -l)" 1
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 5
 end
 #######################################
@@ -383,41 +383,41 @@ end
 : $((i++))
 start "create feature"
   take "${i}"
-  { omgf --init --yes; } >/dev/null
-  debug "omgf -v --yes"
+  { flow --init --yes; } >/dev/null
+  debug "flow -v --yes"
   assert_equal "${status}" 0
   gref
   assert_contains "${ref}" "refs/heads/feature-$(whoami)"
   assert_equal "$(git_current_branch)" "feature-$(whoami)"
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 6
 end
 #######################################
 : $((i++))
 start "create feature with uncommited changes and --stash"
   take "${i}"
-  { omgf --init --yes \
+  { flow --init --yes \
     && echo a > a
   } >/dev/null
-  debug "omgf -v --yes --stash feature myfeature"
+  debug "flow -v --yes --stash feature myfeature"
   assert_equal "${status}" 0
   assert_contains "${outlines[0]}" "Stashing files"
   assert_equal "$(git_current_branch)" "feature-myfeature"
   assert_equal "$(gsp)" "A  a"
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 5
 end
 #######################################
 : $((i++))
 start "merge feature"
   take "${i}"
-  { omgf --init --yes \
-    && omgf --yes feature myfeature \
+  { flow --init --yes \
+    && flow --yes feature myfeature \
     && echo a > a \
     && git add . \
     && git commit -am "add feature 1"
   } >/dev/null
-  debug "echo 'feature1' | omgf --yes"
+  debug "echo 'feature1' | flow --yes"
   assert_equal "${status}" 0
   load_log
   assert_contains "${log}" "Update changelog"
@@ -427,17 +427,17 @@ start "merge feature"
   assert_equal "$(git show dev:CHANGELOG.md | head -8 | tail -1)" "### Added"
   assert_equal "$(git show dev:CHANGELOG.md | head -9 | tail -1)" " - feature1"
   assert_equal "$(gsp)" ""
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 0
 end
 #######################################
 : $((i++))
 start "merge empty feature"
   take "${i}"
-  { omgf --init --yes \
-    && omgf --yes feature myfeature
+  { flow --init --yes \
+    && flow --yes feature myfeature
   } >/dev/null
-  debug "omgf -v --yes"
+  debug "flow -v --yes"
   assert_equal "${status}" 6
   assert_contains "${errlines[0]}" "Nothing to merge."
 end
@@ -445,14 +445,14 @@ end
 : $((i++))
 start "merge feature with uncommitted changes and --stash"
   take "${i}"
-  { omgf --init --yes \
-    && omgf --yes feature myfeature \
+  { flow --init --yes \
+    && flow --yes feature myfeature \
     && echo a > a \
     && git add . \
     && git commit -am "add feature 1" \
     && echo b > b
   } >/dev/null
-  debug "echo 'feature1' | omgf --yes --stash"
+  debug "echo 'feature1' | flow --yes --stash"
   assert_equal "${status}" 0
   #assert_contains "${outlines[0]}" "Stashing files"
   load_log
@@ -461,18 +461,18 @@ start "merge feature with uncommitted changes and --stash"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/feature-myfeature)" ""
   assert_equal "$(gsp)" "A  b"
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 5
 end
 #######################################
 # start "merge feature with --request"
-#   { omgf --init --yes \
-#     && omgf --yes myfeature \
+#   { flow --init --yes \
+#     && flow --yes myfeature \
 #     && echo a > a \
 #     && git add . \
 #     && git commit -am "add feature 1"
 #   } >/dev/null
-#   debug "echo 'feature1' | omgf --yes --request"
+#   debug "echo 'feature1' | flow --yes --request"
 # fi
 #######################################
 ## RELEASE
@@ -480,12 +480,12 @@ end
 : $((i++))
 start "create staging"
   take "${i}"
-  { omgf --init --yes \
+  { flow --init --yes \
     && echo a > a \
     && git add . \
     && git commit -m "add file a"
   } >/dev/null
-  debug "omgf -v --yes staging"
+  debug "flow -v --yes staging"
   assert_equal "${status}" 0
   assert_equal "$(git show dev:VERSION)" "0.2.0"
   assert_equal "$(git show staging:VERSION)" "0.1.0"
@@ -494,60 +494,60 @@ start "create staging"
   gref
   assert_contains "${ref}" "refs/heads/staging"
   assert_equal "$(gsp)" ""
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 0
 end
 #######################################
 # : $((i++))
 # start "try create two stagings"
 #   take "${i}"
-#   { omgf --init --yes \
+#   { flow --init --yes \
 #     && echo a > a \
 #     && git add . \
 #     && git commit -m "add file a" \
-#     && omgf --yes staging \
+#     && flow --yes staging \
 #     && gch dev \
 #     && echo b > b \
 #     && git add . \
 #     && git commit -m "add file b"
 #   } >/dev/null 2>&1
-#   debug "omgf -v --yes staging"
+#   debug "flow -v --yes staging"
 #   assert_equal "${status}" 0
 #   assert_equal "$(git_current_branch)" "staging"
 #   assert_equal "$(gsp)" ""
-#   debug "omgf -n"
+#   debug "flow -n"
 #   assert_equal "${status}" 0
 # end
 #######################################
 : $((i++))
 start "staging with uncommited changes and --stash"
   take "${i}"
-  { omgf --init --yes \
+  { flow --init --yes \
     && echo a > a \
     && git add . \
     && git commit -m "add file a" \
     && echo b > b
   } >/dev/null
-  debug "omgf -v --yes --stash staging"
+  debug "flow -v --yes --stash staging"
   assert_equal "${status}" 0
   assert_contains "${outlines[0]}" "Stashing files"
   gref
   assert_contains "${ref}" "refs/heads/staging"
   assert_equal "$(gsp)" "A  b"
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 5
 end
 #######################################
 : $((i++))
 start "merge staging"
   take "${i}"
-  { omgf --init --yes \
+  { flow --init --yes \
     && echo a > a \
     && git add . \
     && git commit -m "add file a" \
-    && omgf --yes staging
+    && flow --yes staging
   } >/dev/null
-  debug "omgf -v --yes staging"
+  debug "flow -v --yes staging"
   assert_equal "${status}" 0
   assert_equal "$(git show dev:VERSION)" "0.2.0"
   assert_equal "$(git show staging:VERSION)" "0.1.0"
@@ -559,18 +559,18 @@ start "merge staging"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/staging)" ""
   assert_equal "$(gsp)" ""
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 0
 end
 #######################################
 : $((i++))
 start "invalid version number"
   take "${i}"
-  { omgf --init --yes \
+  { flow --init --yes \
     && echo 0.0.0 > VERSION \
     && git commit -am "version"
   } >/dev/null 2>&1
-  debug "omgf"
+  debug "flow"
   assert_equal "${status}" 3
   assert_contains "${errlines[0]}" "Branch 'dev' version is lower or equal to 'staging'."
 end
@@ -578,28 +578,28 @@ end
 : $((i++))
 start "invalid version number --conform"
   take "${i}"
-  { omgf --init --yes \
+  { flow --init --yes \
     && gch staging \
     && echo 1.0.0 > VERSION \
     && git commit -am "version"
   } >/dev/null 2>&1
-  debug "omgf --conform --yes"
+  debug "flow --conform --yes"
   assert_equal "${status}" 0
   assert_equal "$(cat VERSION)" "1.1.0"
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 0
 end
 #######################################
 : $((i++))
 start "unmerged changes on staging"
   take "${i}"
-  { omgf --init --yes \
+  { flow --init --yes \
     && gch staging \
     && touch a \
     && git add . \
     && git commit -am "version"
   } >/dev/null
-  debug "omgf --yes staging"
+  debug "flow --yes staging"
   assert_equal "${status}" 4
   assert_contains "${errlines[0]}" "Branch 'staging' is detached from 'main'."
 end
@@ -607,10 +607,10 @@ end
 # : $((i++))
 # start "merge staging with --request"
 #  take "${i}"
-#   { omgf --init --yes \
-#     && omgf --yes
+#   { flow --init --yes \
+#     && flow --yes
 #   } >/dev/null
-#   debug "omgf -v --yes --request"
+#   debug "flow -v --yes --request"
 # fi
 #######################################
 ## HOTFIX
@@ -618,56 +618,56 @@ end
 : $((i++))
 start "hotfix main"
   take "${i}"
-  { omgf -iy; } >/dev/null
-  debug "omgf -v --yes hotfix myhotfix"
+  { flow -iy; } >/dev/null
+  debug "flow -v --yes hotfix myhotfix"
   assert_equal "${status}" 0
   assert_equal "$(git_current_branch)" "hotfix-myhotfix"
   assert_equal "$(gsp)" ""
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 6
 end
 #######################################
 # : $((i++))
 # start "hotfix prod"
 #   take "${i}"
-#   { omgf -iy; } >/dev/null 2>&1
-#   debug "omgf --yes hotfix myhotfix"
+#   { flow -iy; } >/dev/null 2>&1
+#   debug "flow --yes hotfix myhotfix"
 #   assert_equal "${status}" 0
 #   assert_equal "$(git_current_branch)" "hotfix-myhotfix"
 #   assert_equal "$(gsp)" ""
-#   debug "omgf -n"
+#   debug "flow -n"
 #   assert_equal "${status}" 0
 # end
 #######################################
 # : $((i++))
 # start "hotfix stable by branch name"
 #   take "${i}"
-#   { omgf -iy \
+#   { flow -iy \
 #    && echo a > a \
 #    && git add . \
 #    && git commit -m "add file a" \
-#    && omgf --yes staging \
-#    && omgf --yes staging
+#    && flow --yes staging \
+#    && flow --yes staging
 #   } >/dev/null 2>&1
-#   debug "omgf -v --yes hotfix v0.0"
+#   debug "flow -v --yes hotfix v0.0"
 #   assert_equal "${status}" 0
 #   load_log
 #   assert_equal "$(git_current_branch)" "hotfix-${user}"
 #   assert_equal "$(gsp)" ""
-#   debug "omgf -n"
+#   debug "flow -n"
 #   assert_equal "${status}" 0
 # end
 #######################################
 : $((i++))
 start "merge main hotfix"
   take "${i}"
-  { omgf -iy \
-   && omgf --yes hotfix myhotfix \
+  { flow -iy \
+   && flow --yes hotfix myhotfix \
    && echo a > a \
    && git add . \
    && git commit -m "add file a";
   } >/dev/null
-  debug "echo '' | omgf --yes"
+  debug "echo '' | flow --yes"
   assert_equal "${status}" 0
   load_log
   assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'main' into dev"
@@ -678,22 +678,22 @@ start "merge main hotfix"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/hotfix-myhotfix)" ""
   assert_equal "$(gsp)" ""
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 0
 end
 #######################################
 : $((i++))
 start "merge hotfix with unmerged staging"
   take "${i}"
-  { omgf -iy \
-   && omgf --yes staging \
-   && omgf --yes hotfix myhotfix \
+  { flow -iy \
+   && flow --yes staging \
+   && flow --yes hotfix myhotfix \
    && echo b > b \
    && git add . \
    && git commit -m "add file b"
   } >/dev/null
   # assume conflicts
-  debug "echo '' | omgf --yes"
+  debug "echo '' | flow --yes"
   assert_equal "${status}" 0
   load_log
   assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'staging' into dev"
@@ -704,8 +704,8 @@ start "merge hotfix with unmerged staging"
   gref
   assert_equal "$(echo "${ref}" | grep /refs/heads/hotfix-myhotfix)" ""
   assert_equal "$(gsp)" ""
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 0
-  debug "omgf -n"
+  debug "flow -n"
   assert_equal "${status}" 0
 end

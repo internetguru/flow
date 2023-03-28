@@ -19,11 +19,11 @@ SYSTEM       ?= $(system)
 SHELL       := /bin/bash
 DIRNAME     := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 RST2MAN     := rst2man
-PROG        := omgf
-PROGSINGLE  := omgf.sh
-DATAPATHVAR := OMGF_DATAPATH
-USAGEVAR    := OMGF_USAGE
-VERSIONVAR  := OMGF_VERNUM
+PROG        := flow
+PROGSINGLE  := flow.sh
+DATAPATHVAR := FLOW_DATAPATH
+USAGEVAR    := FLOW_USAGE
+VERSIONVAR  := FLOW_VERNUM
 README      := README.md
 MANFILE     := $(PROG).1
 MANRST      := $(PROG).1.rst
@@ -78,7 +78,7 @@ compile:
 	@ # Extract text from README between headers and convert it to troff syntax
 	@ echo -n "Compiling man file ..."
 	@ { \
-	echo -n ".TH \"OMGF\" \"1\" "; \
+	echo -n ".TH \"FLOW\" \"1\" "; \
 	echo -n "\""; echo -n $$(stat -c %z $(MANRST) | cut -d" " -f1); echo -n "\" "; \
 	echo -n "\"User Manual\" "; \
 	echo -n "\"Version "; echo -n $$(cat $(VERFILE)); echo -n "\" "; \

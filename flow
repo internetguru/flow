@@ -6,20 +6,20 @@ set -u
 LINES=${LINES:-$(tput lines)}
 COLUMNS=${COLUMNS:-$(tput cols)}
 
-OMGF_DATAPATH=${OMGF_DATAPATH:-$(dirname "${BASH_SOURCE[0]}")}
-OMGF_USAGE=${OMGF_USAGE:-}
-OMGF_VERNUM=${OMGF_VERNUM:-}
-OMGF_VERFILE=${OMGF_VERFILE:-${OMGF_DATAPATH}/VERSION}
+FLOW_DATAPATH=${FLOW_DATAPATH:-$(dirname "${BASH_SOURCE[0]}")}
+FLOW_USAGE=${FLOW_USAGE:-}
+FLOW_VERNUM=${FLOW_VERNUM:-}
+FLOW_VERFILE=${FLOW_VERFILE:-${FLOW_DATAPATH}/VERSION}
 
-GF_CHANGELOG=${GF_CHANGELOG:-CHANGELOG.md}
-GF_VERFILE=${GF_VERFILE:-VERSION}
-GF_DEV=${GF_DEV:-dev}
-GF_STAGING=${GF_STAGING:-staging}
-GF_STABLE=${GF_STABLE:-main}
-GF_PROD=${GF_PROD:-prod}
-GF_ORIGIN=${GF_ORIGIN:-origin}
-GF_UPSTREAM=${GF_UPSTREAM:-${GF_ORIGIN}}
-GF_CHANGELOG_HEADER=${GF_CHANGELOG_HEADER:-'# Change Log
+REPO_CHANGELOG=${REPO_CHANGELOG:-CHANGELOG.md}
+REPO_VERFILE=${REPO_VERFILE:-VERSION}
+REPO_DEV=${REPO_DEV:-dev}
+REPO_STAGING=${REPO_STAGING:-staging}
+REPO_STABLE=${REPO_STABLE:-main}
+REPO_PROD=${REPO_PROD:-prod}
+REPO_ORIGIN=${REPO_ORIGIN:-origin}
+REPO_UPSTREAM=${REPO_UPSTREAM:-${REPO_ORIGIN}}
+REPO_CHANGELOG_HEADER=${REPO_CHANGELOG_HEADER:-'# Change Log
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
@@ -278,11 +278,11 @@ function main {
   }
 
   function create_branch {
-    branch_exists "${GF_ORIGIN}/${1}" \
-      && git_branch "${1}" "${GF_ORIGIN}/${1}" \
+    branch_exists "${REPO_ORIGIN}/${1}" \
+      && git_branch "${1}" "${REPO_ORIGIN}/${1}" \
       && return
-    branch_exists "${GF_STABLE}" \
-      && git_branch "${1}" "${GF_STABLE}" \
+    branch_exists "${REPO_STABLE}" \
+      && git_branch "${1}" "${REPO_STABLE}" \
       && return
     git_branch "${1}"
   }
@@ -301,8 +301,8 @@ function main {
   }
 
   function validate_git_remote {
-    git config remote."${GF_ORIGIN}".url >/dev/null \
-      || err "Remote url for '${GF_ORIGIN}' not found."
+    git config remote."${REPO_ORIGIN}".url >/dev/null \
+      || err "Remote url for '${REPO_ORIGIN}' not found."
   }
 
   function git_current_branch {
@@ -339,7 +339,7 @@ function main {
   function merge_fromto {
     local stream
     stream='upwards'
-    [[ "${1}" == "${GF_STABLE}" || "${2}" == "${GF_DEV}" ]] \
+    [[ "${1}" == "${REPO_STABLE}" || "${2}" == "${REPO_DEV}" ]] \
       && stream='downwards'
     msg_start "Merging '${1}' to '${2}' (${stream})."
     is_merged_to "${1}" "${2}" \
@@ -355,21 +355,21 @@ function main {
       && git_merge --no-ff "${1}" \
       && return
     git_merge_nocommit --no-ff --no-commit "${1}"
-    git_checkout --ours "${GF_VERFILE}"
+    git_checkout --ours "${REPO_VERFILE}"
     #TODO: resolve changelog automatically
-    #git_checkout --ours "${GF_CHANGELOG}"
+    #git_checkout --ours "${REPO_CHANGELOG}"
     git_add .
     git_merge --continue
   }
 
   function delete_remote_branch {
     msg_start "Deleting remote branch '${1}'"
-    ! branch_exists "${GF_ORIGIN}/${1}" \
+    ! branch_exists "${REPO_ORIGIN}/${1}" \
       && msg_pass \
       && return
     #TODO: used to be:
-    #git push "${GF_ORIGIN}" ":${REFSHEADS}/${1}" 2>&1
-    git push -d "${GF_ORIGIN}" "${1}"
+    #git push "${REPO_ORIGIN}" ":${REFSHEADS}/${1}" 2>&1
+    git push -d "${REPO_ORIGIN}" "${1}"
     msg_done
   }
 
@@ -385,7 +385,7 @@ function main {
   function load_version {
     local branch ver
     branch=${1:-$(git_current_branch)}
-    ver=$(git_show "${branch}:${GF_VERFILE}")
+    ver=$(git_show "${branch}:${REPO_VERFILE}")
     [[ "${ver}" =~ ^[0-9]+\.[0-9]+\.[0-9]$ ]] \
       || err "Invalid version format on branch '${branch}'." 4
     echo "${ver}"
@@ -422,9 +422,9 @@ function main {
     bash_ver="$(parse_version "$(bash --version 2>/dev/null)")"
     git_ver="$(parse_version "$(git --version 2>/dev/null)")"
     version_lte "${bash_minv}" "${bash_ver}" \
-      || err "OMGF requires Bash version ${bash_minv} or later (you have ${bash_ver:-no Bash installed})."
+      || err "Required bash version ${bash_minv} or later."
     version_lte "${git_minv}" "${git_ver}" \
-      || err "OMGF requires Git version ${git_minv} or later (you have ${git_ver:-no Git installed})."
+      || err "Required git version ${git_minv} or later."
   }
 
   # 1) validate repository existence
@@ -445,30 +445,30 @@ function main {
       && err 'Folder is not empty.' 3
     msg_start 'Initializing repository'
     # this requires newer git version
-    #git_init --initial-branch="${GF_STABLE}"
+    #git_init --initial-branch="${REPO_STABLE}"
     ! git_repo_exists \
       && git_init . \
-      && git symbolic-ref HEAD "refs/heads/${GF_STABLE}"
+      && git symbolic-ref HEAD "refs/heads/${REPO_STABLE}"
     git_commit --allow-empty -m 'Initial empty commit'
     msg_done
   }
 
   function validate_tag {
     local ver
-    ver=$(load_version "${GF_STABLE}")
-    has_tag "${GF_STABLE}" "${ver}" \
-      && [[ $(git_rev_list "${REFSTAGS}/${ver}") == "$(latest_commit "${GF_STABLE}")" ]] \
+    ver=$(load_version "${REPO_STABLE}")
+    has_tag "${REPO_STABLE}" "${ver}" \
+      && [[ $(git_rev_list "${REFSTAGS}/${ver}") == "$(latest_commit "${REPO_STABLE}")" ]] \
       && return
-    has_tag "${GF_STABLE}" "${ver}" \
+    has_tag "${REPO_STABLE}" "${ver}" \
       && err "Invalid version tag '${ver}' commit." 4
     [[ ${conform} == 0 ]] \
       && err "Missing version tag '${ver}'." 3
     confirm 'Create a version tag?'
-    git_tag "${ver}" "${GF_STABLE}"
+    git_tag "${ver}" "${REPO_STABLE}"
   }
 
-  # 1) validate ${GF_DEV} branch
-  # 2) validate ${GF_DEV} is up to date with master
+  # 1) validate ${REPO_DEV} branch
+  # 2) validate ${REPO_DEV} is up to date with master
   function validate_merged_to {
     is_merged_to "${1}" "${2}" \
       && return
@@ -480,18 +480,18 @@ function main {
 
   function validate_staging_branch {
     local verm verr
-    verm=$(load_version "${GF_STABLE}")
-    verr=$(load_version "${GF_STAGING}")
+    verm=$(load_version "${REPO_STABLE}")
+    verr=$(load_version "${REPO_STAGING}")
     version_gt "${verr%.*}" "${verm%.*}" \
-      && validate_merged_to "${GF_STAGING}" "${GF_DEV}" \
+      && validate_merged_to "${REPO_STAGING}" "${REPO_DEV}" \
       && return
     [[ "${verr%.*}" == "${verm%.*}" ]] \
-      && validate_attached "${GF_STAGING}" "${GF_STABLE}" \
+      && validate_attached "${REPO_STAGING}" "${REPO_STABLE}" \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Branch '${GF_STAGING}' version is lower than '${GF_STABLE}'." 3
-    confirm "Update the ${GF_STAGING} version?"
-    update_version "${GF_STAGING}" "$(increment_version "${verm}" minor)"
+      && err "Branch '${REPO_STAGING}' version is lower than '${REPO_STABLE}'." 3
+    confirm "Update the ${REPO_STAGING} version?"
+    update_version "${REPO_STAGING}" "$(increment_version "${verm}" minor)"
   }
 
   function validate_attached {
@@ -504,8 +504,8 @@ function main {
     gcb=$(git_current_branch)
     msg_start 'Updating version number'
     git_checkout "${1}"
-    echo "${2}" > "${GF_VERFILE}"
-    git_add "${GF_VERFILE}"
+    echo "${2}" > "${REPO_VERFILE}"
+    git_add "${REPO_VERFILE}"
     git_commit -am 'Update version number'
     msg_done
     git_checkout "${gcb}"
@@ -513,14 +513,14 @@ function main {
 
   function validate_dev_branch {
     local verd verr
-    verr=$(load_version "${GF_STAGING}")
-    verd=$(load_version "${GF_DEV}")
+    verr=$(load_version "${REPO_STAGING}")
+    verd=$(load_version "${REPO_DEV}")
     version_gt "${verd%.*}" "${verr%.*}" \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Branch '${GF_DEV}' version is lower or equal to '${GF_STAGING}'." 3
-    confirm "Update the ${GF_DEV} version?"
-    update_version "${GF_DEV}" "$(increment_version "${verr}" minor)"
+      && err "Branch '${REPO_DEV}' version is lower or equal to '${REPO_STAGING}'." 3
+    confirm "Update the ${REPO_DEV} version?"
+    update_version "${REPO_DEV}" "$(increment_version "${verr}" minor)"
   }
 
   # validate git status
@@ -534,26 +534,26 @@ function main {
   }
 
   function validate_changelog {
-    git_show_exists "${1}:${GF_CHANGELOG}" \
-      && [[ -n $(git_show "${1}:${GF_CHANGELOG}") ]] \
+    git_show_exists "${1}:${REPO_CHANGELOG}" \
+      && [[ -n $(git_show "${1}:${REPO_CHANGELOG}") ]] \
       && return
     local gcb
     gcb=$(git_current_branch)
     git_checkout "${1}"
-    init_file "${GF_CHANGELOG}" "${GF_CHANGELOG_HEADER}"
+    init_file "${REPO_CHANGELOG}" "${REPO_CHANGELOG_HEADER}"
     git_add .
     git_commit -am 'Add changelog file'
     git_checkout "${gcb}"
   }
 
   function validate_verfile {
-    git_show_exists "${1}:${GF_VERFILE}" \
+    git_show_exists "${1}:${REPO_VERFILE}" \
       && return
     local gcb
     gcb=$(git_current_branch)
     git_checkout "${1}"
-    init_file "${GF_VERFILE}" '0.0.0'
-    git_add "${GF_VERFILE}"
+    init_file "${REPO_VERFILE}" '0.0.0'
+    git_add "${REPO_VERFILE}"
     git_commit -am 'Add version file'
     git_checkout "${gcb}"
   }
@@ -565,7 +565,7 @@ function main {
         && return
     done
     for branch in "${@}"; do
-      branch_exists "${GF_ORIGIN}/${branch}" \
+      branch_exists "${REPO_ORIGIN}/${branch}" \
         && echo "${branch}" \
         && return
     done
@@ -573,27 +573,27 @@ function main {
   }
 
   function gf_validate {
-    local gcb=${GF_DEV}
+    local gcb=${REPO_DEV}
     validate_requirements
     git_repo_exists \
       && gcb=$(git_current_branch)
     validate_repository
     validate_status_empty
-    GF_STABLE=$(find_branch_or_first "${GF_STABLE}" "${STABLE_ARR[@]}")
-    GF_STAGING=$(find_branch_or_first "${GF_STAGING}" "${STAGING_ARR[@]}")
-    GF_DEV=$(find_branch_or_first "${GF_DEV}" "${DEV_ARR[@]}")
-    validate_branch "${GF_STABLE}"
-    validate_verfile "${GF_STABLE}"
-    validate_changelog "${GF_STABLE}"
-    validate_branch "${GF_STAGING}"
-    validate_verfile "${GF_STAGING}"
-    validate_changelog "${GF_STAGING}"
-    validate_branch "${GF_DEV}"
-    validate_verfile "${GF_DEV}"
-    validate_changelog "${GF_DEV}"
+    REPO_STABLE=$(find_branch_or_first "${REPO_STABLE}" "${STABLE_ARR[@]}")
+    REPO_STAGING=$(find_branch_or_first "${REPO_STAGING}" "${STAGING_ARR[@]}")
+    REPO_DEV=$(find_branch_or_first "${REPO_DEV}" "${DEV_ARR[@]}")
+    validate_branch "${REPO_STABLE}"
+    validate_verfile "${REPO_STABLE}"
+    validate_changelog "${REPO_STABLE}"
+    validate_branch "${REPO_STAGING}"
+    validate_verfile "${REPO_STAGING}"
+    validate_changelog "${REPO_STAGING}"
+    validate_branch "${REPO_DEV}"
+    validate_verfile "${REPO_DEV}"
+    validate_changelog "${REPO_DEV}"
     validate_prod_branch
-    validate_merged_to "${GF_STABLE}" "${GF_STAGING}"
-    validate_merged_to "${GF_STABLE}" "${GF_DEV}"
+    validate_merged_to "${REPO_STABLE}" "${REPO_STAGING}"
+    validate_merged_to "${REPO_STABLE}" "${REPO_DEV}"
     validate_staging_branch
     validate_dev_branch
     validate_tag
@@ -602,21 +602,21 @@ function main {
 
   function prod_name {
     local ver
-    ver="${1:-$(load_version "${GF_STABLE}")}"
-    echo "${GF_PROD}-${ver%%.*}"
+    ver="${1:-$(load_version "${REPO_STABLE}")}"
+    echo "${REPO_PROD}-${ver%%.*}"
   }
 
   function validate_prod_branch {
     local prod
     prod=$(prod_name)
     validate_branch "${prod}"
-    [[ $(git_rev_list "${REFSHEADS}/${prod}") == $(git_rev_list "${REFSHEADS}/${GF_STABLE}") ]] \
+    [[ $(git_rev_list "${REFSHEADS}/${prod}") == $(git_rev_list "${REFSHEADS}/${REPO_STABLE}") ]] \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Branch '${prod}' is behind '${GF_STABLE}'." 3
-    confirm "Merge '${prod}' branch into '${GF_STABLE}'?"
+      && err "Branch '${prod}' is behind '${REPO_STABLE}'." 3
+    confirm "Merge '${prod}' branch into '${REPO_STABLE}'?"
     git_checkout "${prod}"
-    git_merge "${GF_STABLE}"
+    git_merge "${REPO_STABLE}"
   }
 
   function unexpected_argument {
@@ -634,13 +634,13 @@ function main {
 
   function get_keyword {
     [[ " ${STABLE_ARR[*]} " == *" ${1} "* ]] \
-      && echo "${GF_STABLE}" \
+      && echo "${REPO_STABLE}" \
       && return
     [[ " ${DEV_ARR[*]} " == *" ${1} "* ]] \
-      && echo "${GF_DEV}" \
+      && echo "${REPO_DEV}" \
       && return
     [[ " ${STAGING_ARR[*]} " == *" ${1} "* ]] \
-      && echo "${GF_STAGING}" \
+      && echo "${REPO_STAGING}" \
       && return
     echo "${1}"
   }
@@ -663,7 +663,7 @@ function main {
         unexpected_argument "${2-}"
         gf_push
         ;;
-      ${HOTFIX}|${GF_STABLE}|${GF_PROD})
+      ${HOTFIX}|${REPO_STABLE}|${REPO_PROD})
         is_releasable "${2-}" "${gcb}" "${HOTFIX}" \
           && release_hotfix \
           && return
@@ -671,7 +671,7 @@ function main {
           && return
         hotfix_create "${HOTFIX}-${name}"
         ;;
-      ${FEATURE}|${GF_DEV})
+      ${FEATURE}|${REPO_DEV})
         is_releasable "${2-}" "${gcb}" "${FEATURE}" \
           && release_feature \
           && return
@@ -679,17 +679,17 @@ function main {
           && return
         feature_create "${FEATURE}-${name}"
         ;;
-      ${GF_STAGING})
+      ${REPO_STAGING})
         unexpected_argument "${2-}"
-        [[ "${gcb}" == "${GF_DEV}" ]] \
+        [[ "${gcb}" == "${REPO_DEV}" ]] \
           && release_dev \
           && return
-        [[ "${gcb}" == "${GF_STAGING}" ]] \
+        [[ "${gcb}" == "${REPO_STAGING}" ]] \
           && release_staging \
           && return
         checkout_if_exists "${FEATURE}-${name}" \
           && return
-        err "Required branch '${GF_STAGING}' not found."
+        err "Required branch '${REPO_STAGING}' not found."
         ;;
       *)
         err 'Unknown keyword or branch.' 2
@@ -705,17 +705,17 @@ function main {
   }
 
   function release_dev {
-    confirm "* Release '${GF_DEV}' branch?"
+    confirm "* Release '${REPO_DEV}' branch?"
     #TODO: technically this check is irrelevant
-    is_merged_to "${GF_STAGING}" "${GF_DEV}" \
+    is_merged_to "${REPO_STAGING}" "${REPO_DEV}" \
       || err 'Branch already released.' 6
     update_changelog_header
     git_commit -am 'Add changelog header'
-    merge_fromto "${GF_DEV}" "${GF_STAGING}"
-    merge_fromto "${GF_STAGING}" "${GF_DEV}"
-    increment_version "$(load_version)" minor > "${GF_VERFILE}"
+    merge_fromto "${REPO_DEV}" "${REPO_STAGING}"
+    merge_fromto "${REPO_STAGING}" "${REPO_DEV}"
+    increment_version "$(load_version)" minor > "${REPO_VERFILE}"
     git_commit -am 'Increment minor version'
-    git_checkout "${GF_STAGING}"
+    git_checkout "${REPO_STAGING}"
   }
 
   function feature_create {
@@ -723,15 +723,15 @@ function main {
     feature_name="${1}"
     checkout_if_exists "${feature_name}" \
       && return
-    confirm "* Create branch '${feature_name}' from branch '${GF_DEV}'?"
+    confirm "* Create branch '${feature_name}' from branch '${REPO_DEV}'?"
     checkout_branch "${feature_name}"
   }
 
   function hotfix_create {
     local gcb source
     gcb=$(git_current_branch)
-    source=${GF_STABLE}
-    [[ "${gcb%%-*}" == "${GF_PROD}" ]] \
+    source=${REPO_STABLE}
+    [[ "${gcb%%-*}" == "${REPO_PROD}" ]] \
       && source=${gcb}
     confirm "* Create hotfix '${1}' from '${source}'?"
     git_checkout "${source}"
@@ -741,35 +741,35 @@ function main {
   function release_staging {
     # shellcheck disable=SC2015
     [[ ${request} == 1 ]] \
-      && confirm "* Request merge '${GF_STAGING}' to '${GF_STABLE}'?" \
-      || confirm "* Release '${GF_STAGING}' branch to '${GF_STABLE}'?"
-    is_merged_to "${GF_STAGING}" "${GF_STABLE}" \
+      && confirm "* Request merge '${REPO_STAGING}' to '${REPO_STABLE}'?" \
+      || confirm "* Release '${REPO_STAGING}' branch to '${REPO_STABLE}'?"
+    is_merged_to "${REPO_STAGING}" "${REPO_STABLE}" \
       && err 'Branch already released.' 6
     update_changelog_header
     git_commit -am 'Update control files'
-    merge_fromto "${GF_STABLE}" "${GF_STAGING}"
+    merge_fromto "${REPO_STABLE}" "${REPO_STAGING}"
     [[ ${request} == 1 ]] \
-      && gf_request "${GF_STABLE}" \
+      && gf_request "${REPO_STABLE}" \
       && return
-    merge_fromto "${GF_STAGING}" "${GF_STABLE}"
+    merge_fromto "${REPO_STAGING}" "${REPO_STABLE}"
     msg_start 'Updating branching structure'
     git_tag "$(load_version)"
-    git_checkout "${GF_STAGING}"
-    git_merge "${GF_STABLE}"
+    git_checkout "${REPO_STAGING}"
+    git_merge "${REPO_STABLE}"
     local prod
     prod=$(prod_name)
     # shellcheck disable=SC2015
     branch_exists "${prod}" \
       && git_checkout "${prod}" \
-      && git_merge "${GF_STABLE}" \
+      && git_merge "${REPO_STABLE}" \
       || git_branch "${prod}"
     msg_done
-    merge_fromto "${GF_STABLE}" "${GF_DEV}"
+    merge_fromto "${REPO_STABLE}" "${REPO_DEV}"
   }
 
   function get_diff_url {
     local url
-    url="$(trim_url "$(git config remote."${GF_ORIGIN}".url)")"
+    url="$(trim_url "$(git config remote."${REPO_ORIGIN}".url)")"
     case "${url}" in
       *"${GITHUB}"*)
         echo "https://${url}/compare/${1}...${2}"
@@ -818,8 +818,8 @@ function main {
         if(writemsg==1) { print header }
         if(writeurl==1) { print ""; print diff_url }
       }
-      ' "${GF_CHANGELOG}" > "${tmpfile}"
-    cat "${tmpfile}" > "${GF_CHANGELOG}"
+      ' "${REPO_CHANGELOG}" > "${tmpfile}"
+    cat "${tmpfile}" > "${REPO_CHANGELOG}"
     msg_done
   }
 
@@ -828,10 +828,10 @@ function main {
   function add_changelog_entry {
     local tmpfile diff_url
     tmpfile="$(mktemp)"
-    diff_url="$(get_diff_url "${GF_STABLE}" "${GF_DEV}")"
+    diff_url="$(get_diff_url "${REPO_STABLE}" "${REPO_DEV}")"
     [[ -n "${diff_url}" ]] \
       && diff_url="[Unreleased]: ${diff_url}" \
-      || diff_url="[Unreleased]: ${GF_STABLE}..${GF_DEV}"
+      || diff_url="[Unreleased]: ${REPO_STABLE}..${REPO_DEV}"
     gawk -v keyword="${1}" -v message="${2}" -v diff_url="${diff_url}" \
       -v next_keywords="${CHANGELOG_KEYWORDS#*${1}}" '
       function print_unreleased () { print "## [Unreleased]" }
@@ -875,8 +875,8 @@ function main {
         }
         if(writeurl==1) { print diff_url }
       }
-    ' "${GF_CHANGELOG}" > "${tmpfile}"
-    cat "${tmpfile}" > "${GF_CHANGELOG}"
+    ' "${REPO_CHANGELOG}" > "${tmpfile}"
+    cat "${tmpfile}" > "${REPO_CHANGELOG}"
   }
 
   # 1: default keyword
@@ -890,7 +890,7 @@ function main {
     stdout_verbose
     echo
     echo '***'
-    echo "* Please enter the ${gcb} description for ${GF_CHANGELOG}."
+    echo "* Please enter the ${gcb} description for ${REPO_CHANGELOG}."
     echo '*'
     echo '* Supported keywords:'
     echo "*   ${CHANGELOG_KEYWORDS/ ${1} / ${1} (default) }"
@@ -922,18 +922,18 @@ function main {
   function release_feature {
     local source
     source=$(git_current_branch)
-    is_merged_to "${source}" "${GF_DEV}" \
+    is_merged_to "${source}" "${REPO_DEV}" \
       && err 'Nothing to merge.' 6
     # shellcheck disable=SC2015
     [[ ${request} == 1 ]] \
-      && confirm "* Request merge '${source}' into '${GF_DEV}'?" \
-      || confirm "* Merge '${source}' into '${GF_DEV}'?"
-    merge_fromto "${GF_DEV}" "${source}"
-    update_changelog Added "${GF_DEV}"
+      && confirm "* Request merge '${source}' into '${REPO_DEV}'?" \
+      || confirm "* Merge '${source}' into '${REPO_DEV}'?"
+    merge_fromto "${REPO_DEV}" "${source}"
+    update_changelog Added "${REPO_DEV}"
     git_commit -am 'Update changelog'
     [[ ${request} == 1 ]] \
-      && gf_request "${GF_DEV}"
-    merge_fromto "${source}" "${GF_DEV}"
+      && gf_request "${REPO_DEV}"
+    merge_fromto "${source}" "${REPO_DEV}"
     delete_branch "${source}"
   }
 
@@ -967,11 +967,11 @@ function main {
   function release_hotfix {
     local source dest vers verd
     source=$(git_current_branch)
-    dest=${GF_STABLE}
+    dest=${REPO_STABLE}
     vers=$(load_version "${source}")
-    verd=$(load_version "${GF_STABLE}")
+    verd=$(load_version "${REPO_STABLE}")
     [[ "${vers%%.*}" > "${verd%%.*}" ]] \
-      && err "Hotfix version is greater than '${GF_STABLE}'." 4
+      && err "Hotfix version is greater than '${REPO_STABLE}'." 4
     [[ "${vers%%.*}" < "${verd%%.*}" ]] \
       && dest="$(prod_name "${vers}")" \
       && verd="$(load_version "${dest}")"
@@ -980,11 +980,11 @@ function main {
     is_merged_to "${source}" "${dest}" \
       && err 'Nothing to merge.' 6
     # shellcheck disable=SC2015
-    [[ "${dest}" == "${GF_STABLE}" ]] \
+    [[ "${dest}" == "${REPO_STABLE}" ]] \
       && confirm '* Release the hotfix?' \
       || confirm "* Obsolete major version. Merge to branch '${dest}'?"
     msg_start 'Updating control files'
-    increment_version "${verd}" patch > "${GF_VERFILE}"
+    increment_version "${verd}" patch > "${REPO_VERFILE}"
     update_changelog Fixed "${dest}"
     update_changelog_header
     git_commit -am 'Update control files'
@@ -994,25 +994,25 @@ function main {
       && return
     merge_fromto "${source}" "${dest}"
     git_tag "$(load_version)"
-    [[ "${dest}" != "${GF_STABLE}" ]] \
+    [[ "${dest}" != "${REPO_STABLE}" ]] \
       && delete_branch "${source}" \
       && return
     git_checkout "$(prod_name "${verd}")"
-    git_merge "${GF_STABLE}"
-    verr=$(load_version "${GF_STAGING}")
+    git_merge "${REPO_STABLE}"
+    verr=$(load_version "${REPO_STAGING}")
     [[ "${verr%.*}" == "${verd%.*}" ]] \
-      && git_checkout "${GF_STAGING}" \
-      && git_merge "${GF_STABLE}" \
-      && merge_fromto "${GF_STABLE}" "${GF_DEV}" \
+      && git_checkout "${REPO_STAGING}" \
+      && git_merge "${REPO_STABLE}" \
+      && merge_fromto "${REPO_STABLE}" "${REPO_DEV}" \
       && delete_branch "${source}" \
       && return
-    merge_fromto "${GF_STABLE}" "${GF_STAGING}"
-    merge_fromto "${GF_STAGING}" "${GF_DEV}"
+    merge_fromto "${REPO_STABLE}" "${REPO_STAGING}"
+    merge_fromto "${REPO_STAGING}" "${REPO_DEV}"
     delete_branch "${source}"
   }
 
   function gf_pull_branch {
-    git_fetch "${GF_ORIGIN}" "${1}:${1}"
+    git_fetch "${REPO_ORIGIN}" "${1}:${1}"
   }
 
   function gf_pull {
@@ -1020,10 +1020,10 @@ function main {
     confirm '* Pull key branches from the remote repository?'
     msg_start 'Fetching key branches'
     git_fetch --tags
-    gf_pull_branch "${GF_DEV}"
-    gf_pull_branch "${GF_STABLE}"
-    gf_pull_branch "${GF_STAGING}"
-    for prod in $(git_branch -r | grep 'origin/' | grep -o "${GF_PROD}-[0-9]\+"); do
+    gf_pull_branch "${REPO_DEV}"
+    gf_pull_branch "${REPO_STABLE}"
+    gf_pull_branch "${REPO_STAGING}"
+    for prod in $(git_branch -r | grep 'origin/' | grep -o "${REPO_PROD}-[0-9]\+"); do
       gf_pull_branch "${prod}"
     done
     msg_done
@@ -1034,21 +1034,21 @@ function main {
     confirm '* Push to the remote repository?'
     msg_start 'Pushing key branches'
     git_push --tags
-    git_push "${GF_ORIGIN}" "${GF_DEV}"
-    git_push "${GF_ORIGIN}" "${GF_STABLE}"
-    git_push "${GF_ORIGIN}" "${GF_STAGING}"
-    for prod in $(git_branch -r | grep 'origin/' | grep -o "${GF_PROD}-[0-9]\+"); do
+    git_push "${REPO_ORIGIN}" "${REPO_DEV}"
+    git_push "${REPO_ORIGIN}" "${REPO_STABLE}"
+    git_push "${REPO_ORIGIN}" "${REPO_STAGING}"
+    for prod in $(git_branch -r | grep 'origin/' | grep -o "${REPO_PROD}-[0-9]\+"); do
       branch_exists "${prod}" \
-        && git_push "${GF_ORIGIN}" "${prod}"
+        && git_push "${REPO_ORIGIN}" "${prod}"
     done
     msg_done
   }
 
   function gf_request {
     validate_git_remote
-    [[ "${GF_ORIGIN}" == "${GF_UPSTREAM}" ]] \
-      || git_push "${GF_ORIGIN}" "${1}"
-    git_push "${GF_ORIGIN}" "${1}"
+    [[ "${REPO_ORIGIN}" == "${REPO_UPSTREAM}" ]] \
+      || git_push "${REPO_ORIGIN}" "${1}"
+    git_push "${REPO_ORIGIN}" "${1}"
     gf_request_url "${1}"
   }
 
@@ -1064,9 +1064,9 @@ function main {
 
   function gf_request_url {
     local url upstream_url to gcb
-    to="${1:-${GF_DEV}}"
-    url=$(trim_url "$(git config remote."${GF_ORIGIN}".url)")
-    upstream_url="$(git config remote."${GF_UPSTREAM}".url)"
+    to="${1:-${REPO_DEV}}"
+    url=$(trim_url "$(git config remote."${REPO_ORIGIN}".url)")
+    upstream_url="$(git config remote."${REPO_UPSTREAM}".url)"
     upstream_url="$(trim_url "${upstream_url}")"
     gcb=$(git_current_branch)
     stdout_verbose
@@ -1093,9 +1093,9 @@ function main {
 
   function gf_usage {
     local file head tail
-    head="$(echo "${OMGF_USAGE:-}" | head -n1)"
-    tail="$(echo "${OMGF_USAGE:-}" | tail -n+2)"
-    file="${OMGF_DATAPATH}/omgf.usage"
+    head="$(echo "${FLOW_USAGE:-}" | head -n1)"
+    tail="$(echo "${FLOW_USAGE:-}" | tail -n+2)"
+    file="${FLOW_DATAPATH}/${SCRIPT_NAME}.usage"
     [[ -z "${head}" ]] \
       && [[ ! -f "${file}" ]] \
       && echo 'Usage is not available in source file.' \
@@ -1114,10 +1114,10 @@ function main {
   }
 
   function gf_version {
-    [[ -n "${OMGF_VERNUM}" ]] \
-      && echo "OMGF ${OMGF_VERNUM}" \
+    [[ -n "${FLOW_VERNUM}" ]] \
+      && echo "flow ${FLOW_VERNUM}" \
       && return
-    echo "OMGF $(<"${OMGF_VERFILE}")"
+    echo "flow $(<"${FLOW_VERFILE}")"
   }
 
   function what_now {
@@ -1136,13 +1136,13 @@ function main {
         echo '*'
         echo "* 1. Checkout to an existing branch, e.g. to dev branch."
         ;;
-      ${GF_STABLE}|${GF_PROD})
+      ${REPO_STABLE}|${REPO_PROD})
         echo '* This is considered a read-only stable branch.'
         echo '* Do not commit any changes directly to this branch ever!'
         echo '*'
         echo "* 1. Run '${SCRIPT_NAME}' to create hotfix or leave."
         ;;
-      ${GF_DEV})
+      ${REPO_DEV})
         echo '* This is considered a development branch.'
         echo '* It is designed for bug fixing and merging features.'
         echo '*'
@@ -1150,7 +1150,7 @@ function main {
         echo "* 2. Run '${SCRIPT_NAME}' to create a new feature."
         echo "* 3. Run '${SCRIPT_NAME} release' to release this branch."
         ;;
-      ${GF_STAGING})
+      ${REPO_STAGING})
         echo '* This is a staging branch meant solely for bug fixing.'
         echo '* It is also known as a release candidate branch (RC).'
         echo '*'
@@ -1194,7 +1194,7 @@ function main {
   declare -r REFSHEADS='refs/heads'
   declare -r REFSTAGS='refs/tags'
   declare -r STABLE_ARR=(main master production prod live)
-  declare -r STAGING_ARR=(staging release rc release-candidate preprod)
+  declare -r STAGING_ARR=(staging release rc preprod)
   declare -r DEV_ARR=(dev devel develop next)
   declare USAGE
   USAGE=$(gf_usage)
@@ -1254,7 +1254,7 @@ function main {
     && exit
   gf_validate "${@}"
   [[ ${init} == 1 ]] \
-    && git_checkout "${GF_DEV}" \
+    && git_checkout "${REPO_DEV}" \
     && unstash_files \
     && exit
   gf_process "${@}"

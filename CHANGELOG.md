@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
  - Merge hotfix according to its major version number.
  - Show usage after all invalid option error.
  - Show hint after all fixable validation errors.
+ - Project renamed from 'omgf' to 'flow'
 
 ## [2.2.0] - 2017-06-05
 ### Changed
