@@ -203,6 +203,7 @@ function main {
     local out
     out="$(git tag "${@}" 2>&1)" \
       || err "${out}" >&2
+    echo "${out}"
   }
 
   function git_merge_nocommit {
@@ -453,18 +454,29 @@ function main {
     msg_done
   }
 
-  function validate_stable_tag {
-    local vertag
-    vertag="${TAG}$(load_version "${REPO_STABLE}")"
-    has_tag "${REPO_STABLE}" "${vertag}" \
-      && [[ $(git_rev_list "${REFSTAGS}/${vertag}") == "$(latest_commit "${REPO_STABLE}")" ]] \
-      && return
-    has_tag "${REPO_STABLE}" "${vertag}" \
-      && err "Invalid version tag '${vertag}' commit." 4
+  function hotfix_vertag {
     [[ ${conform} == 0 ]] \
-      && err "Missing version tag '${vertag}'." 3
+      && err "Invalid version tag '${TAG}${1}' commit." 3
+    confirm 'Hotfix the version tag?'
+    local ver
+    ver=$(increment_version "${1}" hotfix)
+    update_version "${REPO_STABLE}" "${ver}"
+    git_tag "${TAG}${ver}" "${REPO_STABLE}"
+  }
+
+  function validate_tag {
+    local ver
+    ver="$(load_version "${REPO_STABLE}")"
+    has_tag "${REPO_STABLE}" "${TAG}${ver}" \
+      && [[ $(git_rev_list "${REFSTAGS}/${TAG}${ver}") == "$(latest_commit "${REPO_STABLE}")" ]] \
+      && return
+    has_tag "${REPO_STABLE}" "${TAG}${ver}" \
+      && hotfix_vertag "${ver}" \
+      && return
+    [[ ${conform} == 0 ]] \
+      && err "Missing version tag '${TAG}${ver}'." 3
     confirm 'Create a version tag?'
-    git_tag "${vertag}" "${REPO_STABLE}"
+    git_tag "${TAG}${ver}" "${REPO_STABLE}"
   }
 
   # 1) validate ${REPO_DEV} branch
@@ -548,7 +560,11 @@ function main {
 
   function validate_verfile {
     git_show_exists "${1}:${REPO_VERFILE}" \
+      && [[ -n $(git_show "${1}:${REPO_VERFILE}") ]] \
       && return
+    [[ ${conform} == 0 ]] \
+      && err "Missing or empty version file on ${1}." 3
+    confirm "Create version file on ${1}?"
     local gcb
     gcb=$(git_current_branch)
     git_checkout "${1}"
@@ -581,9 +597,10 @@ function main {
     validate_status_empty
     REPO_STABLE=$(find_branch_or_first "${REPO_STABLE}" "${STABLE_ARR[@]}")
     validate_branch "${REPO_STABLE}"
+
     validate_verfile "${REPO_STABLE}"
     validate_changelog "${REPO_STABLE}"
-    validate_stable_tag
+    validate_tag
     validate_prod_branch
     REPO_STAGING=$(find_branch_or_first "${REPO_STAGING}" "${STAGING_ARR[@]}")
     validate_branch "${REPO_STAGING}"

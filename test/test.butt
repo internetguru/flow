@@ -153,7 +153,7 @@ start "missing VERSION file error code"
   } >/dev/null
   debug "flow"
   assert_equal "${status}" 3
-  assert_contains "${errlines[0]}" "Missing or empty file 'VERSION'."
+  assert_contains "${errlines[0]}" "Missing or empty version file on dev."
 end
 #######################################
 : $((i++))
