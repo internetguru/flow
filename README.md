@@ -125,7 +125,7 @@ Pull requests are welcome. Don't hesitate to contribute.
 
 Copyright © 2016--2023 [Internet Guru](https://www.internetguru.io)
 
-This software is licensed under the CC BY-NC-SA license. There is NO WARRANTY, to the extent permitted by law. See the LICENSE file.
+This software is licensed under the CC BY-NC-SA license. There is NO WARRANTY, to the extent permitted by law. See the [LICENSE](LICENSE) file.
 
 For commercial use of this software, training, and custom development, please contact the authors at info@internetguru.io
 
