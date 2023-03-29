@@ -558,19 +558,24 @@ function main {
     git_checkout "${gcb}"
   }
 
+  function top_tag {
+    git_tag --list | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -1
+  }
+
   function validate_verfile {
     git_show_exists "${1}:${REPO_VERFILE}" \
-      && [[ -n $(git_show "${1}:${REPO_VERFILE}") ]] \
+      && [[ "$(git_show "${1}:${REPO_VERFILE}")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+      && ! version_gt "${2:-0.0.0}" "$(git_show "${1}:${REPO_VERFILE}")" \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Missing or empty version file on ${1}." 3
+      && err "Missing or invalid version file on ${1}." 3
     confirm "Create version file on ${1}?"
     local gcb
     gcb=$(git_current_branch)
     git_checkout "${1}"
-    init_file "${REPO_VERFILE}" '0.0.0'
+    echo "${2:-0.0.0}" > "${REPO_VERFILE}"
     git_add "${REPO_VERFILE}"
-    git_commit -am 'Add version file'
+    git_commit -am 'Fix version file'
     git_checkout "${gcb}"
   }
 
