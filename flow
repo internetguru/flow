@@ -453,18 +453,18 @@ function main {
     msg_done
   }
 
-  function validate_tag {
-    local ver
-    ver=$(load_version "${REPO_STABLE}")
-    has_tag "${REPO_STABLE}" "${ver}" \
-      && [[ $(git_rev_list "${REFSTAGS}/${ver}") == "$(latest_commit "${REPO_STABLE}")" ]] \
+  function validate_stable_tag {
+    local vertag
+    vertag="${TAG}$(load_version "${REPO_STABLE}")"
+    has_tag "${REPO_STABLE}" "${vertag}" \
+      && [[ $(git_rev_list "${REFSTAGS}/${vertag}") == "$(latest_commit "${REPO_STABLE}")" ]] \
       && return
-    has_tag "${REPO_STABLE}" "${ver}" \
-      && err "Invalid version tag '${ver}' commit." 4
+    has_tag "${REPO_STABLE}" "${vertag}" \
+      && err "Invalid version tag '${vertag}' commit." 4
     [[ ${conform} == 0 ]] \
-      && err "Missing version tag '${ver}'." 3
+      && err "Missing version tag '${vertag}'." 3
     confirm 'Create a version tag?'
-    git_tag "${ver}" "${REPO_STABLE}"
+    git_tag "${vertag}" "${REPO_STABLE}"
   }
 
   # 1) validate ${REPO_DEV} branch
@@ -478,7 +478,7 @@ function main {
     merge_fromto "${1}" "${2}"
   }
 
-  function validate_staging_branch {
+  function validate_staging_ver {
     local verm verr
     verm=$(load_version "${REPO_STABLE}")
     verr=$(load_version "${REPO_STAGING}")
@@ -511,7 +511,7 @@ function main {
     git_checkout "${gcb}"
   }
 
-  function validate_dev_branch {
+  function validate_dev_ver {
     local verd verr
     verr=$(load_version "${REPO_STAGING}")
     verd=$(load_version "${REPO_DEV}")
@@ -580,23 +580,23 @@ function main {
     validate_repository
     validate_status_empty
     REPO_STABLE=$(find_branch_or_first "${REPO_STABLE}" "${STABLE_ARR[@]}")
-    REPO_STAGING=$(find_branch_or_first "${REPO_STAGING}" "${STAGING_ARR[@]}")
-    REPO_DEV=$(find_branch_or_first "${REPO_DEV}" "${DEV_ARR[@]}")
     validate_branch "${REPO_STABLE}"
     validate_verfile "${REPO_STABLE}"
     validate_changelog "${REPO_STABLE}"
+    validate_stable_tag
+    validate_prod_branch
+    REPO_STAGING=$(find_branch_or_first "${REPO_STAGING}" "${STAGING_ARR[@]}")
     validate_branch "${REPO_STAGING}"
     validate_verfile "${REPO_STAGING}"
     validate_changelog "${REPO_STAGING}"
+    validate_staging_ver
+    validate_merged_to "${REPO_STABLE}" "${REPO_STAGING}"
+    REPO_DEV=$(find_branch_or_first "${REPO_DEV}" "${DEV_ARR[@]}")
     validate_branch "${REPO_DEV}"
     validate_verfile "${REPO_DEV}"
     validate_changelog "${REPO_DEV}"
-    validate_prod_branch
-    validate_merged_to "${REPO_STABLE}" "${REPO_STAGING}"
     validate_merged_to "${REPO_STABLE}" "${REPO_DEV}"
-    validate_staging_branch
-    validate_dev_branch
-    validate_tag
+    validate_dev_ver
     git_checkout "${gcb}"
   }
 
@@ -1189,6 +1189,7 @@ function main {
   declare -r BITBUCKET='bitbucket.org'
   declare -r HOTFIX='hotfix'
   declare -r FEATURE='feature'
+  declare -r TAG=
   declare -r FIXABLE='This appears to be fixable with the --conform option.'
   declare -r CHANGELOG_KEYWORDS='Added Changed Deprecated Removed Fixed Security'
   declare -r REFSHEADS='refs/heads'
