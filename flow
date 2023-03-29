@@ -1017,13 +1017,13 @@ function main {
 
   function gf_pull {
     validate_git_remote
-    confirm '* Pull key branches from the remote repository?'
+    confirm '* Pull all remote branches?'
     msg_start 'Fetching key branches'
     git_fetch --tags
     gf_pull_branch "${REPO_DEV}"
     gf_pull_branch "${REPO_STABLE}"
     gf_pull_branch "${REPO_STAGING}"
-    for prod in $(git_branch -r | grep 'origin/' | grep -o "${REPO_PROD}-[0-9]\+"); do
+    for prod in $(git_branch_format -r); do
       gf_pull_branch "${prod}"
     done
     msg_done
@@ -1031,13 +1031,13 @@ function main {
 
   function gf_push {
     validate_git_remote
-    confirm '* Push to the remote repository?'
+    confirm '* Push key branches to the remote repository?'
     msg_start 'Pushing key branches'
     git_push --tags
     git_push "${REPO_ORIGIN}" "${REPO_DEV}"
     git_push "${REPO_ORIGIN}" "${REPO_STABLE}"
     git_push "${REPO_ORIGIN}" "${REPO_STAGING}"
-    for prod in $(git_branch -r | grep 'origin/' | grep -o "${REPO_PROD}-[0-9]\+"); do
+    for prod in $(git_branch_format | grep "${REPO_PROD}-[0-9]\+"); do
       branch_exists "${prod}" \
         && git_push "${REPO_ORIGIN}" "${prod}"
     done
