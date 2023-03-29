@@ -113,7 +113,7 @@ For example like this:
 PREFIX=/usr make
 ```
 
-See the [man page](https://github.com/internetguru/flow/blob/master/flow.1.rst) for more information and examples.
+See the [man page](flow.1.rst) for more information and examples.
 
 
 ## Contributing
