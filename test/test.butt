@@ -572,7 +572,7 @@ start "invalid version number"
   } >/dev/null 2>&1
   debug "flow"
   assert_equal "${status}" 3
-  assert_contains "${errlines[0]}" "Branch 'dev' version is lower or equal to 'staging'."
+  assert_contains "${errlines[0]}" "Missing or invalid version file on dev."
 end
 #######################################
 : $((i++))
@@ -597,11 +597,27 @@ start "unmerged changes on staging"
     && gch staging \
     && touch a \
     && git add . \
-    && git commit -am "version"
+    && git commit -am "a"
   } >/dev/null
   debug "flow --yes staging"
-  assert_equal "${status}" 4
-  assert_contains "${errlines[0]}" "Branch 'staging' is detached from 'main'."
+  assert_equal "${status}" 3
+  assert_contains "${errlines[0]}" "Missing or invalid version file on staging."
+end
+#######################################
+: $((i++))
+start "unmerged changes on staging --conform"
+  take "${i}"
+  { flow --init --yes \
+    && gch staging \
+    && touch a \
+    && git add . \
+    && git commit -am "a"
+  } >/dev/null
+  debug "flow -cy staging"
+  assert_equal "${status}" 0
+
+  debug "flow -n"
+  assert_equal "${status}" 0
 end
 #######################################
 # : $((i++))

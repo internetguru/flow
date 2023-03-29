@@ -386,10 +386,10 @@ function main {
   function load_version {
     local branch ver
     branch=${1:-$(git_current_branch)}
-    ver=$(git_show "${branch}:${REPO_VERFILE}")
-    [[ "${ver}" =~ ^[0-9]+\.[0-9]+\.[0-9]$ ]] \
-      || err "Invalid version format on branch '${branch}'." 4
-    echo "${ver}"
+    git_show_exists "${branch}:${REPO_VERFILE}" \
+      && ver=$(git_show "${branch}:${REPO_VERFILE}") \
+      && [[ "${ver}" =~ ^[0-9]+\.[0-9]+\.[0-9]$ ]] \
+      && echo "${ver}"
   }
 
   # ${1} filepath
@@ -456,31 +456,29 @@ function main {
 
   function hotfix_vertag {
     [[ ${conform} == 0 ]] \
-      && err "Invalid version tag '${TAG}${1}' commit." 3
+      && err "Invalid version tag 'v${1}' commit." 3
     confirm 'Hotfix the version tag?'
     local ver
     ver=$(increment_version "${1}" hotfix)
     update_version "${REPO_STABLE}" "${ver}"
-    git_tag "${TAG}${ver}" "${REPO_STABLE}"
+    git_tag "v${ver}" "${REPO_STABLE}"
   }
 
   function validate_tag {
     local ver
     ver="$(load_version "${REPO_STABLE}")"
-    has_tag "${REPO_STABLE}" "${TAG}${ver}" \
-      && [[ $(git_rev_list "${REFSTAGS}/${TAG}${ver}") == "$(latest_commit "${REPO_STABLE}")" ]] \
+    has_tag "${REPO_STABLE}" "v${ver}" \
+      && [[ $(git_rev_list "${REFSTAGS}/v${ver}") == "$(latest_commit "${REPO_STABLE}")" ]] \
       && return
-    has_tag "${REPO_STABLE}" "${TAG}${ver}" \
+    has_tag "${REPO_STABLE}" "v${ver}" \
       && hotfix_vertag "${ver}" \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Missing version tag '${TAG}${ver}'." 3
+      && err "Missing version tag 'v${ver}'." 3
     confirm 'Create a version tag?'
-    git_tag "${TAG}${ver}" "${REPO_STABLE}"
+    git_tag "v${ver}" "${REPO_STABLE}" 1>/dev/null
   }
 
-  # 1) validate ${REPO_DEV} branch
-  # 2) validate ${REPO_DEV} is up to date with master
   function validate_merged_to {
     is_merged_to "${1}" "${2}" \
       && return
@@ -490,25 +488,8 @@ function main {
     merge_fromto "${1}" "${2}"
   }
 
-  function validate_staging_ver {
-    local verm verr
-    verm=$(load_version "${REPO_STABLE}")
-    verr=$(load_version "${REPO_STAGING}")
-    version_gt "${verr%.*}" "${verm%.*}" \
-      && validate_merged_to "${REPO_STAGING}" "${REPO_DEV}" \
-      && return
-    [[ "${verr%.*}" == "${verm%.*}" ]] \
-      && validate_attached "${REPO_STAGING}" "${REPO_STABLE}" \
-      && return
-    [[ ${conform} == 0 ]] \
-      && err "Branch '${REPO_STAGING}' version is lower than '${REPO_STABLE}'." 3
-    confirm "Update the ${REPO_STAGING} version?"
-    update_version "${REPO_STAGING}" "$(increment_version "${verm}" minor)"
-  }
-
-  function validate_attached {
-    [[ $(git_rev_list "${REFSHEADS}/${1}") == $(git_rev_list "${REFSHEADS}/${2}") ]] \
-      || err "Branch '${1}' is detached from '${2}'." 4
+  function is_attached_to {
+    [[ $(git_rev_list "${REFSHEADS}/${1}") == $(git_rev_list "${REFSHEADS}/${2}") ]]
   }
 
   function update_version {
@@ -521,18 +502,6 @@ function main {
     git_commit -am 'Update version number'
     msg_done
     git_checkout "${gcb}"
-  }
-
-  function validate_dev_ver {
-    local verd verr
-    verr=$(load_version "${REPO_STAGING}")
-    verd=$(load_version "${REPO_DEV}")
-    version_gt "${verd%.*}" "${verr%.*}" \
-      && return
-    [[ ${conform} == 0 ]] \
-      && err "Branch '${REPO_DEV}' version is lower or equal to '${REPO_STAGING}'." 3
-    confirm "Update the ${REPO_DEV} version?"
-    update_version "${REPO_DEV}" "$(increment_version "${verr}" minor)"
   }
 
   # validate git status
@@ -558,18 +527,21 @@ function main {
     git_checkout "${gcb}"
   }
 
-  function top_tag {
-    git_tag --list | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -1
+  function top_vertag {
+    git_tag --list | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -1 | tr -d v
   }
 
-  function validate_verfile {
-    git_show_exists "${1}:${REPO_VERFILE}" \
-      && [[ "$(git_show "${1}:${REPO_VERFILE}")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
-      && ! version_gt "${2:-0.0.0}" "$(git_show "${1}:${REPO_VERFILE}")" \
+  # 1: branch
+  # 2: min version
+  function validate_version {
+    local ver
+    ver=$(load_version "${1}")
+    [[ -n "${ver}" ]] \
+      && ! version_gt "${2:-0.0.0}" "${ver}" \
       && return
     [[ ${conform} == 0 ]] \
       && err "Missing or invalid version file on ${1}." 3
-    confirm "Create version file on ${1}?"
+    confirm "Fix version file on ${1}?"
     local gcb
     gcb=$(git_current_branch)
     git_checkout "${1}"
@@ -601,24 +573,23 @@ function main {
     validate_repository
     validate_status_empty
     REPO_STABLE=$(find_branch_or_first "${REPO_STABLE}" "${STABLE_ARR[@]}")
+    REPO_STAGING=$(find_branch_or_first "${REPO_STAGING}" "${STAGING_ARR[@]}")
+    REPO_DEV=$(find_branch_or_first "${REPO_DEV}" "${DEV_ARR[@]}")
     validate_branch "${REPO_STABLE}"
-
-    validate_verfile "${REPO_STABLE}"
+    validate_version "${REPO_STABLE}" "$(top_vertag)"
     validate_changelog "${REPO_STABLE}"
     validate_tag
     validate_prod_branch
-    REPO_STAGING=$(find_branch_or_first "${REPO_STAGING}" "${STAGING_ARR[@]}")
     validate_branch "${REPO_STAGING}"
-    validate_verfile "${REPO_STAGING}"
-    validate_changelog "${REPO_STAGING}"
-    validate_staging_ver
-    validate_merged_to "${REPO_STABLE}" "${REPO_STAGING}"
-    REPO_DEV=$(find_branch_or_first "${REPO_DEV}" "${DEV_ARR[@]}")
     validate_branch "${REPO_DEV}"
-    validate_verfile "${REPO_DEV}"
-    validate_changelog "${REPO_DEV}"
     validate_merged_to "${REPO_STABLE}" "${REPO_DEV}"
-    validate_dev_ver
+    ! is_attached_to "${REPO_STABLE}" "${REPO_STAGING}" \
+      && validate_merged_to "${REPO_STABLE}" "${REPO_STAGING}" \
+      && validate_version "${REPO_STAGING}" "$(increment_version "$(load_version "${REPO_STABLE}")" minor)" \
+      && validate_changelog "${REPO_STAGING}"
+    validate_merged_to "${REPO_STAGING}" "${REPO_DEV}"
+    validate_version "${REPO_DEV}" "$(increment_version "$(load_version "${REPO_STAGING}")" minor)"
+    validate_changelog "${REPO_DEV}"
     git_checkout "${gcb}"
   }
 
@@ -775,7 +746,7 @@ function main {
       && return
     merge_fromto "${REPO_STAGING}" "${REPO_STABLE}"
     msg_start 'Updating branching structure'
-    git_tag "${TAG}$(load_version)"
+    git_tag "v$(load_version)"
     git_checkout "${REPO_STAGING}"
     git_merge "${REPO_STABLE}"
     local prod
@@ -1016,7 +987,7 @@ function main {
       && flow_request "${dest}" \
       && return
     merge_fromto "${source}" "${dest}"
-    git_tag "${TAG}$(load_version)"
+    git_tag "v$(load_version)"
     [[ "${dest}" != "${REPO_STABLE}" ]] \
       && delete_branch "${source}" \
       && return
@@ -1212,7 +1183,6 @@ function main {
   declare -r BITBUCKET='bitbucket.org'
   declare -r HOTFIX='hotfix'
   declare -r FEATURE='feature'
-  declare -r TAG='v'
   declare -r FIXABLE='This appears to be fixable with the --conform option.'
   declare -r CHANGELOG_KEYWORDS='Added Changed Deprecated Removed Fixed Security'
   declare -r REFSHEADS='refs/heads'
