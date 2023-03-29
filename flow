@@ -572,7 +572,7 @@ function main {
     echo "${1}"
   }
 
-  function gf_validate {
+  function flow_validate {
     local gcb=${REPO_DEV}
     validate_requirements
     git_repo_exists \
@@ -645,7 +645,7 @@ function main {
     echo "${1}"
   }
 
-  function gf_process {
+  function flow_process {
     [[ ${#} -gt 2 ]] \
       && err 'Too many arguments.' 2
     local gcb kw name
@@ -657,11 +657,11 @@ function main {
     case "${kw,,}" in
       pull|fetch)
         unexpected_argument "${2-}"
-        gf_pull
+        flow_pull
         ;;
       push)
         unexpected_argument "${2-}"
-        gf_push
+        flow_push
         ;;
       ${HOTFIX}|${REPO_STABLE}|${REPO_PROD})
         is_releasable "${2-}" "${gcb}" "${HOTFIX}" \
@@ -749,7 +749,7 @@ function main {
     git_commit -am 'Update control files'
     merge_fromto "${REPO_STABLE}" "${REPO_STAGING}"
     [[ ${request} == 1 ]] \
-      && gf_request "${REPO_STABLE}" \
+      && flow_request "${REPO_STABLE}" \
       && return
     merge_fromto "${REPO_STAGING}" "${REPO_STABLE}"
     msg_start 'Updating branching structure'
@@ -933,7 +933,7 @@ function main {
     update_changelog Added "${REPO_DEV}"
     git_commit -am 'Update changelog'
     [[ ${request} == 1 ]] \
-      && gf_request "${REPO_DEV}"
+      && flow_request "${REPO_DEV}"
     merge_fromto "${source}" "${REPO_DEV}"
     delete_branch "${source}"
   }
@@ -991,7 +991,7 @@ function main {
     git_commit -am 'Update control files'
     msg_done
     [[ ${request} == 1 ]] \
-      && gf_request "${dest}" \
+      && flow_request "${dest}" \
       && return
     merge_fromto "${source}" "${dest}"
     git_tag "${TAG}$(load_version)"
@@ -1012,25 +1012,25 @@ function main {
     delete_branch "${source}"
   }
 
-  function gf_pull_branch {
+  function flow_pull_branch {
     git_fetch "${REPO_ORIGIN}" "${1}:${1}"
   }
 
-  function gf_pull {
+  function flow_pull {
     validate_git_remote
     confirm '* Pull all remote branches?'
     msg_start 'Fetching key branches'
     git_fetch --tags
-    gf_pull_branch "${REPO_DEV}"
-    gf_pull_branch "${REPO_STABLE}"
-    gf_pull_branch "${REPO_STAGING}"
+    flow_pull_branch "${REPO_DEV}"
+    flow_pull_branch "${REPO_STABLE}"
+    flow_pull_branch "${REPO_STAGING}"
     for prod in $(git_branch_format -r); do
-      gf_pull_branch "${prod}"
+      flow_pull_branch "${prod}"
     done
     msg_done
   }
 
-  function gf_push {
+  function flow_push {
     validate_git_remote
     confirm '* Push key branches to the remote repository?'
     msg_start 'Pushing key branches'
@@ -1045,12 +1045,12 @@ function main {
     msg_done
   }
 
-  function gf_request {
+  function flow_request {
     validate_git_remote
     [[ "${REPO_ORIGIN}" == "${REPO_UPSTREAM}" ]] \
       || git_push "${REPO_ORIGIN}" "${1}"
     git_push "${REPO_ORIGIN}" "${1}"
-    gf_request_url "${1}"
+    flow_request_url "${1}"
   }
 
   function trim_url {
@@ -1063,7 +1063,7 @@ function main {
     echo "${url}"
   }
 
-  function gf_request_url {
+  function flow_request_url {
     local url upstream_url to gcb
     to="${1:-${REPO_DEV}}"
     url=$(trim_url "$(git config remote."${REPO_ORIGIN}".url)")
@@ -1092,7 +1092,7 @@ function main {
     stdout_silent
   }
 
-  function gf_usage {
+  function flow_usage {
     local file head tail
     head="$(echo "${FLOW_USAGE:-}" | head -n1)"
     tail="$(echo "${FLOW_USAGE:-}" | tail -n+2)"
@@ -1114,7 +1114,7 @@ function main {
       | sed "1,2d;/^[[:space:]]*$/d;\${d};s/^ \{${indent}\}//"
   }
 
-  function gf_version {
+  function flow_version {
     [[ -n "${FLOW_VERNUM}" ]] \
       && echo "flow ${FLOW_VERNUM}" \
       && return
@@ -1199,9 +1199,9 @@ function main {
   declare -r STAGING_ARR=(staging release rc preprod)
   declare -r DEV_ARR=(dev devel develop next)
   declare USAGE
-  USAGE=$(gf_usage)
+  USAGE=$(flow_usage)
   declare VERSION
-  VERSION=$(gf_version)
+  VERSION=$(flow_version)
 
   # global variables
   [ -t 0 ]
@@ -1254,12 +1254,12 @@ function main {
   [[ ${what_now} == 1 ]] \
     && what_now \
     && exit
-  gf_validate "${@}"
+  flow_validate "${@}"
   [[ ${init} == 1 ]] \
     && git_checkout "${REPO_DEV}" \
     && unstash_files \
     && exit
-  gf_process "${@}"
+  flow_process "${@}"
   unstash_files
 
 }
