@@ -753,7 +753,7 @@ function main {
       && return
     merge_fromto "${REPO_STAGING}" "${REPO_STABLE}"
     msg_start 'Updating branching structure'
-    git_tag "$(load_version)"
+    git_tag "${TAG}$(load_version)"
     git_checkout "${REPO_STAGING}"
     git_merge "${REPO_STABLE}"
     local prod
@@ -786,6 +786,7 @@ function main {
     esac
   }
 
+  #TODO: reimplement
   function update_changelog_header {
     local header tmpfile diff_url prev_tag ver
     ver=$(load_version)
@@ -993,7 +994,7 @@ function main {
       && gf_request "${dest}" \
       && return
     merge_fromto "${source}" "${dest}"
-    git_tag "$(load_version)"
+    git_tag "${TAG}$(load_version)"
     [[ "${dest}" != "${REPO_STABLE}" ]] \
       && delete_branch "${source}" \
       && return
@@ -1189,7 +1190,7 @@ function main {
   declare -r BITBUCKET='bitbucket.org'
   declare -r HOTFIX='hotfix'
   declare -r FEATURE='feature'
-  declare -r TAG=
+  declare -r TAG='v'
   declare -r FIXABLE='This appears to be fixable with the --conform option.'
   declare -r CHANGELOG_KEYWORDS='Added Changed Deprecated Removed Fixed Security'
   declare -r REFSHEADS='refs/heads'
