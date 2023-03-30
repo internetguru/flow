@@ -1,6 +1,9 @@
 name: tests
 on: [push, pull_request, workflow_dispatch]
 
+env:
+  MANWIDTH: 1000
+
 jobs:
   test:
     name: BUTT tests
@@ -22,6 +25,6 @@ jobs:
         curl -sL https://github.com/InternetGuru/butt/releases/download/v0.3.0/butt.sh > butt
         chmod +x butt
     - name: Run tests
-      run: MANWIDTH=80 COLUMNS=80 ./butt -vw. test/test.butt
+      run: ./butt -vw. test/test.butt
       env:
         TERM: dumb
