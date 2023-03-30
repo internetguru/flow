@@ -1,9 +1,6 @@
 name: tests
 on: [push, pull_request, workflow_dispatch]
 
-env:
-  MANWIDTH: 1000
-
 jobs:
   test:
     name: BUTT tests
