@@ -1,12 +1,12 @@
 name: tests
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   test:
     name: BUTT tests
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Install BUTT
       run: |
         curl -sL https://github.com/InternetGuru/butt/releases/download/v0.3.0/butt.sh > butt
