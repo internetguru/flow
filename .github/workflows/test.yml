@@ -22,6 +22,6 @@ jobs:
         curl -sL https://github.com/InternetGuru/butt/releases/download/v0.3.0/butt.sh > butt
         chmod +x butt
     - name: Run tests
-      run: ./butt -vw. test/test.butt
+      run: COLUMNS=80 ./butt -vw. test/test.butt
       env:
         TERM: dumb
