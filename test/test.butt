@@ -54,7 +54,8 @@ function load_log {
 }
 
 export FLOW_OPTIONS=""
-export COLUMNS=30
+export COLUMNS=1000
+export MANWIDTH=1000
 
 #local i curdir ref log loglines chglog chgloglines
 i=0
