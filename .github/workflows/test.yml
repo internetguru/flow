@@ -6,9 +6,10 @@ jobs:
     name: BUTT tests
     runs-on: ubuntu-latest
     steps:
-    - name: Install build requirements
-      run: sudo apt-get install -y man shellcheck python3
     - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+    - name: Install build requirements
+      run: sudo apt-get install -y man
     - name: Build and install Flow
       run: |
         ./configure && make && ./compiled/install
