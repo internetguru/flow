@@ -1,6 +1,9 @@
 # Internet Guru Flow
 
-[![Build Status](https://travis-ci.org/internetguru/flow.svg?branch=master)](https://travis-ci.org/internetguru/flow)
+| branch  | status |
+| :------------- | :------------- |
+| master | ![tests](https://github.com/internetguru/flow/actions/workflows/test.yml/badge.svg?branch=master) |
+| dev | ![tests](https://github.com/internetguru/flow/actions/workflows/test.yml/badge.svg?branch=dev) |
 
 Advance in [git flow branching model](http://nvie.com/posts/a-successful-git-branching-model/) with ease! Maintain branches, semantic versioning, releases, and changelog with a single command.
 
