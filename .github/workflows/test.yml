@@ -1,0 +1,17 @@
+name: tests
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: BUTT tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install BUTT
+      run: |
+        curl -sL https://github.com/InternetGuru/butt/releases/download/v0.3.0/butt.sh > butt
+        chmod +x butt
+    - name: Run tests
+      run: ./butt -vw. test/test.butt
+      env:
+        TERM: dumb
