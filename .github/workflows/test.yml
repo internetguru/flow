@@ -8,9 +8,12 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-python@v4
-    - uses: fregante/setup-git-user@v2
     - name: Install build requirements
       run: sudo apt-get install -y man docutils-common
+    - name: Setup git user
+      run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "gh-actions"
     - name: Build and install Flow
       run: |
         ./configure && make && sudo ./compiled/install
