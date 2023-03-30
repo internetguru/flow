@@ -9,7 +9,7 @@ jobs:
     - uses: actions/checkout@v3
     - uses: actions/setup-python@v4
     - name: Install build requirements
-      run: sudo apt-get install -y man
+      run: sudo apt-get install -y man docutils-common
     - name: Build and install Flow
       run: |
         ./configure && make && ./compiled/install
