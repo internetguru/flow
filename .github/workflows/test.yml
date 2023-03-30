@@ -6,7 +6,12 @@ jobs:
     name: BUTT tests
     runs-on: ubuntu-latest
     steps:
+    - name: Install build requirements
+      run: sudo apt-get install -y man shellcheck python-docutils
     - uses: actions/checkout@v3
+    - name: Build and install Flow
+      run: |
+        ./configure && make && ./compiled/install
     - name: Install BUTT
       run: |
         curl -sL https://github.com/InternetGuru/butt/releases/download/v0.3.0/butt.sh > butt
