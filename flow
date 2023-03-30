@@ -239,6 +239,7 @@ function main {
     local out
     out="$(git branch "${@}" 2>&1)" \
       || err "${out}"
+    echo "${out}"
   }
 
   function git_branch_format {
@@ -271,6 +272,7 @@ function main {
 
   function validate_branch {
     branch_exists "${1}" \
+      && validate_behind "${1}" \
       && return
     [[ ${conform} == 0 ]] \
       && err "Local branch '${1}' not found." 3
@@ -278,14 +280,24 @@ function main {
     create_branch "${1}"
   }
 
+  function validate_behind {
+    ! git_branch --verbose --list "${1}" | grep --quiet ' \[behind ' \
+      && return
+    [[ ${conform} == 0 ]] \
+      && err "Local branch '${1}' is behind remote." 3
+    confirm "Merge branch '${1}' with its remote?"
+    git_checkout "${1}"
+    git_merge "${REPO_ORIGIN}/${1}"
+  }
+
   function create_branch {
     branch_exists "${REPO_ORIGIN}/${1}" \
-      && git_branch "${1}" "${REPO_ORIGIN}/${1}" \
+      && git_branch -q "${1}" "${REPO_ORIGIN}/${1}" \
       && return
     branch_exists "${REPO_STABLE}" \
-      && git_branch "${1}" "${REPO_STABLE}" \
+      && git_branch -q "${1}" "${REPO_STABLE}" \
       && return
-    git_branch "${1}"
+    git_branch -q "${1}"
   }
 
   function branch_exists {
@@ -379,7 +391,7 @@ function main {
       && err 'Unable to delete checked branch'
     delete_remote_branch "${1}"
     msg_start "Deleting local branch '${1}'"
-    git_branch -d "${1}"
+    git_branch -qd "${1}"
     msg_done
   }
 
@@ -755,7 +767,7 @@ function main {
     branch_exists "${prod}" \
       && git_checkout "${prod}" \
       && git_merge "${REPO_STABLE}" \
-      || git_branch "${prod}"
+      || git_branch -q "${prod}"
     msg_done
     merge_fromto "${REPO_STABLE}" "${REPO_DEV}"
   }

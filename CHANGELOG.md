@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
  - Key branch names adaptation to pre-existing branches.
  - Option --auto-entry to skip changelog prompt.
  - Consider remote branches if key branch not found.
+ - Local branch behind remote validation.
 
 ### Changed
  - Exit codes validation error fixable and unfixable.
