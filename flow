@@ -19,7 +19,7 @@ REPO_STABLE=${REPO_STABLE:-main}
 REPO_PROD=${REPO_PROD:-prod}
 REPO_ORIGIN=${REPO_ORIGIN:-origin}
 REPO_UPSTREAM=${REPO_UPSTREAM:-${REPO_ORIGIN}}
-REPO_CHANGELOG_HEADER=${REPO_CHANGELOG_HEADER:-'# Change Log
+REPO_changelog_stamp=${REPO_changelog_stamp:-'# Change Log
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
@@ -169,6 +169,18 @@ function main {
     echo "${out}"
   }
 
+  function git_remote_url {
+    git config remote."${REPO_ORIGIN}".url | sed 's/\.git$//'
+  }
+
+  function diff_url {
+    local url
+    url=$(git_remote_url)
+    [[ -n "${url}" ]] \
+      && echo "${url}/compare/v${1}...v${2}"
+    echo "git diff ${1}..${2}"
+  }
+
   function git_init {
     local out
     out="$(git init "${@}" 2>&1)" \
@@ -203,7 +215,10 @@ function main {
     local out
     out="$(git tag "${@}" 2>&1)" \
       || err "${out}" >&2
-    echo "${out}"
+  }
+
+  function top_vertag {
+    git tag --list | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -1 | tr -d v
   }
 
   function git_merge_nocommit {
@@ -239,7 +254,6 @@ function main {
     local out
     out="$(git branch "${@}" 2>&1)" \
       || err "${out}"
-    echo "${out}"
   }
 
   function git_branch_format {
@@ -281,7 +295,7 @@ function main {
   }
 
   function validate_behind {
-    ! git_branch --verbose --list "${1}" | grep --quiet ' \[behind ' \
+    ! git branch --verbose --list "${1}" | grep --quiet ' \[behind ' \
       && return
     [[ ${conform} == 0 ]] \
       && err "Local branch '${1}' is behind remote." 3
@@ -292,12 +306,12 @@ function main {
 
   function create_branch {
     branch_exists "${REPO_ORIGIN}/${1}" \
-      && git_branch -q "${1}" "${REPO_ORIGIN}/${1}" \
+      && git_branch "${1}" "${REPO_ORIGIN}/${1}" \
       && return
     branch_exists "${REPO_STABLE}" \
-      && git_branch -q "${1}" "${REPO_STABLE}" \
+      && git_branch "${1}" "${REPO_STABLE}" \
       && return
-    git_branch -q "${1}"
+    git_branch "${1}"
   }
 
   function branch_exists {
@@ -391,7 +405,7 @@ function main {
       && err 'Unable to delete checked branch'
     delete_remote_branch "${1}"
     msg_start "Deleting local branch '${1}'"
-    git_branch -qd "${1}"
+    git_branch -d "${1}"
     msg_done
   }
 
@@ -402,18 +416,6 @@ function main {
       && ver=$(git_show "${branch}:${REPO_VERFILE}") \
       && [[ "${ver}" =~ ^[0-9]+\.[0-9]+\.[0-9]$ ]] \
       && echo "${ver}"
-  }
-
-  # ${1} filepath
-  # ${2} default content
-  function init_file {
-    [[ -f "${1}" && -n "${1}" ]] \
-      && return
-    [[ ${conform} == 0 ]] \
-      && err "Missing or empty file '${1}'." 3
-    confirm "Create '${1}' file?"
-    echo "${2}" > "${1}" \
-      || exit 1
   }
 
   function parse_version {
@@ -469,9 +471,9 @@ function main {
   function hotfix_vertag {
     [[ ${conform} == 0 ]] \
       && err "Invalid version tag 'v${1}' commit." 3
-    confirm 'Hotfix the version tag?'
+    confirm 'Conform the version tag?'
     local ver
-    ver=$(increment_version "${1}" hotfix)
+    ver=$(increment_version "${1}" patch)
     update_version "${REPO_STABLE}" "${ver}"
     git_tag "v${ver}" "${REPO_STABLE}"
   }
@@ -488,15 +490,15 @@ function main {
     [[ ${conform} == 0 ]] \
       && err "Missing version tag 'v${ver}'." 3
     confirm 'Create a version tag?'
-    git_tag "v${ver}" "${REPO_STABLE}" 1>/dev/null
+    git_tag "v${ver}" "${REPO_STABLE}"
   }
 
   function validate_merged_to {
     is_merged_to "${1}" "${2}" \
       && return
     [[ ${conform} == 0 ]] \
-      && err "Branch '${1}' is not merged to '${2}'." 3
-    confirm "Merge branch '${1}' to '${2}'?"
+      && err "Branch '${1}' is not merged into '${2}'." 3
+    confirm "Merge branch '${1}' into '${2}'?"
     merge_fromto "${1}" "${2}"
   }
 
@@ -526,21 +528,65 @@ function main {
     err 'Uncommitted changes.' 5
   }
 
+  function today {
+    date '+%Y-%m-%d'
+  }
+
+  function default_changelog {
+    local ver url
+    ver=$(load_version)
+    url=$(git_remote_url)
+    echo "${REPO_changelog_stamp}"
+    echo
+    echo "## [${ver}] - $(today)"
+    echo
+    echo "### Added"
+    echo
+    echo " - This CHANGELOG file."
+    echo
+    [[ -n "${url}" ]] \
+      && echo "[${ver}]: ${url}/releases/tag/v${ver}" \
+      && return
+    echo "[${ver}]"
+  }
+
+  function restore_changelog {
+    [[ -z "${1}" ]] \
+      && default_changelog > "${REPO_CHANGELOG}" \
+      && return
+    git_show "${1}:${REPO_CHANGELOG}" > "${REPO_CHANGELOG}"
+  }
+
+  # 1: branch
+  # 2: restore from branch, empty for create new
+  # 3: stamp, e.g. version number or "Unreleased"
+  # 4: note, e.g. date
+  # 5: diff from
+  # 6: diff to
   function validate_changelog {
     git_show_exists "${1}:${REPO_CHANGELOG}" \
       && [[ -n $(git_show "${1}:${REPO_CHANGELOG}") ]] \
+      && git_show "${1}:${REPO_CHANGELOG}" | grep -q "^## \[${3}]" \
+      && git_show "${1}:${REPO_CHANGELOG}" | grep -q "^\[${3}]" \
       && return
+    [[ ${conform} == 0 ]] \
+      && err "Missing or invalid changelog file on ${1}." 3
+    confirm "Conform the changelog file on ${1}?"
     local gcb
     gcb=$(git_current_branch)
     git_checkout "${1}"
-    init_file "${REPO_CHANGELOG}" "${REPO_CHANGELOG_HEADER}"
-    git_add .
-    git_commit -am 'Add changelog file'
+    # changelog must exist and must be unempty
+    [[ ! -f "${REPO_CHANGELOG}" || ! -s "${REPO_CHANGELOG}" ]] \
+      && restore_changelog "${2}"
+    # changelog must contain some heading and diff stamp
+    # shellcheck disable=SC2015
+    grep -q '^## ' "${REPO_CHANGELOG}" \
+      && grep -q '^\[' "${REPO_CHANGELOG}" \
+      || restore_changelog "${2}"
+    changelog_stamp "${3}" "${4}" "${5}" "${6}"
+    git_add -- "${REPO_CHANGELOG}"
+    git_commit -am "Conform changelog file on '${1}'"
     git_checkout "${gcb}"
-  }
-
-  function top_vertag {
-    git_tag --list | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -1 | tr -d v
   }
 
   # 1: branch
@@ -553,13 +599,13 @@ function main {
       && return
     [[ ${conform} == 0 ]] \
       && err "Missing or invalid version file on ${1}." 3
-    confirm "Fix version file on ${1}?"
+    confirm "Conform the version file on ${1}?"
     local gcb
     gcb=$(git_current_branch)
     git_checkout "${1}"
     echo "${2:-0.0.0}" > "${REPO_VERFILE}"
     git_add "${REPO_VERFILE}"
-    git_commit -am 'Fix version file'
+    git_commit -am "Conform version file on ${1}"
     git_checkout "${gcb}"
   }
 
@@ -589,7 +635,9 @@ function main {
     REPO_DEV=$(find_branch_or_first "${REPO_DEV}" "${DEV_ARR[@]}")
     validate_branch "${REPO_STABLE}"
     validate_version "${REPO_STABLE}" "$(top_vertag)"
-    validate_changelog "${REPO_STABLE}"
+    local from
+    from=$(load_version "${REPO_STABLE}")
+    validate_changelog "${REPO_STABLE}" "" "${from}" "$(today)" "" ""
     validate_tag
     validate_prod_branch
     validate_branch "${REPO_STAGING}"
@@ -598,10 +646,11 @@ function main {
     ! is_attached_to "${REPO_STABLE}" "${REPO_STAGING}" \
       && validate_merged_to "${REPO_STABLE}" "${REPO_STAGING}" \
       && validate_version "${REPO_STAGING}" "$(increment_version "$(load_version "${REPO_STABLE}")" minor)" \
-      && validate_changelog "${REPO_STAGING}"
+      && validate_changelog "${REPO_STAGING}" "${REPO_STABLE}" "$(load_version "${REPO_STAGING}")" "RC1" "${from}" "${REPO_STAGING}" \
+      && from=${REPO_STAGING}
     validate_merged_to "${REPO_STAGING}" "${REPO_DEV}"
     validate_version "${REPO_DEV}" "$(increment_version "$(load_version "${REPO_STAGING}")" minor)"
-    validate_changelog "${REPO_DEV}"
+    validate_changelog "${REPO_DEV}" "${REPO_STAGING}" "${UNRELEASED}" "" "${from}" "${REPO_DEV}"
     git_checkout "${gcb}"
   }
 
@@ -615,11 +664,11 @@ function main {
     local prod
     prod=$(prod_name)
     validate_branch "${prod}"
-    [[ $(git_rev_list "${REFSHEADS}/${prod}") == $(git_rev_list "${REFSHEADS}/${REPO_STABLE}") ]] \
+    is_attached_to "${prod}" "${REPO_STABLE}" \
       && return
     [[ ${conform} == 0 ]] \
       && err "Branch '${prod}' is behind '${REPO_STABLE}'." 3
-    confirm "Merge '${prod}' branch into '${REPO_STABLE}'?"
+    confirm "Merge branch '${prod}' into '${REPO_STABLE}'?"
     git_checkout "${prod}"
     git_merge "${REPO_STABLE}"
   }
@@ -638,6 +687,9 @@ function main {
   }
 
   function get_keyword {
+    [[ "${1}" == release ]] \
+      && echo release \
+      && return
     [[ " ${STABLE_ARR[*]} " == *" ${1} "* ]] \
       && echo "${REPO_STABLE}" \
       && return
@@ -684,6 +736,24 @@ function main {
           && return
         feature_create "${FEATURE}-${name}"
         ;;
+      release)
+        unexpected_argument "${2-}"
+        [[ "${gcb}" == "${REPO_DEV}" ]] \
+          && release_dev \
+          && return
+        [[ "${gcb}" == "${REPO_STAGING}" ]] \
+          && release_staging \
+          && return
+        [[ "${gcb%%-*}" == "${HOTFIX}" ]] \
+          && release_hotfix \
+          && return
+        [[ "${gcb%%-*}" == "${FEATURE}" ]] \
+          && release_feature \
+          && return
+        checkout_if_exists "${REPO_STAGING}" \
+          && return
+        err "Undecided action '${kw}'."
+        ;;
       ${REPO_STAGING})
         unexpected_argument "${2-}"
         [[ "${gcb}" == "${REPO_DEV}" ]] \
@@ -692,9 +762,12 @@ function main {
         [[ "${gcb}" == "${REPO_STAGING}" ]] \
           && release_staging \
           && return
-        checkout_if_exists "${FEATURE}-${name}" \
+        is_attached_to "${REPO_STAGING}" "${REPO_STABLE}" \
+          && release_dev \
           && return
-        err "Required branch '${REPO_STAGING}' not found."
+        checkout_if_exists "${REPO_STAGING}" \
+          && return
+        err "Undecided action '${kw}'."
         ;;
       *)
         err 'Unknown keyword or branch.' 2
@@ -711,15 +784,27 @@ function main {
 
   function release_dev {
     confirm "* Release '${REPO_DEV}' branch?"
-    #TODO: technically this check is irrelevant
-    is_merged_to "${REPO_STAGING}" "${REPO_DEV}" \
-      || err 'Branch already released.' 6
-    update_changelog_header
-    git_commit -am 'Add changelog header'
+    msg_start 'Releasing dev'
+    git_checkout "${REPO_DEV}"
+    local from to nthrc
+    from=$(load_version "${REPO_STABLE}")
+    to=$(load_version "${REPO_DEV}")
+    ! is_attached_to "${REPO_STAGING}" "${REPO_STABLE}" \
+      && to=$(load_version "${REPO_STAGING}") \
+      && echo "${to}" > "${REPO_VERFILE}"
+    nthrc=$(( $(grep -c "^\[${to//./\.}]" "${REPO_CHANGELOG}") + 1 ))
+    sed -i "s/^## \[${UNRELEASED}].*/## [${to}] - RC${nthrc}/" "${REPO_CHANGELOG}"
+    is_attached_to "${REPO_STAGING}" "${REPO_STABLE}" \
+      && sed -i "s/^\[${UNRELEASED}].*/[${to}]: $(diff_url "${from}" "${REPO_STAGING}")/" "${REPO_CHANGELOG}"
+    sed -i "/^\[${UNRELEASED}]/d" "${REPO_CHANGELOG}"
+    git_add -- "${REPO_CHANGELOG}"
+    git_commit -am 'Update changelog'
     merge_fromto "${REPO_DEV}" "${REPO_STAGING}"
     merge_fromto "${REPO_STAGING}" "${REPO_DEV}"
     increment_version "$(load_version)" minor > "${REPO_VERFILE}"
-    git_commit -am 'Increment minor version'
+    changelog_stamp "${UNRELEASED}" "" "${REPO_STAGING}" "${REPO_DEV}"
+    git_commit -am "Increment minor version on '${REPO_DEV}'"
+    msg_done
     git_checkout "${REPO_STAGING}"
   }
 
@@ -749,16 +834,23 @@ function main {
       && confirm "* Request merge '${REPO_STAGING}' to '${REPO_STABLE}'?" \
       || confirm "* Release '${REPO_STAGING}' branch to '${REPO_STABLE}'?"
     is_merged_to "${REPO_STAGING}" "${REPO_STABLE}" \
-      && err 'Branch already released.' 6
-    update_changelog_header
-    git_commit -am 'Update control files'
+      && err 'Staging branch already released.' 6
     merge_fromto "${REPO_STABLE}" "${REPO_STAGING}"
+    msg_start 'Updating changelog'
+    local from to
+    from=$(load_version "${REPO_STABLE}")
+    to=$(load_version)
+    sed -i "0,/^## \[${to//./\.}].*/s//## [${to}] - $(today)/" "${REPO_CHANGELOG}"
+    sed -i "s/^\[${to//./\.}].*/[${to}]: $(diff_url "${from}" "${to}")/" "${REPO_CHANGELOG}"
+    git_add -- "${REPO_CHANGELOG}"
+    git_commit -am 'Update changelog'
+    msg_done
     [[ ${request} == 1 ]] \
       && flow_request "${REPO_STABLE}" \
       && return
-    merge_fromto "${REPO_STAGING}" "${REPO_STABLE}"
     msg_start 'Updating branching structure'
-    git_tag "v$(load_version)"
+    merge_fromto "${REPO_STAGING}" "${REPO_STABLE}"
+    git_tag "v${to}"
     git_checkout "${REPO_STAGING}"
     git_merge "${REPO_STABLE}"
     local prod
@@ -767,122 +859,84 @@ function main {
     branch_exists "${prod}" \
       && git_checkout "${prod}" \
       && git_merge "${REPO_STABLE}" \
-      || git_branch -q "${prod}"
-    msg_done
+      || git_branch "${prod}"
     merge_fromto "${REPO_STABLE}" "${REPO_DEV}"
-  }
-
-  function get_diff_url {
-    local url
-    url="$(trim_url "$(git config remote."${REPO_ORIGIN}".url)")"
-    case "${url}" in
-      *"${GITHUB}"*)
-        echo "https://${url}/compare/${1}...${2}"
-        ;;
-      *"${BITBUCKET}"*)
-        echo "https://${url}/compare/${2}..${1}"
-        ;;
-      "")
-        return
-        ;;
-      *)
-        err 'Unsupported git remote.'
-        ;;
-    esac
-  }
-
-  #TODO: reimplement
-  function update_changelog_header {
-    local header tmpfile diff_url prev_tag ver
-    ver=$(load_version)
-    msg_start 'Updating changelog header'
-    header="## [${ver}] - $(date '+%Y-%m-%d')"
-    prev_tag="$(git tag | sort -V | tail -n1 )"
-    diff_url="$(get_diff_url "${prev_tag}" "${ver}" )"
-    [[ -n "${diff_url}" ]] \
-      && diff_url="[${ver}]: ${diff_url}" \
-      || diff_url="[${ver}]: ${prev_tag}..${ver}"
-    tmpfile="$(mktemp)"
-    gawk -v header="${header}" -v diff_url="${diff_url}" '
-      BEGIN {
-        writemsg=1
-        writeurl=1
-      }
-      /^\[Unreleased\]/ { next }
-      writemsg == 1 && /^## / {
-        print header
-        writemsg=0
-        if($0 ~ "^## \\[?Unreleased\\]?") { next }
-        print ""
-      }
-      writeurl == 1 && /^\[/ && ! /^\[Unreleased\]/ {
-        print diff_url
-        writeurl=0
-      }
-      {print}
-      ENDFILE {
-        if(writemsg==1) { print header }
-        if(writeurl==1) { print ""; print diff_url }
-      }
-      ' "${REPO_CHANGELOG}" > "${tmpfile}"
-    cat "${tmpfile}" > "${REPO_CHANGELOG}"
     msg_done
+  }
+
+  # 1: stamp
+  # 2: note
+  # 3: from
+  # 4: to
+  function changelog_stamp {
+    local heading
+    heading="## [${1}] - ${2}"
+    # add heading if not exists
+    ! grep -q "^## \[${1}]" "${REPO_CHANGELOG}" \
+      && sed -i "0,/^## /s//${heading%* - }\n\n&/" "${REPO_CHANGELOG}"
+    # add diff stamp if not exists
+    local diff
+    diff=$(sed -e 's/[\/&]/\\&/g' <<< "$(diff_url "${3}" "${4}")")
+    ! grep -q "^\[${1}]" "${REPO_CHANGELOG}" \
+      && sed -i "0,/^\[/s//[${1}]: ${diff}\n&/" "${REPO_CHANGELOG}"
   }
 
   # 1: keyword
   # 2: message
   function add_changelog_entry {
-    local tmpfile diff_url
+    local tmpfile
     tmpfile="$(mktemp)"
-    diff_url="$(get_diff_url "${REPO_STABLE}" "${REPO_DEV}")"
-    [[ -n "${diff_url}" ]] \
-      && diff_url="[Unreleased]: ${diff_url}" \
-      || diff_url="[Unreleased]: ${REPO_STABLE}..${REPO_DEV}"
-    gawk -v keyword="${1}" -v message="${2}" -v diff_url="${diff_url}" \
-      -v next_keywords="${CHANGELOG_KEYWORDS#*${1}}" '
-      function print_unreleased () { print "## [Unreleased]" }
-      function print_keyword () { print "### " keyword }
-      function print_message () { print " - " message }
+    gawk -v kw="${1}" -v msg="${2}" -v kws="${KEYWORDS[*]#*${1}}" '
+      function add_entry () {
+        print "### " kw
+        print ""
+        print " - " msg
+        print ""
+      }
       BEGIN {
-        writemsg=1
-        unreleased=0
-        writeurl=1
+        before = 1
+        after = 0
       }
-      /^## \[?Unreleased\]?/ { unreleased=1 }
-      writemsg == 1 && unreleased == 0 && /^## / && ! /^## \[?Unreleased\]?/ {
-        print_unreleased()
-        print_keyword()
-        print_message()
-        print ""
-        writemsg=0
+      /^$/ {
+        print
+        next
       }
-      writemsg == 1 && $0 ~ "^## " next_keywords && ! /^## \[?Unreleased\]?/ {
-        print_keyword()
-        print_message()
-        print ""
-        writemsg=0
+      /^## \[/ && before == 1 && after == 0 {
+        before = 0
+        print
+        next
       }
-      /^\[Unreleased\]/ { writeurl=0 }
-      writeurl == 1 && /^\[/ {
-        print diff_url
-        writeurl=0
-      }
-      {print}
-      writemsg == 1 && $0 == "### " keyword {
-        print_message()
-        writemsg=0
-      }
-      ENDFILE {
-        if(writemsg == 1) {
-          print ""
-          if(unreleased == 0) { print_unreleased() }
-          print_keyword()
-          print_message()
+      /^## \[/ && before == 0 {
+        if (after == 0) {
+          add_entry()
         }
-        if(writeurl==1) { print diff_url }
+        after = 1
+        print
+        next
+      }
+      before == 1 || after == 1 {
+        print
+        next
+      }
+      $0 ~ "^### " kw {
+        print
+        getline
+        print
+        print " - " msg
+        after = 1
+        next
+      }
+      $0 ~ "^### " kws {
+        add_entry()
+        print
+        after = 1
+        next
+      }
+      {
+        print
       }
     ' "${REPO_CHANGELOG}" > "${tmpfile}"
-    cat "${tmpfile}" > "${REPO_CHANGELOG}"
+    mv "${tmpfile}" "${REPO_CHANGELOG}"
   }
 
   # 1: default keyword
@@ -899,7 +953,7 @@ function main {
     echo "* Please enter the ${gcb} description for ${REPO_CHANGELOG}."
     echo '*'
     echo '* Supported keywords:'
-    echo "*   ${CHANGELOG_KEYWORDS/ ${1} / ${1} (default) }"
+    echo "*   ${KEYWORDS[*]}"
     echo '*'
     echo "* Commits of '${gcb}':"
     git_log "${2}".."${gcb}" --pretty=format:'*   %h %s'
@@ -908,7 +962,8 @@ function main {
     # What for?
     REPLY=
     [[ ${is_stdin} == 0 ]] \
-      && echo 'Type "Keyword: Message". Empty line to end editting.' \
+      && echo 'Type "[Keyword]: [Message]". Empty line to end editing.' \
+      && echo "If omitted, the default keyword is '${1}'." \
       && echo "Leave empty (press Enter) for default message: '${1}: ${gcb}'." \
       && clear_stdin
     while read -e -r line; do
@@ -916,7 +971,7 @@ function main {
         && break
       history -s "${line}"
       kw="${line%%:*}"
-      [[ " ${CHANGELOG_KEYWORDS} " != *" ${kw} "* ]] \
+      [[ " ${KEYWORDS[*]} " != *" ${kw} "* ]] \
         && kw=${1}
       add_changelog_entry "${kw}" "$(echo "${line#*:}" | xargs)"
     done
@@ -965,7 +1020,7 @@ function main {
         (( patch ++ ))
         ;;
       *)
-        err 'Invalid version type.'
+        err 'Version increment parameter missing or invalid.'
     esac
     echo "${major}.${minor}.${patch}"
   }
@@ -991,8 +1046,10 @@ function main {
       || confirm "* Obsolete major version. Merge to branch '${dest}'?"
     msg_start 'Updating control files'
     increment_version "${verd}" patch > "${REPO_VERFILE}"
+    local verh
+    verh=$(increment_version "${verd}" patch)
+    changelog_stamp "${verh}" "$(today)" "${verd}" "${verh}"
     update_changelog Fixed "${dest}"
-    update_changelog_header
     git_commit -am 'Update control files'
     msg_done
     [[ ${request} == 1 ]] \
@@ -1195,8 +1252,9 @@ function main {
   declare -r BITBUCKET='bitbucket.org'
   declare -r HOTFIX='hotfix'
   declare -r FEATURE='feature'
+  declare -r UNRELEASED='Unreleased'
   declare -r FIXABLE='This appears to be fixable with the --conform option.'
-  declare -r CHANGELOG_KEYWORDS='Added Changed Deprecated Removed Fixed Security'
+  declare -r KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
   declare -r REFSHEADS='refs/heads'
   declare -r REFSTAGS='refs/tags'
   declare -r STABLE_ARR=(main master production prod live)
