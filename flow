@@ -833,8 +833,8 @@ function main {
     [[ ${request} == 1 ]] \
       && confirm "* Request merge '${REPO_STAGING}' to '${REPO_STABLE}'?" \
       || confirm "* Release '${REPO_STAGING}' branch to '${REPO_STABLE}'?"
-    is_merged_to "${REPO_STAGING}" "${REPO_STABLE}" \
-      && err 'Staging branch already released.' 6
+    is_attached_to "${REPO_STAGING}" "${REPO_STABLE}" \
+      && err 'Staging branch is already released.' 6
     merge_fromto "${REPO_STABLE}" "${REPO_STAGING}"
     msg_start 'Updating changelog'
     local from to

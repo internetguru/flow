@@ -21,26 +21,33 @@ ARGUMENTS
 
 Default ACTION value is branch name (the part before the first dash if present). Default NAME is current user name (command ``whois``).
 
-feature|dev [NAME]
-    Release branch ``feature-NAME`` if currently on it.
-    Else checkout the branch if it exists.
-    Else create the branch and checkout.
+pull|fetch
+    Pull all from the remote repository.
 
-staging|release|rc|preprod
-    Release branch dev branch if currently on it.
-    Else release the staging branch if on it and is not merged.
-    Else checkout the staging branch.
+push
+    Push all to the remote repository.
 
 hotfix|main|master|production|prod|live [NAME]
     Release branch ``hotfix-NAME`` if currently on it.
     Else checkout the branch if it exists.
     Else create the branch and checkout.
 
-pull|fetch
-    Pull all from the remote repository.
+feature|dev [NAME]
+    Release branch ``feature-NAME`` if currently on it.
+    Else checkout the branch if it exists.
+    Else create the branch and checkout.
 
-push
-    Push all to the remote repository.
+release
+    Release the dev branch if currently on it.
+    Else release the staging branch if on it.
+    Else release the hotfix branch if on it.
+    Else release the feature branch if on it.
+    Else checkout the staging branch.
+
+staging|rc|preprod
+    Release the dev branch if currently on it.
+    Else release the staging branch if on it.
+    Else checkout the staging branch.
 
 
 OPTIONS
@@ -59,7 +66,7 @@ OPTIONS
     Print help.
 
 \-i, --init
-    Same as 'conform', but also initialize git repository if not exists and do not proceed to action.
+    Same as 'conform', but also initialize git repository if not exists and do not proceed with any action.
 
 \-n, --dry-run
     Do not run commands; only parse user options and arguments.
@@ -211,7 +218,12 @@ Note: The staging branch, the 'prod-0', and the main are now on the same commit.
 
 This increments the patch version and merges the hotfix to the main branch, creates a tag and advances all attached branches with it. To keep the model compliant, it also merges the main branch into dev.
 
-Note: The git log now looks like spiders on the wall. It gets a better shape with real data. If you want to see it, you can use the following command::
+Note: The git log graph now looks kinda overwhelming. It will make much more sense with a real development. If you want to see it, use the following command::
 
     git log --oneline --decorate --color --graph --all
 
+Note: Changelog files contain some unreported conflicts. This also makes some kind of sense once you get into it. They are easy to fix manually and a nice challenge for future updates::
+
+    git show dev:CHANGELOG.md
+    git show staging:CHANGELOG.md
+    git show main:CHANGELOG.md
