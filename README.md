@@ -7,18 +7,26 @@
 
 Advance in [git flow branching model](http://nvie.com/posts/a-successful-git-branching-model/) with ease! Maintain branches, semantic versioning, releases, and changelog with a single command.
 
-- It has a simple usage and *requires no arguments* (uses a decision tree).
+### Git flow automation
+
+- It has a simple usage that *requires no arguments* picking a default action for you.
+- It takes you across branches with the flow and advises what to do next.
+- It creates GitHub pull requests instead of releasing directly when asked.
+- It maintains separate production branches for major versions, such as 'prod-1'.
+- It supports parallel hotfixing, even for separate production branches.
+
+### Branching model validation
+
 - It validates and automatically *fixes projects* to conform to the branching model.
-- It can initiate a git flow branching on an empty foler or an existing git repository.
-- It can convert an existing repository into a git flow branching model.
-- It can pull and push all key model branches.
-- It *creates merge requests* (pull requests) for GitHub and GitLab.
-- It controls [semantic versioning](https://semver.org) in a VERSION file.
-- It keeps track of release history following the [Keep a CHANGELOG](https://keepachangelog.com/en) convention.
-- It shows information and what to do on the current branch.
-- It maintains separate production branches for major versions, such as ``prod-1``.
-- It supports parallel hotfix branches even for separate production branches.
-- It adapts to pre-existing branches, such as ``release`` instead of the default ``staging``.
+- It pulls and pushes all key model branches and checks whether local branches are not behind.
+- It handles [semantic versioning](https://semver.org) across all key branches.
+- It keeps track of a release history with the [Keep a CHANGELOG](https://keepachangelog.com/en) convention.
+
+### Setup and configuration
+
+- It can initiate a git flow branching repository on any selected folder.
+- It can convert an existing git repository into a git flow branching model.
+- It automatically adapts to pre-existing branches, such as 'release' instead of the default 'staging'.
 
 
 ## Table of Contents
