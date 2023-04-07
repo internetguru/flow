@@ -491,7 +491,7 @@ function main {
       && err "Invalid version tag 'v${1}' commit." 3
     confirm 'Conform the version tag?'
     local ver
-    ver=$(increment_version "${1}" patch)
+    ver=$(increment_patch "${1}")
     update_version "${REPO_STABLE}" "${ver}"
     git_tag "v${ver}" "${REPO_STABLE}"
   }
@@ -663,11 +663,11 @@ function main {
     validate_merged_to "${REPO_STABLE}" "${REPO_DEV}"
     ! is_attached_to "${REPO_STABLE}" "${REPO_STAGING}" \
       && validate_merged_to "${REPO_STABLE}" "${REPO_STAGING}" \
-      && validate_version "${REPO_STAGING}" "$(increment_version "$(load_version "${REPO_STABLE}")" minor)" \
+      && validate_version "${REPO_STAGING}" "$(increment_minor "$(load_version "${REPO_STABLE}")")" \
       && validate_changelog "${REPO_STAGING}" "${REPO_STABLE}" "$(load_version "${REPO_STAGING}")" "RC1" "${from}" "${REPO_STAGING}" \
       && from=${REPO_STAGING}
     validate_merged_to "${REPO_STAGING}" "${REPO_DEV}"
-    validate_version "${REPO_DEV}" "$(increment_version "$(load_version "${REPO_STAGING}")" minor)"
+    validate_version "${REPO_DEV}" "$(increment_minor "$(load_version "${REPO_STAGING}")")"
     validate_changelog "${REPO_DEV}" "${REPO_STAGING}" "${UNRELEASED}" "" "${from}" "${REPO_DEV}"
     git_checkout "${gcb}"
   }
@@ -817,7 +817,7 @@ function main {
     merge_fromto "${REPO_DEV}" "${REPO_STAGING}"
     merge_fromto "${REPO_STAGING}" "${REPO_DEV}"
     [[ "${nthrc}" == 1 ]] \
-      && increment_version "$(load_version)" minor > "${REPO_VERFILE}" \
+      && increment_minor "$(load_version)" > "${REPO_VERFILE}" \
       && changelog_stamp "${UNRELEASED}" "" "${REPO_STAGING}" "${REPO_DEV}" \
       && git_commit -am "Increment minor version on '${REPO_DEV}'"
     msg_done
@@ -1039,6 +1039,14 @@ function main {
     echo "${major}.${minor}.${patch}"
   }
 
+  function increment_patch {
+    increment_version "${1}" patch
+  }
+
+  function increment_minor {
+    increment_version "${1}" minor
+  }
+
   function release_hotfix {
     local source dest vers verd
     source=$(git_current_branch)
@@ -1059,9 +1067,9 @@ function main {
       && confirm '* Release the hotfix?' \
       || confirm "* Obsolete major version. Merge to branch '${dest}'?"
     msg_start 'Updating control files'
-    increment_version "${verd}" patch > "${REPO_VERFILE}"
+    increment_patch "${verd}" > "${REPO_VERFILE}"
     local verh
-    verh=$(increment_version "${verd}" patch)
+    verh=$(increment_patch "${verd}")
     changelog_stamp "${verh}" "$(today)" "${verd}" "${verh}"
     update_changelog Fixed "${dest}"
     git_commit -am 'Update control files'
