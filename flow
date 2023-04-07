@@ -174,11 +174,22 @@ function main {
   }
 
   function diff_url {
-    local url
+    local url from to
     url=$(git_remote_url)
+    from=${1}
+    is_valid_version "${from}" \
+      && from="v${1}"
+    to=${2}
+    is_valid_version "${to}" \
+      && to="v${1}"
     [[ -n "${url}" ]] \
-      && echo "${url}/compare/v${1}...v${2}"
-    echo "git diff ${1}..${2}"
+      && echo "${url}/compare/${from}...${to}" \
+      && return
+    echo "git diff ${from}..${to}"
+  }
+
+  function diff_url_esc {
+    sed -e 's/[\/&]/\\&/g' <<< "$(diff_url "${1}" "${2}")"
   }
 
   function git_init {
@@ -414,8 +425,12 @@ function main {
     branch=${1:-$(git_current_branch)}
     git_show_exists "${branch}:${REPO_VERFILE}" \
       && ver=$(git_show "${branch}:${REPO_VERFILE}") \
-      && [[ "${ver}" =~ ^[0-9]+\.[0-9]+\.[0-9]$ ]] \
+      && is_valid_version "${ver}" \
       && echo "${ver}"
+  }
+
+  function is_valid_version {
+    [[ "${1}" =~ ^[0-9]+\.[0-9]+\.[0-9]$ ]]
   }
 
   function parse_version {
@@ -795,7 +810,7 @@ function main {
     nthrc=$(( $(grep -c "^\[${to//./\.}]" "${REPO_CHANGELOG}") + 1 ))
     sed -i "s/^## \[${UNRELEASED}].*/## [${to}] - RC${nthrc}/" "${REPO_CHANGELOG}"
     is_attached_to "${REPO_STAGING}" "${REPO_STABLE}" \
-      && sed -i "s/^\[${UNRELEASED}].*/[${to}]: $(diff_url "${from}" "${REPO_STAGING}")/" "${REPO_CHANGELOG}"
+      && sed -i "s/^\[${UNRELEASED}].*/[${to}]: $(diff_url_esc "${from}" "${REPO_STAGING}")/" "${REPO_CHANGELOG}"
     sed -i "/^\[${UNRELEASED}]/d" "${REPO_CHANGELOG}"
     git_add -- "${REPO_CHANGELOG}"
     git_commit -am 'Update changelog'
@@ -841,7 +856,7 @@ function main {
     from=$(load_version "${REPO_STABLE}")
     to=$(load_version)
     sed -i "0,/^## \[${to//./\.}].*/s//## [${to}] - $(today)/" "${REPO_CHANGELOG}"
-    sed -i "s/^\[${to//./\.}].*/[${to}]: $(diff_url "${from}" "${to}")/" "${REPO_CHANGELOG}"
+    sed -i "s/^\[${to//./\.}].*/[${to}]: $(diff_url_esc "${from}" "${to}")/" "${REPO_CHANGELOG}"
     git_add -- "${REPO_CHANGELOG}"
     git_commit -am 'Update changelog'
     msg_done
@@ -875,10 +890,8 @@ function main {
     ! grep -q "^## \[${1}]" "${REPO_CHANGELOG}" \
       && sed -i "0,/^## /s//${heading%* - }\n\n&/" "${REPO_CHANGELOG}"
     # add diff stamp if not exists
-    local diff
-    diff=$(sed -e 's/[\/&]/\\&/g' <<< "$(diff_url "${3}" "${4}")")
     ! grep -q "^\[${1}]" "${REPO_CHANGELOG}" \
-      && sed -i "0,/^\[/s//[${1}]: ${diff}\n&/" "${REPO_CHANGELOG}"
+      && sed -i "0,/^\[/s//[${1}]: $(diff_url_esc "${3}" "${4}")\n&/" "${REPO_CHANGELOG}"
   }
 
   # 1: keyword
