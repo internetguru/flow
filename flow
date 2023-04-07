@@ -379,6 +379,9 @@ function main {
     stream='upwards'
     [[ "${1}" == "${REPO_STABLE}" || "${2}" == "${REPO_DEV}" ]] \
       && stream='downwards'
+    [[ "${1}" == "${REPO_DEV}" || "${2}" == "${REPO_STAGING}" ]] \
+      && is_attached_to "${REPO_DEV}" "${REPO_STAGING}" \
+      && stream='downwards'
     msg_start "Merging '${1}' to '${2}' (${stream})."
     is_merged_to "${1}" "${2}" \
       && msg_pass \
@@ -804,9 +807,6 @@ function main {
     local from to nthrc
     from=$(load_version "${REPO_STABLE}")
     to=$(load_version "${REPO_DEV}")
-    ! is_attached_to "${REPO_STAGING}" "${REPO_STABLE}" \
-      && to=$(load_version "${REPO_STAGING}") \
-      && echo "${to}" > "${REPO_VERFILE}"
     nthrc=$(( $(grep -c "^\[${to//./\.}]" "${REPO_CHANGELOG}") + 1 ))
     sed -i "s/^## \[${UNRELEASED}].*/## [${to}] - RC${nthrc}/" "${REPO_CHANGELOG}"
     is_attached_to "${REPO_STAGING}" "${REPO_STABLE}" \
@@ -816,9 +816,10 @@ function main {
     git_commit -am 'Update changelog'
     merge_fromto "${REPO_DEV}" "${REPO_STAGING}"
     merge_fromto "${REPO_STAGING}" "${REPO_DEV}"
-    increment_version "$(load_version)" minor > "${REPO_VERFILE}"
-    changelog_stamp "${UNRELEASED}" "" "${REPO_STAGING}" "${REPO_DEV}"
-    git_commit -am "Increment minor version on '${REPO_DEV}'"
+    [[ "${nthrc}" == 1 ]] \
+      && increment_version "$(load_version)" minor > "${REPO_VERFILE}" \
+      && changelog_stamp "${UNRELEASED}" "" "${REPO_STAGING}" "${REPO_DEV}" \
+      && git_commit -am "Increment minor version on '${REPO_DEV}'"
     msg_done
     git_checkout "${REPO_STAGING}"
   }
