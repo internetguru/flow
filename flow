@@ -170,7 +170,7 @@ function main {
   }
 
   function git_remote_url {
-    git config remote."${REPO_ORIGIN}".url | sed 's/\.git$//'
+    git config remote."${REPO_ORIGIN}".url | sed -e 's~^git@\([^:]\+\):~https://\1/~' -e 's/\.git$//'
   }
 
   function diff_url {
