@@ -7,27 +7,26 @@
 
 Advance in [git flow branching model](http://nvie.com/posts/a-successful-git-branching-model/) with ease! Maintain branches, semantic versioning, releases, and changelog with a single command.
 
-### Git flow automation
+### Branching model automation
 
-- It has a simple usage that *requires no arguments* picking a default action for you.
-- It takes you across branches with the flow and advises what to do next.
-- It creates GitHub pull requests instead of releasing directly when asked.
-- It maintains separate production branches for major versions, such as 'prod-1'.
-- It supports parallel hotfixing, even for separate production branches.
+- Flow requires *no arguments* and derives a default action.
+- Flow switches between branches accordingly and advises what to do next.
+- Flow can create pull requests instead of releasing directly.
+- Flow maintains separate production branches for major versions, such as `prod-1`.
+- Flow supports parallel hotfixing, even for separate production branches.
 
 ### Branching model validation
 
-- It validates and automatically *fixes projects* to conform to the branching model.
-- It pulls and pushes all key model branches and checks whether local branches are not behind.
-- It handles [semantic versioning](https://semver.org) across all key branches.
-- It keeps track of a release history with the [Keep a CHANGELOG](https://keepachangelog.com/en) convention.
+ - Flow validates and automatically *fixes project structures* to conform to the branching model.
+ - Flow pulls and pushes all key branches and checks whether local branches are not behind.
+ - Flow handles [semantic versioning](https://semver.org/) across all key branches. Read more about {% post_link flow-version 'version handling with Flow' %}.
+ - Flow keeps track of a release history with the [Keep a CHANGELOG](https://keepachangelog.com/en/) convention. Read more about {% post_link flow-changelog 'changelog handling with Flow' %}.
 
 ### Setup and configuration
 
-- It can initiate a git flow branching repository on any selected folder.
-- It can convert an existing git repository into a git flow branching model.
-- It automatically adapts to pre-existing branches, such as 'release' instead of the default 'staging'.
-
+ - Flow can initiate a git branching repository in any folder with or without files.
+ - Flow can convert any existing git repository to a git branching model.
+ - Flow automatically adapts to existing branches, such as 'release' instead of the default 'staging'.
 
 ## Table of Contents
 
