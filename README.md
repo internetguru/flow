@@ -109,7 +109,7 @@ You will need the following dependencies:
 ```bash
 git clone https://github.com/internetguru/flow.git
 cd flow
-./configure && make && compiled/install
+./configure && make && sudo compiled/install
 ```
 
 You can specify following variables for `make` command which will affect default parameters of `install` script:
@@ -124,6 +124,15 @@ PREFIX=/usr make
 ```
 
 See the [man page](flow.1.rst) for more information and examples.
+
+
+### Run unit tests
+
+Testing the script requires a built 'flow' command and [Bash Unit Testing Tool](https://github.com/internetguru/butt) -- AKA the 'butt' command.
+
+```bash
+butt ~/flow/test/test.butt
+```
 
 
 ## Contributing

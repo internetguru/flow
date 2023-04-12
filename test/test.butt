@@ -288,7 +288,7 @@ end
 : $((i++))
 start "init on existing repo with commits"
   take "${i}"
-  { git init \
+  { git init -b master \
     && echo a > a \
     && git add . \
     && git commit -am "first commit.."
@@ -317,7 +317,7 @@ end
 : $((i++))
 start "init on existing repo without commits with --stash"
   take "${i}"
-  { git init \
+  { git init -b master \
     && echo a > a
   } >/dev/null
   debug "flow -v --init --yes --stash"
@@ -354,7 +354,7 @@ end
 : $((i++))
 start "init on existing repo with commits and --stash"
   take "${i}"
-  { git init \
+  { git init -b master \
     && echo a > a \
     && git add . \
     && git commit -am "first commit" \
@@ -374,7 +374,7 @@ end
 : $((i++))
 start "conform on existing repo with commits and --stash"
   take "${i}"
-  { git init \
+  { git init -b main \
     && echo a > a \
     && git add . \
     && git commit -am "first commit" \
@@ -382,7 +382,7 @@ start "conform on existing repo with commits and --stash"
   } >/dev/null
   debug "flow --conform --stash --yes"
   assert_equal "${status}" 0
-  checkInitFiles master
+  checkInitFiles
   gref
   #checkInitRefs
   assert_equal "$(git_current_branch)" "hotfix-$(whoami)"
