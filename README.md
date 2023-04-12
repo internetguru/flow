@@ -5,7 +5,7 @@
 | master | ![tests](https://github.com/internetguru/flow/actions/workflows/test.yml/badge.svg?branch=master) |
 | dev | ![tests](https://github.com/internetguru/flow/actions/workflows/test.yml/badge.svg?branch=dev) |
 
-Advance in [git flow branching model](http://nvie.com/posts/a-successful-git-branching-model/) with ease! Maintain branches, semantic versioning, releases, and changelog with a single command.
+Advance in [git flow branching model](http://nvie.com/posts/a-successful-git-branching-model/) with ease! Maintain branches, semantic versioning, releases, and changelog with a single command. Read more about flow at [Internet Guru Blog](https://blog.internetguru.io/tags/flow/).
 
 ### Branching model automation
 
@@ -19,8 +19,8 @@ Advance in [git flow branching model](http://nvie.com/posts/a-successful-git-bra
 
  - Flow validates and automatically *fixes project structures* to conform to the branching model.
  - Flow pulls and pushes all key branches and checks whether local branches are not behind.
- - Flow handles [semantic versioning](https://semver.org/) across all key branches. Read more about {% post_link flow-version 'version handling with Flow' %}.
- - Flow keeps track of a release history with the [Keep a CHANGELOG](https://keepachangelog.com/en/) convention. Read more about {% post_link flow-changelog 'changelog handling with Flow' %}.
+ - Flow handles [semantic versioning](https://semver.org/) across all key branches. Read more about [version handling with Flow](https://blog.internetguru.io/2023/04/05/flow-version/).
+ - Flow keeps track of a release history with the [Keep a CHANGELOG](https://keepachangelog.com/en/) convention. Read more about [changelog handling with Flow](https://blog.internetguru.io/2023/04/08/flow-changelog/).
 
 ### Setup and configuration
 
