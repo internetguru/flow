@@ -112,19 +112,19 @@ EXIT CODES
 REPOSITORY
 ==========
 
-`GitHub repository <https://github.com/internetguru/flow/>`__
-
-
-AUTHOR
-======
-
-Written by Pavel Petrzela and George J. Pavelka.
+`Flow on GitHub repository <https://github.com/internetguru/flow/>`__
 
 
 REPORTING BUGS
 ==============
 
 `Issue tracker <https://github.com/internetguru/flow/issues>`__
+
+
+AUTHOR
+======
+
+Written by Pavel Petrzela and George J. Pavelka.
 
 
 COPYRIGHT
@@ -134,7 +134,9 @@ Copyright © 2016--2023 `Internet Guru <https://www.internetguru.io>`__
 
 This software is licensed under the CC BY-NC-SA license. There is NO WARRANTY, to the extent permitted by law. See the LICENSE file.
 
-For commercial use of this software, training, and custom development, please contact the authors at info@internetguru.io
+For commercial use, a nominal fee may be applicable based on the company size and the nature of their product. In many instances, this could result in no fees being charged at all.
+
+Please do not hesitate to reach out to us for inquiries related to seminars, workshops, training, integration, support, custom development, and additional services. We are more than happy to assist you.
 
 
 DONATION

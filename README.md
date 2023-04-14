@@ -39,6 +39,7 @@ Advance in [git flow branching model](http://nvie.com/posts/a-successful-git-bra
   - [Single file script](#single-file-script)
   - [Compiled distribution package](#compiled-distribution-package)
   - [Building from source](#building-from-source)
+  - [Running unit tests](#running-unit-tests)
 - [Contributing](#contributing)
 - [Copyright](#copyright)
 - [Donation](#donation)
@@ -126,7 +127,7 @@ PREFIX=/usr make
 See the [man page](flow.1.rst) for more information and examples.
 
 
-### Run unit tests
+### Running unit tests
 
 Testing the script requires a built 'flow' command and [Bash Unit Testing Tool](https://github.com/internetguru/butt) -- AKA the 'butt' command.
 
@@ -146,7 +147,9 @@ Copyright © 2016--2023 [Internet Guru](https://www.internetguru.io)
 
 This software is licensed under the CC BY-NC-SA license. There is NO WARRANTY, to the extent permitted by law. See the [LICENSE](LICENSE) file.
 
-For commercial use of this software, training, and custom development, please contact the authors at info@internetguru.io
+For commercial use, a nominal fee may be applicable based on the company size and the nature of their product. In many instances, this could result in no fees being charged at all.
+
+Please do not hesitate to reach out to us for inquiries related to seminars, workshops, training, integration, support, custom development, and additional services. We are more than happy to assist you.
 
 
 ## Donation
