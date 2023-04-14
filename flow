@@ -288,9 +288,9 @@ function main {
   }
 
   function checkout_branch {
-    msg_start "Creating branch '${1}'"
+    msg_start "Creating branch '${1}' on '${2}'"
     local out
-    out="$(git_checkout -b "${1}")" \
+    out="$(git_checkout -b "${1}" "${2}")" \
       || err "${out}"
     msg_done
   }
@@ -828,12 +828,8 @@ function main {
   }
 
   function feature_create {
-    local feature_name
-    feature_name="${1}"
-    checkout_if_exists "${feature_name}" \
-      && return
-    confirm "* Create branch '${feature_name}' from branch '${REPO_DEV}'?"
-    checkout_branch "${feature_name}"
+    confirm "* Create branch '${1}' from branch '${REPO_DEV}'?"
+    checkout_branch "${1}" "${REPO_DEV}"
   }
 
   function hotfix_create {
@@ -843,8 +839,7 @@ function main {
     [[ "${gcb%%-*}" == "${REPO_PROD}" ]] \
       && source=${gcb}
     confirm "* Create hotfix '${1}' from '${source}'?"
-    git_checkout "${source}"
-    checkout_branch "${1}"
+    checkout_branch "${1}" "${source}"
   }
 
   function release_staging {
