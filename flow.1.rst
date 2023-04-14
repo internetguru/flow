@@ -1,7 +1,7 @@
 NAME
 ====
 
-flow - manage git flow branching model
+Flow - manage git branching model
 
 
 SYNOPSIS
@@ -134,7 +134,7 @@ Copyright © 2016--2023 `Internet Guru <https://www.internetguru.io>`__
 
 This software is licensed under the CC BY-NC-SA license. There is NO WARRANTY, to the extent permitted by law. See the LICENSE file.
 
-For commercial use, a nominal fee may be applicable based on the company size and the nature of their product. In many instances, this could result in no fees being charged at all.
+For commercial use, a nominal fee may be applicable based on the company size and the nature of their product. In many instances, this could result in no fees being charged at all. Please contact us at info@internetguru.io for further information.
 
 Please do not hesitate to reach out to us for inquiries related to seminars, workshops, training, integration, support, custom development, and additional services. We are more than happy to assist you.
 

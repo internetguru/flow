@@ -28,26 +28,6 @@ Advance in [git flow branching model](http://nvie.com/posts/a-successful-git-bra
  - Flow can convert any existing git repository to a git branching model.
  - Flow automatically adapts to existing branches, such as 'release' instead of the default 'staging'.
 
-## Table of Contents
-
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-
-
-- [Installation](#installation)
-  - [Requirements](#requirements)
-  - [Single file script](#single-file-script)
-  - [Compiled distribution package](#compiled-distribution-package)
-  - [Building from source](#building-from-source)
-  - [Running unit tests](#running-unit-tests)
-- [Contributing](#contributing)
-- [Copyright](#copyright)
-- [Donation](#donation)
-  - [Honored donors](#honored-donors)
-- [Alternatives](#alternatives)
-
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
-
 
 ## Installation
 
@@ -147,7 +127,7 @@ Copyright © 2016--2023 [Internet Guru](https://www.internetguru.io)
 
 This software is licensed under the CC BY-NC-SA license. There is NO WARRANTY, to the extent permitted by law. See the [LICENSE](LICENSE) file.
 
-For commercial use, a nominal fee may be applicable based on the company size and the nature of their product. In many instances, this could result in no fees being charged at all.
+For commercial use, a nominal fee may be applicable based on the company size and the nature of their product. In many instances, this could result in no fees being charged at all. Please contact us at info@internetguru.io for further information.
 
 Please do not hesitate to reach out to us for inquiries related to seminars, workshops, training, integration, support, custom development, and additional services. We are more than happy to assist you.
 

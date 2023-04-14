@@ -1197,7 +1197,7 @@ function main {
     [[ ${COLUMNS} -gt 1 ]] \
       && indent=5 \
       && export MANWIDTH=$(( COLUMNS + indent ))
-    echo "${tail}" | man --nj --nh -l - \
+    echo "${tail}" | man --nj --nh -l - 2>/dev/null \
       | sed "1,2d;/^[[:space:]]*$/d;\${d};s/^ \{${indent}\}//"
   }
 

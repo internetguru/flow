@@ -52,7 +52,7 @@ define compile_usage
 	@ echo -n "$(USAGEHEADER)" > $(COMPILEDIR)/$(USAGEFILE)
 	@ grep "^$(PROG) \[" $(MANRST) | sed 's/\\|/|/g' >> $(COMPILEDIR)/$(USAGEFILE)
 	@ echo ".TH" >> $(COMPILEDIR)/$(USAGEFILE)
-	@ sed -n '/^OPTIONS/,/^FLOW EXAMPLE/p' $(MANRST)  | grep -v "^\(FLOW EXAMPLE\|OPTIONS\|======\)" \
+	@ sed -n '/^OPTIONS/,/^EXIT CODES/p' $(MANRST)  | grep -v "^\(EXIT CODES\|OPTIONS\|======\)" \
 	| sed 's/^\\//;s/^-/.TP 18\n-/' | sed 's/^    //' | sed '/^$$/d' >> $(COMPILEDIR)/$(USAGEFILE)
 	@ echo DONE
 endef
@@ -84,7 +84,7 @@ compile:
 	echo -n "\"Version "; echo -n $$(cat $(VERFILE)); echo -n "\" "; \
 	echo; \
 	} > $(COMPILEDIR)/$(MANFILE)
-	@ sed 's/`\([^`]\+\)<\([^>]\+\)>`__/\1\n  \2/g' $(MANRST) | $(RST2MAN) | tail -n+8 >> $(COMPILEDIR)/$(MANFILE)
+	@ sed 's/`\([^`]\+\)<\([^>]\+\)>`__/\1\n  \2/g' $(MANRST) | $(RST2MAN) | tail -n+33 >> $(COMPILEDIR)/$(MANFILE)
 	@ echo DONE
 
 	@ # Copy README and MAN rst into COMPILEDIR
