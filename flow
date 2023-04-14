@@ -1014,7 +1014,8 @@ function main {
     update_changelog Added "${REPO_DEV}"
     git_commit -am 'Update changelog'
     [[ ${request} == 1 ]] \
-      && flow_request "${REPO_DEV}"
+      && flow_request "${REPO_DEV}" \
+      && return
     merge_fromto "${source}" "${REPO_DEV}"
     delete_branch "${source}"
   }
