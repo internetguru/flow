@@ -23,17 +23,13 @@ function gsp {
   git status --porcelain
 }
 
-function gref {
-  ref="$(git show-ref)"
-}
-
 function checkInitRefs {
-  assert_equal "$(echo "${ref}" | wc -l)" 5
-  assert_contains "${ref}" "refs/heads/dev"
-  assert_contains "${ref}" "refs/heads/${1:-main}"
-  assert_contains "${ref}" "refs/heads/staging"
-  assert_contains "${ref}" "refs/heads/prod-0"
-  assert_contains "${ref}" "refs/tags/v0.0.0"
+  assert_equal "$(git show-ref | wc -l)" 5
+  assert_contains "$(git show-ref)" "refs/heads/dev"
+  assert_contains "$(git show-ref)" "refs/heads/${1:-main}"
+  assert_contains "$(git show-ref)" "refs/heads/staging"
+  assert_contains "$(git show-ref)" "refs/heads/prod-0"
+  assert_contains "$(git show-ref)" "refs/tags/v0.0.0"
 }
 
 function checkInitFiles {
@@ -164,8 +160,8 @@ start "dev is behind main error code"
     && echo a > a \
     && git add a \
     && git commit -am "add file a" \
-    && flow staging --yes \
-    && flow staging --yes \
+    && flow --yes \
+    && flow --yes \
     && gch dev \
     && git reset --hard HEAD~1
   } >/dev/null
@@ -203,7 +199,7 @@ start "version change on dev"
   { flow -iy \
     && echo 1.0.0 > VERSION \
     && git commit -am "bump version" \
-    && flow --yes hotfix a \
+    && flow --yes hotfix \
     && echo a > a \
     && git add . \
     && git commit -am "fix a"
@@ -212,13 +208,12 @@ start "version change on dev"
   assert_equal "${status}" 0
   load_log
   assert_contains "${log}" "(HEAD -> dev) Merge branch 'main' into dev"
-  assert_contains "${log}" "(tag: v0.0.1, staging, prod-0, main) Merge branch 'hotfix-a'"
+  assert_contains "${log}" "(tag: v0.0.1, staging, prod-0, main) Merge branch 'hotfix-$(whoami)'"
   assert_contains "${log}" "Merge branch 'main' into dev"
   assert_equal "$(git show main:VERSION)" "0.0.1"
   assert_equal "$(git show staging:VERSION)" "0.0.1"
   assert_equal "$(git show dev:VERSION)" "1.0.0"
-  gref
-  assert_equal "$(echo "${ref}" | grep /refs/heads/hotfix-a)" ""
+  assert_equal "$(git show-ref | grep /refs/heads/hotfix-$(whoami))" ""
   assert_equal "$(gsp)" ""
   debug "flow -n"
   assert_equal "${status}" 0
@@ -250,7 +245,6 @@ start "init on empty folder"
   debug "flow --init --yes"
   assert_equal "${status}" 0
   checkInitFiles
-  gref
   checkInitRefs
   assert_equal "$(gsp)" ""
   debug "flow -n"
@@ -264,25 +258,22 @@ start "init on non-empty folder"
     && touch b
   } >/dev/null
   debug "flow --init --yes"
-  assert_equal "${status}" 3
+  assert_equal "${status}" 5
   assert_contains "${errlines[0]}" "Folder is not empty."
 end
 #######################################
 : $((i++))
 start "init on non-empty folder with stash"
   take "${i}"
-  { touch a \
-    && touch b \
-    && echo b > .gitignore
-  } >/dev/null
+  { touch a; } >/dev/null
   debug "flow --init --yes --stash"
   assert_equal "${status}" 0
   checkInitFiles
-  gref
-  checkInitRefs
-  assert_equal "$(gsp | wc -l)" 2
+  assert_equal "$(git show-ref | wc -l)" 6
+  assert_contains "$(git show-ref)" "refs/stash"
+  assert_equal "$(gsp | wc -l)" 0
   debug "flow -n"
-  assert_equal "${status}" 5
+  assert_equal "${status}" 0
 end
 #######################################
 : $((i++))
@@ -296,7 +287,6 @@ start "init on existing repo with commits"
   debug "flow -v --init --yes"
   assert_equal "${status}" 0
   checkInitFiles master
-  gref
   checkInitRefs master
   assert_equal "$(gsp)" ""
   debug "flow -n"
@@ -310,7 +300,7 @@ start "init on existing repo uncommitted"
     && echo a > a
   } >/dev/null
   debug "flow -v --init --yes"
-  assert_equal "${status}" 3
+  assert_equal "${status}" 5
   assert_contains "${errlines[0]}" "Folder is not empty."
 end
 #######################################
@@ -323,11 +313,11 @@ start "init on existing repo without commits with --stash"
   debug "flow -v --init --yes --stash"
   assert_equal "${status}" 0
   checkInitFiles master
-  gref
-  checkInitRefs master
-  assert_equal "$(gsp)" "A  a"
+  assert_equal "$(git show-ref | wc -l)" 6
+  assert_contains "$(git show-ref)" "refs/stash"
+  assert_equal "$(gsp | wc -l)" 0
   debug "flow -n"
-  assert_equal "${status}" 5
+  assert_equal "${status}" 0
 end
 #######################################
 ## Conform
@@ -360,15 +350,13 @@ start "init on existing repo with commits and --stash"
     && git commit -am "first commit" \
     && echo b > b
   } >/dev/null
-  debug "flow --init --yes --stash --yes"
+  debug "flow --init --yes --stash"
   assert_equal "${status}" 0
-  checkInitFiles master
-  gref
-  #checkInitRefs
   assert_equal "$(git_current_branch)" "dev"
-  assert_equal "$(gsp | wc -l)" 1
+  checkInitFiles master
+  assert_equal "$(gsp | wc -l)" 0
   debug "flow -n"
-  assert_equal "${status}" 5
+  assert_equal "${status}" 0
 end
 #######################################
 : $((i++))
@@ -382,13 +370,12 @@ start "conform on existing repo with commits and --stash"
   } >/dev/null
   debug "flow --conform --stash --yes"
   assert_equal "${status}" 0
-  checkInitFiles
-  gref
-  #checkInitRefs
+  assert_equal "$(git show-ref | wc -l)" 7
+  assert_contains "$(git show-ref)" "refs/stash"
   assert_equal "$(git_current_branch)" "hotfix-$(whoami)"
-  assert_equal "$(gsp | wc -l)" 1
+  assert_equal "$(gsp | wc -l)" 0
   debug "flow -n"
-  assert_equal "${status}" 5
+  assert_equal "${status}" 6
 end
 #######################################
 ## Feature
@@ -397,10 +384,9 @@ end
 start "create feature"
   take "${i}"
   { flow --init --yes; } >/dev/null
-  debug "flow -v --yes"
+  debug "flow -v --yes feature"
   assert_equal "${status}" 0
-  gref
-  assert_contains "${ref}" "refs/heads/feature-$(whoami)"
+  assert_contains "$(git show-ref)" "refs/heads/feature-$(whoami)"
   assert_equal "$(git_current_branch)" "feature-$(whoami)"
   debug "flow -n"
   assert_equal "${status}" 6
@@ -412,20 +398,22 @@ start "create feature with uncommited changes and --stash"
   { flow --init --yes \
     && echo a > a
   } >/dev/null
-  debug "flow -v --yes --stash feature myfeature"
+  debug "flow -v --yes --stash myfeature"
   assert_equal "${status}" 0
+  assert_equal "$(git show-ref | wc -l)" 7
+  assert_contains "$(git show-ref)" "refs/stash"
   assert_contains "${outlines[0]}" "Stashing files"
-  assert_equal "$(git_current_branch)" "feature-myfeature"
-  assert_equal "$(gsp)" "A  a"
+  assert_equal "$(git_current_branch)" "myfeature"
+  assert_equal "$(gsp)" ""
   debug "flow -n"
-  assert_equal "${status}" 5
+  assert_equal "${status}" 6
 end
 #######################################
 : $((i++))
 start "merge feature"
   take "${i}"
   { flow --init --yes \
-    && flow --yes feature myfeature \
+    && flow --yes myfeature \
     && echo a > a \
     && git add . \
     && git commit -am "add feature 1"
@@ -434,9 +422,8 @@ start "merge feature"
   assert_equal "${status}" 0
   load_log
   assert_contains "${log}" "Update changelog"
-  assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'feature-myfeature' into dev"
-  gref
-  assert_equal "$(echo "${ref}" | grep /refs/heads/feature-myfeature)" ""
+  assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'myfeature' into dev"
+  assert_equal "$(git show-ref | grep /refs/heads/feature-myfeature)" ""
   assert_equal "$(git show dev:CHANGELOG.md | head -9 | tail -1)" "### Added"
   assert_equal "$(git show dev:CHANGELOG.md | head -11 | tail -1)" " - feature1"
   assert_equal "$(gsp)" ""
@@ -448,7 +435,7 @@ end
 start "merge empty feature"
   take "${i}"
   { flow --init --yes \
-    && flow --yes feature myfeature
+    && flow --yes myfeature
   } >/dev/null
   debug "flow -v --yes"
   assert_equal "${status}" 6
@@ -459,7 +446,7 @@ end
 start "merge feature with uncommitted changes and --stash"
   take "${i}"
   { flow --init --yes \
-    && flow --yes feature myfeature \
+    && flow --yes myfeature \
     && echo a > a \
     && git add . \
     && git commit -am "add feature 1" \
@@ -470,12 +457,11 @@ start "merge feature with uncommitted changes and --stash"
   #assert_contains "${outlines[0]}" "Stashing files"
   load_log
   assert_contains "${log}" "Update changelog"
-  assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'feature-myfeature' into dev"
-  gref
-  assert_equal "$(echo "${ref}" | grep /refs/heads/feature-myfeature)" ""
-  assert_equal "$(gsp)" "A  b"
+  assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'myfeature' into dev"
+  assert_equal "$(git show-ref | grep /refs/heads/myfeature)" ""
+  assert_equal "$(gsp)" ""
   debug "flow -n"
-  assert_equal "${status}" 5
+  assert_equal "${status}" 0
 end
 #######################################
 # start "merge feature with --request"
@@ -498,15 +484,14 @@ start "create staging"
     && git add . \
     && git commit -m "add file a"
   } >/dev/null
-  debug "flow -v --yes staging"
+  debug "flow -v --yes"
   assert_equal "${status}" 0
   assert_equal "$(git show dev:VERSION)" "0.2.0"
   assert_equal "$(git show staging:VERSION)" "0.1.0"
   assert_equal "$(git show dev:CHANGELOG.md | head -7 | tail -1)" "## [Unreleased]"
   assert_equal "$(git show dev:CHANGELOG.md | head -9 | tail -1)" "## [0.1.0] - RC1"
   assert_equal "$(git show staging:CHANGELOG.md | head -7 | tail -1)" "## [0.1.0] - RC1"
-  gref
-  assert_contains "${ref}" "refs/heads/staging"
+  assert_contains "$(git show-ref)" "refs/heads/staging"
   assert_equal "$(gsp)" ""
   debug "flow -n"
   assert_equal "${status}" 0
@@ -542,14 +527,13 @@ start "staging with uncommited changes and --stash"
     && git commit -m "add file a" \
     && echo b > b
   } >/dev/null
-  debug "flow -v --yes --stash staging"
+  debug "flow -v --yes --stash"
   assert_equal "${status}" 0
   assert_contains "${outlines[0]}" "Stashing files"
-  gref
-  assert_contains "${ref}" "refs/heads/staging"
-  assert_equal "$(gsp)" "A  b"
+  assert_contains "$(git show-ref)" "refs/heads/staging"
+  assert_equal "$(gsp)" ""
   debug "flow -n"
-  assert_equal "${status}" 5
+  assert_equal "${status}" 0
 end
 #######################################
 : $((i++))
@@ -559,7 +543,7 @@ start "merge staging"
     && echo a > a \
     && git add . \
     && git commit -m "add file a" \
-    && flow --yes staging
+    && flow --yes
   } >/dev/null
   debug "flow -v --yes staging"
   assert_equal "${status}" 0
@@ -570,8 +554,7 @@ start "merge staging"
   assert_contains "${log}" "(HEAD -> dev) Merge branch 'main' into dev"
   assert_contains "${log}" "(tag: v0.1.0, staging, prod-0, main) Merge branch 'staging'"
   assert_contains "${log}" "Increment minor version on 'dev'"
-  gref
-  assert_equal "$(echo "${ref}" | grep /refs/heads/staging)" ""
+  assert_equal "$(echo "$(git show-ref)" | grep /refs/heads/staging)" ""
   assert_equal "$(gsp)" ""
   debug "flow -n"
   assert_equal "${status}" 0
@@ -629,7 +612,6 @@ start "unmerged changes on staging --conform"
   } >/dev/null
   debug "flow -cy staging"
   assert_equal "${status}" 0
-
   debug "flow -n"
   assert_equal "${status}" 0
 end
@@ -649,9 +631,9 @@ end
 start "hotfix main"
   take "${i}"
   { flow -iy; } >/dev/null
-  debug "flow -v --yes hotfix myhotfix"
+  debug "flow -v --yes hotfix"
   assert_equal "${status}" 0
-  assert_equal "$(git_current_branch)" "hotfix-myhotfix"
+  assert_equal "$(git_current_branch)" "hotfix-$(whoami)"
   assert_equal "$(gsp)" ""
   debug "flow -n"
   assert_equal "${status}" 6
@@ -692,7 +674,8 @@ end
 start "merge main hotfix"
   take "${i}"
   { flow -iy \
-   && flow --yes hotfix myhotfix \
+   && gch main \
+   && flow --yes myhotfix \
    && echo a > a \
    && git add . \
    && git commit -m "add file a";
@@ -701,12 +684,11 @@ start "merge main hotfix"
   assert_equal "${status}" 0
   load_log
   assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'main' into dev"
-  assert_contains "${log}" "(tag: v0.0.1, staging, prod-0, main) Merge branch 'hotfix-myhotfix'"
+  assert_contains "${log}" "(tag: v0.0.1, staging, prod-0, main) Merge branch 'myhotfix'"
   assert_equal "$(git show dev:VERSION)" "0.1.0"
   assert_equal "$(git show staging:VERSION)" "0.0.1"
   assert_equal "$(git show main:VERSION)" "0.0.1"
-  gref
-  assert_equal "$(echo "${ref}" | grep /refs/heads/hotfix-myhotfix)" ""
+  assert_equal "$(echo "$(git show-ref)" | grep /refs/heads/hotfix-myhotfix)" ""
   assert_equal "$(gsp)" ""
   debug "flow -n"
   assert_equal "${status}" 0
@@ -716,8 +698,8 @@ end
 start "merge hotfix with unmerged staging"
   take "${i}"
   { flow -iy \
-   && flow --yes staging \
-   && flow --yes hotfix myhotfix \
+   && flow --yes \
+   && flow --yes hotfix \
    && echo b > b \
    && git add . \
    && git commit -m "add file b"
@@ -727,12 +709,11 @@ start "merge hotfix with unmerged staging"
   assert_equal "${status}" 0
   load_log
   assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'staging' into dev"
-  assert_contains "${log}" "(tag: v0.0.1, prod-0, main) Merge branch 'hotfix-myhotfix'"
+  assert_contains "${log}" "(tag: v0.0.1, prod-0, main) Merge branch 'hotfix-$(whoami)'"
   assert_equal "$(git show dev:VERSION)" "0.2.0"
   assert_equal "$(git show staging:VERSION)" "0.1.0"
   assert_equal "$(git show main:VERSION)" "0.0.1"
-  gref
-  assert_equal "$(echo "${ref}" | grep /refs/heads/hotfix-myhotfix)" ""
+  assert_equal "$(echo "$(git show-ref)" | grep /refs/heads/hotfix-myhotfix)" ""
   assert_equal "$(gsp)" ""
   debug "flow -n"
   assert_equal "${status}" 0

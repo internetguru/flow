@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).'}
 function main {
 
   function msg_start {
-    [[ ${verbose} -eq 0 ]] \
+    [[ ${VERBOSE} -eq 0 ]] \
       && return
     if stdoutpipe || [[ ${COLUMNS} -lt 41 ]]; then
       echo -n "${1}" \
@@ -48,7 +48,7 @@ function main {
   }
 
   function msg_end {
-    [[ ${verbose} -eq 0 ]] \
+    [[ ${VERBOSE} -eq 0 ]] \
       && return
     if stdoutpipe || [[ ${COLUMNS} -lt 41 ]]; then
       echo " [ ${1} ]" \
@@ -58,31 +58,22 @@ function main {
     echo "${1}"
   }
 
-  function stdout_silent {
-    return
-    [[ ${verbose} == 0 ]] && exec 5<&1 && exec 1>/dev/null
-  }
-
-  function stdout_verbose {
-    return
-    [[ ${verbose} == 0 ]] && exec 1<&5
-  }
-
   function err {
     echo "${SCRIPT_NAME}: ${1:-Generic error}" >&2
     [[ "${2:-}" == 2 ]] \
       && echo "${USAGE}" >&2
     [[ "${2:-}" == 3 ]] \
-      && echo "${FIXABLE}" >&2
+      && echo "This appears to be fixable with the --conform option." >&2
+    [[ "${2:-}" == 5 ]] \
+      && echo "Commit/stash your changes or use the --stash option." >&2
     exit "${2:-1}"
   }
 
   function setcolor {
-    local c
-    c=${1:-always}
+    local c=${1:-always}
     case ${c} in
       always|never|auto)
-        color=${c}
+        COLOR=${c}
         return 0
       ;;
     esac
@@ -94,10 +85,10 @@ function main {
   }
 
   function colorize {
-    [[ ${color} == never ]] \
+    [[ ${COLOR} == never ]] \
       && echo -n "${1}" \
       && return
-    [[ ${color} == auto ]] \
+    [[ ${COLOR} == auto ]] \
       && stdoutpipe \
       && echo -n "${1}" \
       && return
@@ -120,28 +111,26 @@ function main {
     # shellcheck disable=SC2162
     read -d'R' curpos </dev/tty
     stty "${oldstty}"
-    pos_x=$( echo "${curpos#??}" | cut -d';' -f1 )
-    pos_y=$( echo "${curpos#??}" | cut -d';' -f2 )
+    POSX=$( echo "${curpos#??}" | cut -d';' -f1 )
+    POSY=$( echo "${curpos#??}" | cut -d';' -f2 )
   }
 
   function set_cursor_position {
-    [[ "${pos_x}" == "${LINES}" ]] && : $(( pos_x-- ))
-    tput cup $(( pos_x-1 )) $(( pos_y-1 ))
+    [[ "${POSX}" == "${LINES}" ]] && : $(( POSX -- ))
+    tput cup $(( POSX - 1 )) $(( POSY - 1 ))
   }
 
   function confirm {
-    [[ ${dry} == 1 ]] \
+    [[ ${DRYRUN} == 1 ]] \
       && exit
-    [[ ${yes} == 1 ]] \
+    [[ ${YES} == 1 ]] \
       && return
-    if [[ ${is_stdin} == 0 ]]; then
-      stdout_verbose
+    if [[ ${ISSTDIN} == 0 ]]; then
       echo -n "${1:-'Are you sure?'} [YES/No] "
       save_cursor_position
       clear_stdin
       read -r
       [[ -z "${REPLY}" ]] && set_cursor_position && echo 'yes'
-      stdout_silent
     else
       read -r
     fi
@@ -233,7 +222,7 @@ function main {
   }
 
   function git_merge_nocommit {
-    env GIT_EDITOR=: git merge --no-commit "${@}" >/dev/null 2>&1
+    env GIT_EDITOR=: git merge --no-ff --no-commit "${@}" >/dev/null 2>&1
   }
 
   function git_merge {
@@ -288,18 +277,18 @@ function main {
   }
 
   function checkout_branch {
-    msg_start "Creating branch '${1}' on '${2}'"
+    #msg_start "Creating branch '${1}' on '${2}'"
     local out
-    out="$(git_checkout -b "${1}" "${2}")" \
+    out="$(git_checkout -B "${1}" "${2}")" \
       || err "${out}"
-    msg_done
+    #msg_done
   }
 
   function validate_branch {
     branch_exists "${1}" \
       && validate_behind "${1}" \
       && return
-    [[ ${conform} == 0 ]] \
+    [[ ${CONFORM} == 0 ]] \
       && err "Local branch '${1}' not found." 3
     confirm "Create branch '${1}'?"
     create_branch "${1}"
@@ -308,11 +297,10 @@ function main {
   function validate_behind {
     ! git branch --verbose --list "${1}" | grep --quiet ' \[behind ' \
       && return
-    [[ ${conform} == 0 ]] \
+    [[ ${CONFORM} == 0 ]] \
       && err "Local branch '${1}' is behind remote." 3
     confirm "Merge branch '${1}' with its remote?"
-    git_checkout "${1}"
-    git_merge "${REPO_ORIGIN}/${1}"
+    update_branch "${1}"
   }
 
   function create_branch {
@@ -326,7 +314,7 @@ function main {
   }
 
   function branch_exists {
-    [[ $(git_current_branch) == "${1}" ]] \
+    [[ $(current_branch) == "${1}" ]] \
      || git_branch_format --all | grep -q -E "^${1}\$"
   }
 
@@ -343,7 +331,7 @@ function main {
       || err "Remote url for '${REPO_ORIGIN}' not found."
   }
 
-  function git_current_branch {
+  function current_branch {
     git_branch_format --show-current
   }
 
@@ -354,15 +342,6 @@ function main {
       && return
     git_add -A
     git_stash push
-    stashed=1
-    msg_done
-  }
-
-  function unstash_files {
-    [[ ${stashed} == 0 ]] \
-      && return 0
-    msg_start 'Unstashing files'
-    git_stash pop
     msg_done
   }
 
@@ -395,7 +374,7 @@ function main {
     [[ "${2}" == 'upwards' ]] \
       && git_merge --no-ff "${1}" \
       && return
-    git_merge_nocommit --no-ff --no-commit "${1}"
+    git_merge_nocommit "${1}"
     git_checkout --ours "${REPO_VERFILE}"
     #TODO: resolve changelog automatically
     #git_checkout --ours "${REPO_CHANGELOG}"
@@ -415,7 +394,7 @@ function main {
   }
 
   function delete_branch {
-    [[ "$(git_current_branch)" == "${1}" ]] \
+    [[ "$(current_branch)" == "${1}" ]] \
       && err 'Unable to delete checked branch'
     delete_remote_branch "${1}"
     msg_start "Deleting local branch '${1}'"
@@ -425,7 +404,7 @@ function main {
 
   function load_version {
     local branch ver
-    branch=${1:-$(git_current_branch)}
+    branch=${1:-$(current_branch)}
     git_show_exists "${branch}:${REPO_VERFILE}" \
       && ver=$(git_show "${branch}:${REPO_VERFILE}") \
       && is_valid_version "${ver}" \
@@ -468,14 +447,14 @@ function main {
     git_repo_exists \
       && [[ -n "$(git_branch_format)" ]] \
       && return
-    [[ ${init} == 0 ]] \
+    [[ ${INIT} == 0 ]] \
       && ! git_repo_exists \
       && err 'Git repository not found.' 3
-    [[ ${init} == 0 ]] \
+    [[ ${INIT} == 0 ]] \
       && [[ -z "$(git_branch_format)" ]] \
       && err 'Missing initial commit.' 3
-    [[ "$(ls -A .)" && "${stash}" == 0 ]] \
-      && err 'Folder is not empty.' 3
+    [[ "$(ls -A .)" && "${STASH}" == 0 ]] \
+      && err 'Folder is not empty.' 5
     confirm "Initialize repository?"
     msg_start 'Initializing repository'
     # this requires newer git version
@@ -488,7 +467,7 @@ function main {
   }
 
   function hotfix_vertag {
-    [[ ${conform} == 0 ]] \
+    [[ ${CONFORM} == 0 ]] \
       && err "Invalid version tag 'v${1}' commit." 3
     confirm 'Conform version tag?'
     local ver
@@ -506,7 +485,7 @@ function main {
     has_tag "${REPO_STABLE}" "v${ver}" \
       && hotfix_vertag "${ver}" \
       && return
-    [[ ${conform} == 0 ]] \
+    [[ ${CONFORM} == 0 ]] \
       && err "Missing version tag 'v${ver}'." 3
     confirm 'Create version tag?'
     git_tag "v${ver}" "${REPO_STABLE}"
@@ -515,7 +494,7 @@ function main {
   function validate_merged_to {
     is_merged_to "${1}" "${2}" \
       && return
-    [[ ${conform} == 0 ]] \
+    [[ ${CONFORM} == 0 ]] \
       && err "Branch '${1}' is not merged into '${2}'." 3
     confirm "Merge branch '${1}' into '${2}'?"
     merge_fromto "${1}" "${2}"
@@ -527,7 +506,7 @@ function main {
 
   function update_version {
     local gcb
-    gcb=$(git_current_branch)
+    gcb=$(current_branch)
     msg_start 'Updating version number'
     git_checkout "${1}"
     echo "${2}" > "${REPO_VERFILE}"
@@ -541,7 +520,7 @@ function main {
   function validate_status_empty {
     git_status_empty \
       && return
-    [[ ${stash} == 1 ]] \
+    [[ ${STASH} == 1 ]] \
       && stash_files \
       && return
     err 'Uncommitted changes.' 5
@@ -588,11 +567,11 @@ function main {
       && git_show "${1}:${REPO_CHANGELOG}" | grep -q "^## \[${3}]" \
       && git_show "${1}:${REPO_CHANGELOG}" | grep -q "^\[${3}]" \
       && return
-    [[ ${conform} == 0 ]] \
+    [[ ${CONFORM} == 0 ]] \
       && err "Missing or invalid changelog file on ${1}." 3
     confirm "Conform changelog file on ${1}?"
     local gcb
-    gcb=$(git_current_branch)
+    gcb=$(current_branch)
     git_checkout "${1}"
     # changelog must exist and must be unempty
     [[ ! -f "${REPO_CHANGELOG}" || ! -s "${REPO_CHANGELOG}" ]] \
@@ -616,11 +595,11 @@ function main {
     [[ -n "${ver}" ]] \
       && ! version_gt "${2:-0.0.0}" "${ver}" \
       && return
-    [[ ${conform} == 0 ]] \
+    [[ ${CONFORM} == 0 ]] \
       && err "Missing or invalid version file on ${1}." 3
     confirm "Conform version file on ${1}?"
     local gcb
-    gcb=$(git_current_branch)
+    gcb=$(current_branch)
     git_checkout "${1}"
     echo "${2:-0.0.0}" > "${REPO_VERFILE}"
     git_add "${REPO_VERFILE}"
@@ -628,7 +607,7 @@ function main {
     git_checkout "${gcb}"
   }
 
-  function find_branch_or_first {
+  function find_or_first {
     for branch in "${@}"; do
       branch_exists "${branch}" \
         && echo "${branch}" \
@@ -643,15 +622,17 @@ function main {
   }
 
   function flow_validate {
+    [[ ${#} -gt 1 ]] \
+      && err 'Too many arguments.' 2
     local gcb=${REPO_DEV}
     validate_requirements
     git_repo_exists \
-      && gcb=$(git_current_branch)
+      && gcb=$(current_branch)
     validate_repository
     validate_status_empty
-    REPO_STABLE=$(find_branch_or_first "${REPO_STABLE}" "${STABLE_ARR[@]}")
-    REPO_STAGING=$(find_branch_or_first "${REPO_STAGING}" "${STAGING_ARR[@]}")
-    REPO_DEV=$(find_branch_or_first "${REPO_DEV}" "${DEV_ARR[@]}")
+    REPO_STABLE=$(find_or_first "${REPO_STABLE}" "${STABLE_ARR[@]}")
+    REPO_STAGING=$(find_or_first "${REPO_STAGING}" "${STAGING_ARR[@]}")
+    REPO_DEV=$(find_or_first "${REPO_DEV}" "${DEV_ARR[@]}")
     validate_branch "${REPO_STABLE}"
     validate_version "${REPO_STABLE}" "$(top_vertag)"
     local from to
@@ -672,7 +653,33 @@ function main {
     validate_merged_to "${REPO_STAGING}" "${REPO_DEV}"
     validate_version "${REPO_DEV}" "$(increment_minor "$(load_version "${REPO_STAGING}")")"
     validate_changelog "${REPO_DEV}" "${REPO_STAGING}" "${UNRELEASED}" "" "${from}" "${REPO_DEV}"
+    validate_param "${1:-}"
+    validate_param "${DEFAULT_HOTFIX}"
+    validate_param "${DEFAULT_FEATURE}"
     git_checkout "${gcb}"
+    [[ ${INIT} == 1 ]] \
+      && git_checkout "${REPO_DEV}" \
+      && exit
+  }
+
+  function has_prod_format {
+    [[ "${1}" =~ ^${REPO_PROD}-[0-9]+$ ]]
+  }
+
+  # prod* must exist
+  # else optional
+  function validate_param {
+    [[ -z "${1}" ]] \
+      && return
+    branch_exists "${REPO_ORIGIN}/${1}" \
+      && ! branch_exists "${1}" \
+      && git_branch "${1}" "${REPO_ORIGIN}/${1}"
+    ! branch_exists "${1}" \
+      && ! has_prod_format "${1}" \
+      && return
+    ! branch_exists "${1}" \
+      && err "Expected branch '${1}' not found." 4
+    validate_behind "${1}"
   }
 
   function prod_name {
@@ -687,7 +694,7 @@ function main {
     validate_branch "${prod}"
     is_attached_to "${prod}" "${REPO_STABLE}" \
       && return
-    [[ ${conform} == 0 ]] \
+    [[ ${CONFORM} == 0 ]] \
       && err "Branch '${prod}' is behind '${REPO_STABLE}'." 3
     confirm "Merge branch '${prod}' into '${REPO_STABLE}'?"
     git_checkout "${prod}"
@@ -707,93 +714,92 @@ function main {
       || [[ -n ${1} && "${2}" == "${3}-${1}" ]]
   }
 
-  function get_keyword {
-    [[ "${1}" == release ]] \
-      && echo release \
-      && return
+  function get_key_branch {
     [[ " ${STABLE_ARR[*]} " == *" ${1} "* ]] \
       && echo "${REPO_STABLE}" \
-      && return
-    [[ " ${DEV_ARR[*]} " == *" ${1} "* ]] \
-      && echo "${REPO_DEV}" \
       && return
     [[ " ${STAGING_ARR[*]} " == *" ${1} "* ]] \
       && echo "${REPO_STAGING}" \
       && return
+    [[ " ${DEV_ARR[*]} " == *" ${1} "* ]] \
+      && echo "${REPO_DEV}" \
+      && return
     echo "${1}"
   }
 
+  function is_hotfix_branch {
+    [[ "$(git merge-base "${1}" "${REPO_DEV}")" == "$(git merge-base "${REPO_STABLE}" "${REPO_DEV}")" ]]
+  }
+
+  # 1: dest branch
+  # 2: source branch or empty
+  function flow_hotfix {
+    # local name=
+    # [[ -n "${1}" && "$(get_key_branch "${1}")" != "${REPO_STABLE}" ]] \
+    #   && name="${1}"
+    branch_exists "${1}" \
+      && release_hotfix "${1}" \
+      && return
+    local branch="${REPO_STABLE}"
+    [[ "$(has_prod_format "$(current_branch)")" ]] \
+      && branch=$(current_branch)
+    [[ -n "${2:-}" ]] \
+      && branch="${2}"
+    create_hotfix "${1}" "${branch}"
+  }
+
+  # 1: dest branch
+  function flow_feature {
+    branch_exists "${1}" \
+      && release_feature "${1}" \
+      && return
+    create_feature "${1}"
+  }
+
   function flow_process {
-    [[ ${#} -gt 2 ]] \
-      && err 'Too many arguments.' 2
-    local gcb kw name
-    gcb=$(git_current_branch)
-    kw=$(get_keyword "${1:-"${gcb%%-*}"}")
-    name=${2:-"$(whoami)"}
-    git check-ref-format "${REFSHEADS}/${name}" \
-      || err "Invalid branch name format '${name}'." 2
-    case "${kw,,}" in
-      pull|fetch)
-        unexpected_argument "${2-}"
-        flow_pull
-        ;;
-      push)
-        unexpected_argument "${2-}"
-        flow_push
-        ;;
-      ${HOTFIX}|${REPO_STABLE}|${REPO_PROD})
-        is_releasable "${2-}" "${gcb}" "${HOTFIX}" \
-          && release_hotfix \
-          && return
-        checkout_if_exists "${HOTFIX}-${name}" \
-          && return
-        hotfix_create "${HOTFIX}-${name}"
-        ;;
-      ${FEATURE}|${REPO_DEV})
-        is_releasable "${2-}" "${gcb}" "${FEATURE}" \
-          && release_feature \
-          && return
-        checkout_if_exists "${FEATURE}-${name}" \
-          && return
-        feature_create "${FEATURE}-${name}"
-        ;;
-      release)
-        unexpected_argument "${2-}"
-        [[ "${gcb}" == "${REPO_DEV}" ]] \
-          && release_dev \
-          && return
-        [[ "${gcb}" == "${REPO_STAGING}" ]] \
-          && release_staging \
-          && return
-        [[ "${gcb%%-*}" == "${HOTFIX}" ]] \
-          && release_hotfix \
-          && return
-        [[ "${gcb%%-*}" == "${FEATURE}" ]] \
-          && release_feature \
-          && return
-        checkout_if_exists "${REPO_STAGING}" \
-          && return
-        err "Undecided action '${kw}'."
-        ;;
-      ${REPO_STAGING})
-        unexpected_argument "${2-}"
-        [[ "${gcb}" == "${REPO_DEV}" ]] \
-          && release_dev \
-          && return
-        [[ "${gcb}" == "${REPO_STAGING}" ]] \
-          && release_staging \
-          && return
-        is_attached_to "${REPO_STAGING}" "${REPO_STABLE}" \
-          && release_dev \
-          && return
-        checkout_if_exists "${REPO_STAGING}" \
-          && return
-        err "Undecided action '${kw}'."
-        ;;
-      *)
-        err 'Unknown keyword or branch.' 2
-        ;;
-    esac
+    local branch
+    branch=$(get_key_branch "${1:-"$(current_branch)"}")
+    git check-ref-format "${REFSHEADS}/${branch}" \
+      || err "Invalid branch format." 2
+    # flow dev* -> release dev
+    [[ "${branch}" == "${REPO_DEV}" ]] \
+      && release_dev \
+      && return
+    # flow staging* -> release staging
+    [[ "${branch}" == "${REPO_STAGING}" ]] \
+      && release_staging \
+      && return
+    # flow stable* -> create/release default hotfix
+    [[ "${branch}" == "${REPO_STABLE}" ]] \
+      && flow_hotfix "${DEFAULT_HOTFIX}" "${REPO_STABLE}" \
+      && return
+    # flow prod* -> create/release (default?) hotfix on a prod* branch
+    has_prod_format "${branch}" \
+      && flow_hotfix "${DEFAULT_HOTFIX}" "${branch}" \
+      && return
+    # flow hotfix -> create/release default hotfix on a stable or prod* branch
+    [[ "${branch}" == "${HOTFIX}" ]] \
+      && flow_hotfix "${DEFAULT_HOTFIX}" \
+      && return
+    # flow feature -> create/release default feature
+    [[ "${branch}" == "${FEATURE}" ]] \
+      && flow_feature "${DEFAULT_FEATURE}" \
+      && return
+    # flow other existing hotfix branch -> release hotfix
+    branch_exists "${branch}" \
+      && is_hotfix_branch "${branch}" \
+      && release_hotfix "${branch}" \
+      && return
+    # if other existing branch -> release feature
+    branch_exists "${branch}" \
+      && release_feature "${branch}" \
+      && return
+    # if on stable|prod -> create hotfix branch
+    is_hotfix_branch "$(current_branch)" \
+      && create_hotfix "${1}" "$(current_branch)" \
+      && return
+    # create feature branch
+    create_feature "${1}"
   }
 
   function checkout_if_exists {
@@ -827,24 +833,21 @@ function main {
     git_checkout "${REPO_STAGING}"
   }
 
-  function feature_create {
-    confirm "* Create branch '${1}' from branch '${REPO_DEV}'?"
+  function create_feature {
+    confirm "* Create branch '${1}' from '${REPO_DEV}'?"
     checkout_branch "${1}" "${REPO_DEV}"
   }
 
-  function hotfix_create {
-    local gcb source
-    gcb=$(git_current_branch)
-    source=${REPO_STABLE}
-    [[ "${gcb%%-*}" == "${REPO_PROD}" ]] \
-      && source=${gcb}
-    confirm "* Create hotfix '${1}' from '${source}'?"
-    checkout_branch "${1}" "${source}"
+  # 1 dest name
+  # 2 source branch
+  function create_hotfix {
+    confirm "* Create hotfix '${1}' from '${2}'?"
+    checkout_branch "${1}" "${2}"
   }
 
   function release_staging {
     # shellcheck disable=SC2015
-    [[ ${request} == 1 ]] \
+    [[ ${REQUEST} == 1 ]] \
       && confirm "* Request merge '${REPO_STAGING}' to '${REPO_STABLE}'?" \
       || confirm "* Release '${REPO_STAGING}' branch to '${REPO_STABLE}'?"
     is_attached_to "${REPO_STAGING}" "${REPO_STABLE}" \
@@ -859,7 +862,7 @@ function main {
     git_add -- "${REPO_CHANGELOG}"
     git_commit -am 'Update changelog'
     msg_done
-    [[ ${request} == 1 ]] \
+    [[ ${REQUEST} == 1 ]] \
       && flow_request "${REPO_STABLE}" \
       && return
     msg_start 'Updating branching structure'
@@ -959,11 +962,10 @@ function main {
   # 2: source branch
   function update_changelog {
     local gcb kw=
-    gcb=$(git_current_branch)
-    [[ "${entry}" == 1 ]] \
+    gcb=$(current_branch)
+    [[ "${ENTRY}" == 1 ]] \
       && add_changelog_entry "${1}" "${gcb}" \
       && return
-    stdout_verbose
     echo
     echo '***'
     echo "* Please enter the ${gcb} description for ${REPO_CHANGELOG}."
@@ -977,7 +979,7 @@ function main {
     echo '***'
     # What for?
     REPLY=
-    [[ ${is_stdin} == 0 ]] \
+    [[ ${ISSTDIN} == 0 ]] \
       && echo 'Type "[Keyword]: [Message]". Empty line to end editing.' \
       && echo "If omitted, the default keyword is '${1}'." \
       && echo "Leave empty (press Enter) for default message: '${1}: ${gcb}'." \
@@ -993,26 +995,23 @@ function main {
     done
     [[ -z "${kw}" ]] \
       && add_changelog_entry "${1}" "${gcb}"
-    stdout_silent
   }
 
   function release_feature {
-    local source
-    source=$(git_current_branch)
-    is_merged_to "${source}" "${REPO_DEV}" \
+    is_merged_to "${1}" "${REPO_DEV}" \
       && err 'Nothing to merge.' 6
     # shellcheck disable=SC2015
-    [[ ${request} == 1 ]] \
-      && confirm "* Request merge '${source}' into '${REPO_DEV}'?" \
-      || confirm "* Merge '${source}' into '${REPO_DEV}'?"
-    merge_fromto "${REPO_DEV}" "${source}"
+    [[ ${REQUEST} == 1 ]] \
+      && confirm "* Request merge '${1}' into '${REPO_DEV}'?" \
+      || confirm "* Merge '${1}' into '${REPO_DEV}'?"
+    merge_fromto "${REPO_DEV}" "${1}"
     update_changelog Added "${REPO_DEV}"
     git_commit -am 'Update changelog'
-    [[ ${request} == 1 ]] \
+    [[ ${REQUEST} == 1 ]] \
       && flow_request "${REPO_DEV}" \
       && return
-    merge_fromto "${source}" "${REPO_DEV}"
-    delete_branch "${source}"
+    merge_fromto "${1}" "${REPO_DEV}"
+    delete_branch "${1}"
   }
 
   ### Increments the part of the string
@@ -1051,10 +1050,9 @@ function main {
   }
 
   function release_hotfix {
-    local source dest vers verd
-    source=$(git_current_branch)
+    local dest vers verd
     dest=${REPO_STABLE}
-    vers=$(load_version "${source}")
+    vers=$(load_version "${1}")
     verd=$(load_version "${REPO_STABLE}")
     [[ "${vers%%.*}" > "${verd%%.*}" ]] \
       && err "Hotfix version is greater than '${REPO_STABLE}'." 4
@@ -1063,7 +1061,7 @@ function main {
       && verd="$(load_version "${dest}")"
     ! branch_exists "${dest}" \
       && err "Branch '${dest} not found." 4
-    is_merged_to "${source}" "${dest}" \
+    is_merged_to "${1}" "${dest}" \
       && err 'Nothing to merge.' 6
     # shellcheck disable=SC2015
     [[ "${dest}" == "${REPO_STABLE}" ]] \
@@ -1077,13 +1075,13 @@ function main {
     update_changelog Fixed "${dest}"
     git_commit -am 'Update control files'
     msg_done
-    [[ ${request} == 1 ]] \
+    [[ ${REQUEST} == 1 ]] \
       && flow_request "${dest}" \
       && return
-    merge_fromto "${source}" "${dest}"
+    merge_fromto "${1}" "${dest}"
     git_tag "v$(load_version)"
     [[ "${dest}" != "${REPO_STABLE}" ]] \
-      && delete_branch "${source}" \
+      && delete_branch "${1}" \
       && return
     git_checkout "$(prod_name "${verd}")"
     git_merge "${REPO_STABLE}"
@@ -1092,43 +1090,35 @@ function main {
       && git_checkout "${REPO_STAGING}" \
       && git_merge "${REPO_STABLE}" \
       && merge_fromto "${REPO_STABLE}" "${REPO_DEV}" \
-      && delete_branch "${source}" \
+      && delete_branch "${1}" \
       && return
     merge_fromto "${REPO_STABLE}" "${REPO_STAGING}"
     merge_fromto "${REPO_STAGING}" "${REPO_DEV}"
-    delete_branch "${source}"
+    delete_branch "${1}"
   }
 
-  function flow_pull_branch {
-    git_fetch "${REPO_ORIGIN}" "${1}:${1}"
+  function update_branch {
+    checkout_branch "${1}" "${REPO_ORIGIN}/${1}"
+    git_merge --ff-only "${REPO_ORIGIN}/${1}"
+    git_branch --set-upstream-to="${REPO_ORIGIN}/${1}"
   }
 
   function flow_pull {
     validate_git_remote
     confirm '* Pull all remote branches?'
-    msg_start 'Fetching key branches'
-    git_fetch --tags
-    flow_pull_branch "${REPO_DEV}"
-    flow_pull_branch "${REPO_STABLE}"
-    flow_pull_branch "${REPO_STAGING}"
-    for prod in $(git_branch_format -r); do
-      flow_pull_branch "${prod}"
+    msg_start 'Pulling branches'
+    git_fetch --all --tags
+    for branch in $(git_branch_format -r | grep "^${REPO_ORIGIN}" | sed "s/^${REPO_ORIGIN}\///"); do
+      update_branch "${branch}"
     done
     msg_done
   }
 
   function flow_push {
     validate_git_remote
-    confirm '* Push key branches to the remote repository?'
-    msg_start 'Pushing key branches'
-    git_push --tags
-    git_push "${REPO_ORIGIN}" "${REPO_DEV}"
-    git_push "${REPO_ORIGIN}" "${REPO_STABLE}"
-    git_push "${REPO_ORIGIN}" "${REPO_STAGING}"
-    for prod in $(git_branch_format | grep "${REPO_PROD}-[0-9]\+"); do
-      branch_exists "${prod}" \
-        && git_push "${REPO_ORIGIN}" "${prod}"
-    done
+    confirm '* Push all branches to the remote repository?'
+    msg_start 'Pushing all branches and tags'
+    git_push "${REPO_ORIGIN}" --all --tags
     msg_done
   }
 
@@ -1156,8 +1146,7 @@ function main {
     url=$(trim_url "$(git config remote."${REPO_ORIGIN}".url)")
     upstream_url="$(git config remote."${REPO_UPSTREAM}".url)"
     upstream_url="$(trim_url "${upstream_url}")"
-    gcb=$(git_current_branch)
-    stdout_verbose
+    gcb=$(current_branch)
     echo -n 'Pull request URL: '
     case "${url}" in
       *"${GITHUB}"*)
@@ -1176,7 +1165,6 @@ function main {
         err 'Unsupported remote server name.'
       ;;
     esac
-    stdout_silent
   }
 
   function flow_usage {
@@ -1208,13 +1196,12 @@ function main {
     echo "flow $(<"${FLOW_VERFILE}")"
   }
 
-  function what_now {
+  function flow_whatnow {
     [[ ${#} -gt 0 ]] \
       && err 'Unexpected arguments.' 2
     local gcb kw
-    gcb=$(git_current_branch)
-    kw=$(get_keyword "${gcb%%-*}")
-    stdout_verbose
+    gcb=$(current_branch)
+    kw=$(get_key_branch "${gcb%%-*}")
     echo '***'
     echo "* Currently on '${gcb}'"
     echo '*'
@@ -1266,7 +1253,6 @@ function main {
         echo '* Not sure what this means (confused unga bunga).'
     esac
     echo '***'
-    stdout_silent
   }
 
   # global constants
@@ -1276,9 +1262,10 @@ function main {
   declare -r GITHUB='github.com'
   declare -r BITBUCKET='bitbucket.org'
   declare -r HOTFIX='hotfix'
+  declare -r DEFAULT_HOTFIX="${HOTFIX}-$(whoami)"
   declare -r FEATURE='feature'
+  declare -r DEFAULT_FEATURE="${FEATURE}-$(whoami)"
   declare -r UNRELEASED='Unreleased'
-  declare -r FIXABLE='This appears to be fixable with the --conform option.'
   declare -r KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
   declare -r REFSHEADS='refs/heads'
   declare -r REFSTAGS='refs/tags'
@@ -1290,46 +1277,46 @@ function main {
   declare VERSION
   VERSION=$(flow_version)
 
-  # global variables
-  [ -t 0 ]
-  declare is_stdin=${?}
-  declare what_now=0
-  declare dry=0
-  declare entry=0
-  declare stashed=0
-  declare verbose=0
-  declare yes=0
-  declare color=auto
-  declare pos_x=1
-  declare pos_y=1
-
   # process options
   line=$(IFS=' ' getopt -n "${0}" \
     -o cehinrsvVwy\? \
-    -l conform,color::,colour::,auto-entry,help,init,dry-run,request,stash,verbose,version,what-now,yes \
+    -l conform,color::,colour::,auto-entry,help,init,dry-run,request,stash,verbose,version,what-now,yes,pull,push \
     -- "${@}" 2>&1) \
     || err "${line}" 2
   eval set -- "${line}"
 
-  # load options
-  stash=0
-  conform=0
-  init=0
-  request=0
+  # global variables
+  [ -t 0 ]
+  declare ISSTDIN=${?}
+  declare WHATNOW=0
+  declare DRYRUN=0
+  declare ENTRY=0
+  declare VERBOSE=0
+  declare YES=0
+  declare COLOR=auto
+  declare POSX=1
+  declare POSY=1
+  declare STASH=0
+  declare CONFORM=0
+  declare INIT=0
+  declare REQUEST=0
+
   while [[ ${#} -gt 0 ]]; do
     case ${1} in
-     -c|--conform) conform=1; shift ;;
-     -e|--auto-entry) entry=1; shift ;;
+     -c|--conform) CONFORM=1; shift ;;
+     -e|--auto-entry) ENTRY=1; shift ;;
      --color|--colour) shift; setcolor "${1}"; shift ;;
-     -s|--stash) stash=1; shift ;;
-     -h|-\?|--help) echo "${USAGE}"; return ;;
-     -i|--init) init=1; conform=1; shift ;;
-     -n|--dry-run) dry=1; shift ;;
-     -r|--request) request=1; shift ;;
-     -v|--verbose) verbose=1; shift ;;
-     -V|--version) echo "${VERSION}"; return ;;
-     -w|--what-now) what_now=1; shift ;;
-     -y|--yes) yes=1; shift ;;
+     -s|--stash) STASH=1; shift ;;
+     -h|-\?|--help) echo "${USAGE}"; exit ;;
+     -i|--init) INIT=1; CONFORM=1; shift ;;
+     -n|--dry-run) DRYRUN=1; shift ;;
+     --pull) flow_pull; exit ;;
+     --push) flow_push; exit ;;
+     -r|--request) REQUEST=1; shift ;;
+     -v|--verbose) VERBOSE=1; shift ;;
+     -V|--version) echo "${VERSION}"; exit ;;
+     -w|--what-now) flow_whatnow; exit ;;
+     -y|--yes) YES=1; shift ;;
       --) shift; break ;;
       *-) err "Unrecognized option '${1}'." 2 ;;
        *) break ;;
@@ -1337,17 +1324,8 @@ function main {
   done
 
   # process
-  stdout_silent
-  [[ ${what_now} == 1 ]] \
-    && what_now \
-    && exit
   flow_validate "${@}"
-  [[ ${init} == 1 ]] \
-    && git_checkout "${REPO_DEV}" \
-    && unstash_files \
-    && exit
   flow_process "${@}"
-  unstash_files
 
 }
 
