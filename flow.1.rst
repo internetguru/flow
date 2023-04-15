@@ -170,7 +170,7 @@ FLOW EXAMPLE
     cd a
     flow --init --yes
 
-This creates a git repository with key branches and a tag. The default version number is ``0.0.0`` on all branches except for dev where it is ``0.1.0``. The --yes option servers to skip prompting individual steps.
+This creates a git repository with key branches and a tag. The default version number is ``0.0.0`` on all branches except for dev, where it is ``0.1.0``. The --yes option serves to skip prompting individual steps.
 
 2. Create and release a feature::
 
@@ -178,22 +178,20 @@ This creates a git repository with key branches and a tag. The default version n
     touch a
     git add a
     git commit -m "Add file a"
-    flow --yes --auto-entry feature
+    flow --yes --auto-entry
 
-This creates a feature branch from dev and merges it back after changes are made. Without the --yes and the --auto-entry options, it prompts for a confirmation and a changelog entry respectively.
-
-Note: Technically, there is no need to use the 'feature' argument in either of occurrences above. Why? Because the initialization in step 1 finishes on the dev branch, where creating a feature is the default action. From feature branches, the default action is to release it. Use the --what-now option to find out more about individual branches.
+This creates a feature branch from dev and merges it back after changes are made. Without the --yes and the --auto-entry options, Flow prompts for a confirmation and a changelog entry respectively.
 
 3. Fix some bugs on dev and release it::
 
     touch b
     git add b
     git commit -m "Add file b"
-    flow --yes staging
+    flow --yes
 
-This makes changes and commits directly to dev branch and releases it. This time the 'staging' argument is necessary, because the default action for the dev branch is to create or checkout a feature.
+This makes changes directly on development branch and releases it. No argument is necessary as releasing is the default action for most branches.
 
-Notice the version number ``0.1.0`` from dev branch moves to the staging branch and gets incremented on dev to ``0.2.0``. Stable branches still have ``0.0.0``. You can use the following set of commands to check it up::
+Notice the version number ``0.1.0`` from dev branch moves to the staging branch and gets incremented on dev to ``0.2.0``. The stable branch (main) is still ``0.0.0``. You can use the following set of commands to check it::
 
     git show dev:VERSION
     git show staging:VERSION
@@ -206,9 +204,9 @@ Notice the version number ``0.1.0`` from dev branch moves to the staging branch 
     git commit -m "Add file c"
     flow --yes --conform
 
-In theory, every commit of the staging branch must be merged into dev. The scriptrecognizes the unmerged state and fix it using the --conform option. At the same time it advances with releasing as a default action on staging branch.
+Ideally, every commit of the staging branch must be merged into dev. The script recognizes the unmerged state and fixes it using the --conform option while advancing with the release.
 
-Note: The staging branch, the 'prod-0', and the main are now on the same commit. There is also a tag with the newly released version number. Seems a little too far fetched? It will make more sense over time as the project grows.
+Note: The staging branch, the 'prod-0', and the main are now on the same commit. There is also a tag with the newly released version number. Does it seem a little far fetched? It will make more sense over time as the project grows.
 
 5. Hotfix the production::
 
@@ -220,11 +218,11 @@ Note: The staging branch, the 'prod-0', and the main are now on the same commit.
 
 This increments the patch version and merges the hotfix to the main branch, creates a tag and advances all attached branches with it. To keep the model compliant, it also merges the main branch into dev.
 
-Note: The git log graph now looks kinda overwhelming. It will make much more sense with a real development. If you want to see it, use the following command::
+Note: The git log graph may now look somewhat confusing. It will make much more sense during real development. If you want to see it, use the following command::
 
     git log --oneline --decorate --color --graph --all
 
-Note: Changelog files contain some unreported conflicts. This also makes some kind of sense once you get into it. They are easy to fix manually and a nice challenge for future updates::
+Note: Changelog files contain some unreported conflicts. This will also make more sense once you delve deeper into branching principles. They are easy to fix manually and a nice challenge for future updates::
 
     git show dev:CHANGELOG.md
     git show staging:CHANGELOG.md
