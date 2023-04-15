@@ -1109,6 +1109,8 @@ function main {
     msg_start 'Pulling branches'
     git_fetch --all --tags
     for branch in $(git_branch_format -r | grep "^${REPO_ORIGIN}" | sed "s/^${REPO_ORIGIN}\///"); do
+      [[ "${branch}" == HEAD ]] \
+        && continue
       update_branch "${branch}"
     done
     msg_done
