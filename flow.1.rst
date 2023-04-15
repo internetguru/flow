@@ -13,41 +13,11 @@ flow [-cfhinrvVwy] [--color[=WHEN]] [ACTION [NAME]]
 DESCRIPTION
 ===========
 
-Advance the git flow branching model according to its current state and branch (unless ACTION argument is specified). Maintain the model conformity through merging, semantic versioning, and keeping a changelog.
+Advance in a branching model according to the current branch or a branch specified with an argument. For most existing branches, the default action is release. If a given branch does not exist, Flow creates it as a feature or a hotfix depending on the current branch or a keyword (feature/hotfix).
 
+Additionally, Flow handles version incrementing and maintains a changelog. Before proceeding, it verifies the current repository for branching model compliance and offers to correct any detected imperfections.
 
-ARGUMENTS
-=========
-
-Default ACTION value is branch name (the part before the first dash if present). Default NAME is current user name (command ``whois``).
-
-pull|fetch
-    Pull all from the remote repository.
-
-push
-    Push all to the remote repository.
-
-hotfix|main|master|production|prod|live [NAME]
-    Release branch ``hotfix-NAME`` if currently on it.
-    Else checkout the branch if it exists.
-    Else create the branch and checkout.
-
-feature|dev [NAME]
-    Release branch ``feature-NAME`` if currently on it.
-    Else checkout the branch if it exists.
-    Else create the branch and checkout.
-
-release
-    Release the dev branch if currently on it.
-    Else release the staging branch if on it.
-    Else release the hotfix branch if on it.
-    Else release the feature branch if on it.
-    Else checkout the staging branch.
-
-staging|rc|preprod
-    Release the dev branch if currently on it.
-    Else release the staging branch if on it.
-    Else checkout the staging branch.
+`Read more about Flow <https://blog.internetguru.io/tags/flow/>`__
 
 
 OPTIONS
@@ -70,6 +40,12 @@ OPTIONS
 
 \-n, --dry-run
     Do not run commands; only parse user options and arguments.
+
+\--pull
+    Pull all remote branches.
+
+\--push
+    Push all branches.
 
 \-r, --request
     Instead of merging prepare current branch for pull request and push it to the origin.

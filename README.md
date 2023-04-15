@@ -5,7 +5,12 @@
 | master | ![tests](https://github.com/internetguru/flow/actions/workflows/test.yml/badge.svg?branch=master) |
 | dev | ![tests](https://github.com/internetguru/flow/actions/workflows/test.yml/badge.svg?branch=dev) |
 
-Advance in [git flow branching model](http://nvie.com/posts/a-successful-git-branching-model/) with ease! Maintain branches, semantic versioning, releases, and changelog with a single command. Read more about flow at [Internet Guru Blog](https://blog.internetguru.io/tags/flow/).
+Advance in a branching model according to the current branch or a branch specified with an argument. For most existing branches, the default action is release. If a given branch does not exist, Flow creates it as a feature or a hotfix depending on the current branch or a keyword (feature/hotfix).
+
+Additionally, Flow handles version incrementing and maintains a changelog. Before proceeding, it verifies the current repository for branching model compliance and offers to correct any detected imperfections.
+
+[Read more about Flow](https://blog.internetguru.io/tags/flow/)
+
 
 ### Branching model automation
 
@@ -136,7 +141,7 @@ Please do not hesitate to reach out to us for inquiries related to seminars, wor
 
 If you find this script useful, please consider making a donation to support its developers. We appreciate any contributions, no matter how small. Donations help us to dedicate more time and resources to this project, including covering our infrastructure expenses.
 
-- [PayPal Donation](https://www.paypal.com/donate/?hosted_button_id=QC7HU967R4PHC)
+[PayPal Donation](https://www.paypal.com/donate/?hosted_button_id=QC7HU967R4PHC)
 
 Please note that we are not a tax-exempt organization and cannot provide tax deductions for your donation. However, for donations exceeding $500, we would like to acknowledge your contribution on project's page and in this file (including the man page).
 
