@@ -1191,6 +1191,10 @@ main() {
       && echo '*' \
       && echo "* 1. Run '${SCRIPT_NAME}' to create a hotfix or leave." \
       && return
+    [[ "${1}" == "${REPO_STAGING}" && "$(is_attached_to "${REPO_STAGING}" "${REPO_STABLE}")" ]] \
+      && echo '* This is a staging branch that is already released.' \
+      && echo '* Nothing to do until a new version is released from dev.' \
+      && return
     [[ "${1}" == "${REPO_STAGING}" ]] \
       && echo '* This branch is meant solely for bug fixing.' \
       && echo '* Each commit must be merged into the development branch.' \
