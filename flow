@@ -25,9 +25,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).'}
 
-function main {
+main() {
 
-  function msg_start {
+  msg_start() {
     [[ ${VERBOSE} -eq 0 ]] \
       && return
     if stdoutpipe || [[ ${COLUMNS} -lt 41 ]]; then
@@ -39,15 +39,15 @@ function main {
     echo " ....  ] ${1}"
   }
 
-  function msg_done {
+  msg_done() {
     msg_end "$(colorize ' done ' "${GREEN}")"
   }
 
-  function msg_pass {
+  msg_pass() {
     msg_end "$(colorize ' pass ' "${BLUE}")"
   }
 
-  function msg_end {
+  msg_end() {
     [[ ${VERBOSE} -eq 0 ]] \
       && return
     if stdoutpipe || [[ ${COLUMNS} -lt 41 ]]; then
@@ -58,7 +58,7 @@ function main {
     echo "${1}"
   }
 
-  function err {
+  err() {
     echo "${SCRIPT_NAME}: ${1:-Generic error}" >&2
     [[ "${2:-}" == 2 ]] \
       && echo "${USAGE}" >&2
@@ -69,7 +69,7 @@ function main {
     exit "${2:-1}"
   }
 
-  function setcolor {
+  setcolor() {
     local c=${1:-always}
     case ${c} in
       always|never|auto)
@@ -80,11 +80,11 @@ function main {
     err 'Unknown color value' 2
   }
 
-  function stdoutpipe {
+  stdoutpipe() {
     readlink /proc/$$/fd/1 | grep -q '^pipe:'
   }
 
-  function colorize {
+  colorize() {
     [[ ${COLOR} == never ]] \
       && echo -n "${1}" \
       && return
@@ -97,11 +97,11 @@ function main {
     tput sgr0
   }
 
-  function clear_stdin {
+  clear_stdin() {
     while read -r -t 0; do read -r; done
   }
 
-  function save_cursor_position {
+  save_cursor_position() {
     local curpos oldstty
     curpos='1;1'
     exec < /dev/tty
@@ -115,12 +115,12 @@ function main {
     POSY=$( echo "${curpos#??}" | cut -d';' -f2 )
   }
 
-  function set_cursor_position {
+  set_cursor_position() {
     [[ "${POSX}" == "${LINES}" ]] && : $(( POSX -- ))
     tput cup $(( POSX - 1 )) $(( POSY - 1 ))
   }
 
-  function confirm {
+  confirm() {
     [[ ${DRYRUN} == 1 ]] \
       && exit
     [[ ${YES} == 1 ]] \
@@ -141,28 +141,28 @@ function main {
     confirm 'Type'
   }
 
-  function git_status_empty {
+  git_status_empty() {
     [[ -z "$(git status --porcelain)" ]]
   }
 
-  function git_checkout {
+  git_checkout() {
     local out
     out="$(git checkout "${@}" 2>&1)" \
       || err "${out}"
   }
 
-  function git_log {
+  git_log() {
     local out
     out="$(git log "${@}" 2>&1)" \
       || err "${out}"
     echo "${out}"
   }
 
-  function git_remote_url {
+  git_remote_url() {
     git config remote."${REPO_ORIGIN}".url | sed -e 's~^git@\([^:]\+\):~https://\1/~' -e 's/\.git$//'
   }
 
-  function diff_url {
+  diff_url() {
     local url from to
     url=$(git_remote_url)
     from=${1}
@@ -177,106 +177,106 @@ function main {
     echo "git diff ${from}..${to}"
   }
 
-  function diff_url_esc {
+  diff_url_esc() {
     sed -e 's/[\/&]/\\&/g' <<< "$(diff_url "${1}" "${2}")"
   }
 
-  function git_init {
+  git_init() {
     local out
     out="$(git init "${@}" 2>&1)" \
       || err "${out}"
   }
 
-  function git_add {
+  git_add() {
     local out
     out="$(git add "${@}" 2>&1)" \
       || err "${out}"
   }
 
-  function git_commit {
+  git_commit() {
     local out
     out="$(git commit "${@}" 2>&1)" \
       || err "${out}"
   }
 
-  function git_stash {
+  git_stash() {
     local out
     out="$(git stash "${@}" 2>&1)" \
       || err "${out}"
   }
 
-  function git_fetch {
+  git_fetch() {
     local out
     out="$(git fetch --update-head-ok "${@}" 2>&1)" \
       || err "${out}"
   }
 
-  function git_tag {
+  git_tag() {
     local out
     out="$(git tag "${@}" 2>&1)" \
       || err "${out}" >&2
   }
 
-  function top_vertag {
+  top_vertag() {
     git tag --list | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -1 | tr -d v
   }
 
-  function git_merge_nocommit {
+  git_merge_nocommit() {
     env GIT_EDITOR=: git merge --no-ff --no-commit "${@}" >/dev/null 2>&1
   }
 
-  function git_merge {
+  git_merge() {
     local out
     out="$(env GIT_EDITOR=: git merge "${@}" 2>&1)" \
       || err "${out}"
   }
 
-  function git_show {
+  git_show() {
     local out
     out="$(git show "${@}" 2>&1)" \
       || err "${out}"
     echo "${out}"
   }
 
-  function git_show_exists {
+  git_show_exists() {
     git show "${@}" >/dev/null 2>&1
   }
 
-  function latest_commit {
+  latest_commit() {
     git rev-parse "${1}"
   }
 
-  function git_rev_list {
+  git_rev_list() {
     git rev-list -n1 "${1}"
   }
 
-  function git_branch {
+  git_branch() {
     local out
     out="$(git branch "${@}" 2>&1)" \
       || err "${out}"
   }
 
-  function git_branch_format {
+  git_branch_format() {
     local out
     out="$(git branch --format='%(refname:short)' "${@}" 2>&1)" \
       || err "${out}"
     echo "${out}"
   }
 
-  function git_branch_merged {
+  git_branch_merged() {
     local out
     out="$(git branch --merged "${@}" 2>&1)" \
       || err "${out}"
     echo "${out}"
   }
 
-  function git_push {
+  git_push() {
     local out
     out="$(git push "${@}" 2>&1)" \
       || err "${out}"
   }
 
-  function checkout_branch {
+  checkout_branch() {
     #msg_start "Creating branch '${1}' on '${2}'"
     local out
     out="$(git_checkout -B "${1}" "${2}")" \
@@ -284,7 +284,7 @@ function main {
     #msg_done
   }
 
-  function validate_branch {
+  validate_branch() {
     branch_exists "${1}" \
       && validate_behind "${1}" \
       && return
@@ -294,7 +294,7 @@ function main {
     create_branch "${1}"
   }
 
-  function validate_behind {
+  validate_behind() {
     ! git branch --verbose --list "${1}" | grep --quiet ' \[behind ' \
       && return
     [[ ${CONFORM} == 0 ]] \
@@ -303,7 +303,7 @@ function main {
     update_branch "${1}"
   }
 
-  function create_branch {
+  create_branch() {
     branch_exists "${REPO_ORIGIN}/${1}" \
       && git_branch "${1}" "${REPO_ORIGIN}/${1}" \
       && return
@@ -313,29 +313,29 @@ function main {
     git_branch "${1}"
   }
 
-  function branch_exists {
+  branch_exists() {
     [[ $(current_branch) == "${1}" ]] \
      || git_branch_format --all | grep -q -E "^${1}\$"
   }
 
-  function has_tag {
+  has_tag() {
     [[ -n $(git tag --merged "${1}" -l "${2}") ]]
   }
 
-  function git_repo_exists {
+  git_repo_exists() {
     [[ -d .git ]]
   }
 
-  function validate_git_remote {
+  validate_git_remote() {
     git config remote."${REPO_ORIGIN}".url >/dev/null \
       || err "Remote url for '${REPO_ORIGIN}' not found."
   }
 
-  function current_branch {
+  current_branch() {
     git_branch_format --show-current
   }
 
-  function stash_files {
+  stash_files() {
     msg_start 'Stashing files'
     git_status_empty \
       && msg_pass \
@@ -345,7 +345,7 @@ function main {
     msg_done
   }
 
-  function is_merged_to {
+  is_merged_to() {
     git_branch_merged "${2}" | grep -q "${1}"
   }
 
@@ -353,7 +353,7 @@ function main {
   # merge downwards ignoring VERSION and CHANGELOG conflicts
   # upwards: feature->dev->release->master, hotfix->master
   # downwards: master->release->dev
-  function merge_fromto {
+  merge_fromto() {
     local stream
     stream='upwards'
     [[ "${1}" == "${REPO_STABLE}" || "${2}" == "${REPO_DEV}" ]] \
@@ -370,7 +370,7 @@ function main {
     msg_done
   }
 
-  function git_merge_stream {
+  git_merge_stream() {
     [[ "${2}" == 'upwards' ]] \
       && git_merge --no-ff "${1}" \
       && return
@@ -382,7 +382,7 @@ function main {
     git_merge --continue
   }
 
-  function delete_remote_branch {
+  delete_remote_branch() {
     msg_start "Deleting remote branch '${1}'"
     ! branch_exists "${REPO_ORIGIN}/${1}" \
       && msg_pass \
@@ -393,7 +393,7 @@ function main {
     msg_done
   }
 
-  function delete_branch {
+  delete_branch() {
     [[ "$(current_branch)" == "${1}" ]] \
       && err 'Unable to delete checked branch'
     delete_remote_branch "${1}"
@@ -402,7 +402,7 @@ function main {
     msg_done
   }
 
-  function load_version {
+  load_version() {
     local branch ver
     branch=${1:-$(current_branch)}
     git_show_exists "${branch}:${REPO_VERFILE}" \
@@ -411,23 +411,23 @@ function main {
       && echo "${ver}"
   }
 
-  function is_valid_version {
+  is_valid_version() {
     [[ "${1}" =~ ^[0-9]+\.[0-9]+\.[0-9]$ ]]
   }
 
-  function parse_version {
+  parse_version() {
     echo "${1}" | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p'
   }
 
-  function version_gt {
+  version_gt() {
     ! version_lte "${1}" "${2}"
   }
 
-  function version_lte {
+  version_lte() {
     [[ "${1}" == "$(echo -e "${1}\n${2}" | sort -V | head -n1)" ]]
   }
 
-  function validate_requirements {
+  validate_requirements() {
     local bash_minv git_minv bash_ver git_ver
     bash_minv=3.2
     git_minv=1.8.0
@@ -443,7 +443,7 @@ function main {
   # 2) validate repository consistency:
   # - at least one commit
   # - master branch
-  function validate_repository {
+  validate_repository() {
     git_repo_exists \
       && [[ -n "$(git_branch_format)" ]] \
       && return
@@ -466,7 +466,7 @@ function main {
     msg_done
   }
 
-  function hotfix_vertag {
+  hotfix_vertag() {
     [[ ${CONFORM} == 0 ]] \
       && err "Invalid version tag 'v${1}' commit." 3
     confirm 'Conform version tag?'
@@ -476,7 +476,7 @@ function main {
     git_tag "v${ver}" "${REPO_STABLE}"
   }
 
-  function validate_tag {
+  validate_tag() {
     local ver
     ver="$(load_version "${REPO_STABLE}")"
     has_tag "${REPO_STABLE}" "v${ver}" \
@@ -491,7 +491,7 @@ function main {
     git_tag "v${ver}" "${REPO_STABLE}"
   }
 
-  function validate_merged_to {
+  validate_merged_to() {
     is_merged_to "${1}" "${2}" \
       && return
     [[ ${CONFORM} == 0 ]] \
@@ -500,11 +500,11 @@ function main {
     merge_fromto "${1}" "${2}"
   }
 
-  function is_attached_to {
+  is_attached_to() {
     [[ $(git_rev_list "${REFSHEADS}/${1}") == $(git_rev_list "${REFSHEADS}/${2}") ]]
   }
 
-  function update_version {
+  update_version() {
     local gcb
     gcb=$(current_branch)
     msg_start 'Updating version number'
@@ -517,7 +517,7 @@ function main {
   }
 
   # validate git status
-  function validate_status_empty {
+  validate_status_empty() {
     git_status_empty \
       && return
     [[ ${STASH} == 1 ]] \
@@ -526,11 +526,11 @@ function main {
     err 'Uncommitted changes.' 5
   }
 
-  function today {
+  today() {
     date '+%Y-%m-%d'
   }
 
-  function default_changelog {
+  default_changelog() {
     local ver url
     ver=$(load_version)
     url=$(git_remote_url)
@@ -548,7 +548,7 @@ function main {
     echo "[${ver}]"
   }
 
-  function restore_changelog {
+  restore_changelog() {
     [[ -z "${1}" ]] \
       && default_changelog > "${REPO_CHANGELOG}" \
       && return
@@ -561,7 +561,7 @@ function main {
   # 4: note, e.g. date
   # 5: diff from
   # 6: diff to
-  function validate_changelog {
+  validate_changelog() {
     git_show_exists "${1}:${REPO_CHANGELOG}" \
       && [[ -n $(git_show "${1}:${REPO_CHANGELOG}") ]] \
       && git_show "${1}:${REPO_CHANGELOG}" | grep -q "^## \[${3}]" \
@@ -589,7 +589,7 @@ function main {
 
   # 1: branch
   # 2: min version
-  function validate_version {
+  validate_version() {
     local ver
     ver=$(load_version "${1}")
     [[ -n "${ver}" ]] \
@@ -607,7 +607,7 @@ function main {
     git_checkout "${gcb}"
   }
 
-  function find_or_first {
+  find_or_first() {
     for branch in "${@}"; do
       branch_exists "${branch}" \
         && echo "${branch}" \
@@ -621,7 +621,7 @@ function main {
     echo "${1}"
   }
 
-  function flow_validate {
+  flow_validate() {
     [[ ${#} -gt 1 ]] \
       && err 'Too many arguments.' 2
     local gcb=${REPO_DEV}
@@ -662,13 +662,13 @@ function main {
       && exit
   }
 
-  function is_prod_branch {
+  is_prod_branch() {
     [[ "${1}" =~ ^${REPO_PROD}-[0-9]+$ ]]
   }
 
   # prod* must exist
   # else optional
-  function validate_param {
+  validate_param() {
     [[ -z "${1}" ]] \
       && return
     branch_exists "${REPO_ORIGIN}/${1}" \
@@ -682,13 +682,13 @@ function main {
     validate_behind "${1}"
   }
 
-  function prod_name {
+  prod_name() {
     local ver
     ver="${1:-$(load_version "${REPO_STABLE}")}"
     echo "${REPO_PROD}-${ver%%.*}"
   }
 
-  function validate_prod_branch {
+  validate_prod_branch() {
     local prod
     prod=$(prod_name)
     validate_branch "${prod}"
@@ -701,7 +701,7 @@ function main {
     git_merge "${REPO_STABLE}"
   }
 
-  function get_key_branch {
+  get_key_branch() {
     [[ " ${STABLE_ARR[*]} " == *" ${1} "* ]] \
       && echo "${REPO_STABLE}" \
       && return
@@ -714,13 +714,13 @@ function main {
     echo "${1}"
   }
 
-  function is_hotfix_branch {
+  is_hotfix_branch() {
     [[ "$(git merge-base "${1}" "${REPO_DEV}")" == "$(git merge-base "${REPO_STABLE}" "${REPO_DEV}")" ]]
   }
 
   # 1: dest branch
   # 2: source branch or empty
-  function flow_hotfix {
+  flow_hotfix() {
     branch_exists "${1}" \
       && release_hotfix "${1}" \
       && return
@@ -733,14 +733,14 @@ function main {
   }
 
   # 1: dest branch
-  function flow_feature {
+  flow_feature() {
     branch_exists "${1}" \
       && release_feature "${1}" \
       && return
     create_feature "${1}"
   }
 
-  function flow_process {
+  flow_process() {
     local branch
     branch=$(get_key_branch "${1:-"$(current_branch)"}")
     git check-ref-format "${REFSHEADS}/${branch}" \
@@ -787,7 +787,7 @@ function main {
     create_feature "${1}"
   }
 
-  function release_dev {
+  release_dev() {
     confirm "* Release '${REPO_DEV}' branch?"
     msg_start 'Releasing dev'
     git_checkout "${REPO_DEV}"
@@ -811,19 +811,19 @@ function main {
     git_checkout "${REPO_STAGING}"
   }
 
-  function create_feature {
+  create_feature() {
     confirm "* Create branch '${1}' from '${REPO_DEV}'?"
     checkout_branch "${1}" "${REPO_DEV}"
   }
 
   # 1 dest name
   # 2 source branch
-  function create_hotfix {
+  create_hotfix() {
     confirm "* Create hotfix '${1}' from '${2}'?"
     checkout_branch "${1}" "${2}"
   }
 
-  function release_staging {
+  release_staging() {
     # shellcheck disable=SC2015
     [[ ${REQUEST} == 1 ]] \
       && confirm "* Request merge '${REPO_STAGING}' to '${REPO_STABLE}'?" \
@@ -863,7 +863,7 @@ function main {
   # 2: note
   # 3: from
   # 4: to
-  function changelog_stamp {
+  changelog_stamp() {
     local heading diff
     heading="## [${1}] - ${2}"
     diff="[${1}]: $(diff_url_esc "${3}" "${4}")"
@@ -880,7 +880,7 @@ function main {
 
   # 1: keyword
   # 2: message
-  function add_changelog_entry {
+  add_changelog_entry() {
     local tmpfile
     tmpfile="$(mktemp)"
     gawk -v kw="${1}" -v msg="${2}" -v kws="${KEYWORDS[*]#*${1}}" '
@@ -938,7 +938,7 @@ function main {
 
   # 1: default keyword
   # 2: source branch
-  function update_changelog {
+  update_changelog() {
     local gcb kw=
     gcb=$(current_branch)
     [[ "${ENTRY}" == 1 ]] \
@@ -975,7 +975,7 @@ function main {
       && add_changelog_entry "${1}" "${gcb}"
   }
 
-  function release_feature {
+  release_feature() {
     is_merged_to "${1}" "${REPO_DEV}" \
       && err 'Nothing to merge.' 6
     # shellcheck disable=SC2015
@@ -992,15 +992,14 @@ function main {
     delete_branch "${1}"
   }
 
-  ### Increments the part of the string
-  ## $1: version itself
-  ## $2: number of part: major, minor, patch
-  function increment_version {
+  # 1: version
+  # 2: major|minor|patch
+  increment_version() {
     local major minor patch
     major=$(echo "${1}" | cut -d. -f1)
     minor=$(echo "${1}" | cut -d. -f2)
     patch=$(echo "${1}" | cut -d. -f3)
-    case "${2}" in
+    case "${2:-}" in
       major)
         (( major ++ ))
         minor=0
@@ -1019,15 +1018,15 @@ function main {
     echo "${major}.${minor}.${patch}"
   }
 
-  function increment_patch {
+  increment_patch() {
     increment_version "${1}" patch
   }
 
-  function increment_minor {
+  increment_minor() {
     increment_version "${1}" minor
   }
 
-  function release_hotfix {
+  release_hotfix() {
     local dest vers verd
     dest=${REPO_STABLE}
     vers=$(load_version "${1}")
@@ -1075,13 +1074,13 @@ function main {
     delete_branch "${1}"
   }
 
-  function update_branch {
+  update_branch() {
     checkout_branch "${1}" "${REPO_ORIGIN}/${1}"
     git_merge --ff-only "${REPO_ORIGIN}/${1}"
     git_branch --set-upstream-to="${REPO_ORIGIN}/${1}"
   }
 
-  function flow_pull {
+  flow_pull() {
     validate_git_remote
     confirm '* Pull all remote branches?'
     msg_start 'Pulling branches'
@@ -1094,7 +1093,7 @@ function main {
     msg_done
   }
 
-  function flow_push {
+  flow_push() {
     validate_git_remote
     confirm '* Push all branches to the remote repository?'
     msg_start 'Pushing all branches and tags'
@@ -1102,7 +1101,7 @@ function main {
     msg_done
   }
 
-  function flow_request {
+  flow_request() {
     validate_git_remote
     [[ "${REPO_ORIGIN}" == "${REPO_UPSTREAM}" ]] \
       || git_push "${REPO_ORIGIN}" "${1}"
@@ -1110,7 +1109,7 @@ function main {
     flow_request_url "${1}"
   }
 
-  function trim_url {
+  trim_url() {
     local url
     url="${1#https://}"
     echo "${url}" | grep -q ":" \
@@ -1120,7 +1119,7 @@ function main {
     echo "${url}"
   }
 
-  function flow_request_url {
+  flow_request_url() {
     local url upstream_url to gcb
     to="${1:-${REPO_DEV}}"
     url=$(trim_url "$(git config remote."${REPO_ORIGIN}".url)")
@@ -1147,7 +1146,7 @@ function main {
     esac
   }
 
-  function flow_usage {
+  flow_usage() {
     local file head tail
     head="$(echo "${FLOW_USAGE:-}" | head -n1)"
     tail="$(echo "${FLOW_USAGE:-}" | tail -n+2)"
@@ -1169,14 +1168,14 @@ function main {
       | sed "1,2d;/^[[:space:]]*$/d;\${d};s/^ \{${indent}\}//"
   }
 
-  function flow_version {
+  flow_version() {
     [[ -n "${FLOW_VERNUM}" ]] \
       && echo "flow ${FLOW_VERNUM}" \
       && return
     echo "flow $(<"${FLOW_VERFILE}")"
   }
 
-  function flow_whatnow {
+  flow_whatnow() {
     local branch
     branch=$(current_branch)
     [[ -z "${branch}" ]] \
@@ -1188,7 +1187,7 @@ function main {
     echo '***'
   }
 
-  function branch_desc {
+  branch_desc() {
     [[ "${1}" == "${REPO_STABLE}" || "$(is_prod_branch "${1}")" ]] \
       && echo '* This is considered a read-only stable branch.' \
       && echo '* Do not commit any changes directly to this branch ever!' \
