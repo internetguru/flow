@@ -662,7 +662,7 @@ function main {
       && exit
   }
 
-  function has_prod_format {
+  function is_prod_branch {
     [[ "${1}" =~ ^${REPO_PROD}-[0-9]+$ ]]
   }
 
@@ -675,7 +675,7 @@ function main {
       && ! branch_exists "${1}" \
       && git_branch "${1}" "${REPO_ORIGIN}/${1}"
     ! branch_exists "${1}" \
-      && ! has_prod_format "${1}" \
+      && ! is_prod_branch "${1}" \
       && return
     ! branch_exists "${1}" \
       && err "Expected branch '${1}' not found." 4
@@ -734,14 +734,11 @@ function main {
   # 1: dest branch
   # 2: source branch or empty
   function flow_hotfix {
-    # local name=
-    # [[ -n "${1}" && "$(get_key_branch "${1}")" != "${REPO_STABLE}" ]] \
-    #   && name="${1}"
     branch_exists "${1}" \
       && release_hotfix "${1}" \
       && return
     local branch="${REPO_STABLE}"
-    [[ "$(has_prod_format "$(current_branch)")" ]] \
+    [[ "$(is_prod_branch "$(current_branch)")" ]] \
       && branch=$(current_branch)
     [[ -n "${2:-}" ]] \
       && branch="${2}"
@@ -760,7 +757,8 @@ function main {
     local branch
     branch=$(get_key_branch "${1:-"$(current_branch)"}")
     git check-ref-format "${REFSHEADS}/${branch}" \
-      || err "Invalid branch format." 2
+      && [[ "${branch,,}" != "head" ]] \
+      || err "Invalid branch name." 2
     # flow dev* -> release dev
     [[ "${branch}" == "${REPO_DEV}" ]] \
       && release_dev \
@@ -774,7 +772,7 @@ function main {
       && flow_hotfix "${DEFAULT_HOTFIX}" "${REPO_STABLE}" \
       && return
     # flow prod* -> create/release (default?) hotfix on a prod* branch
-    has_prod_format "${branch}" \
+    is_prod_branch "${branch}" \
       && flow_hotfix "${DEFAULT_HOTFIX}" "${branch}" \
       && return
     # flow hotfix -> create/release default hotfix on a stable or prod* branch
@@ -1199,62 +1197,54 @@ function main {
   }
 
   function flow_whatnow {
-    [[ ${#} -gt 0 ]] \
-      && err 'Unexpected arguments.' 2
-    local gcb kw
-    gcb=$(current_branch)
-    kw=$(get_key_branch "${gcb%%-*}")
+    local branch
+    branch=$(current_branch)
+    [[ -z "${branch}" ]] \
+      && err 'Detached branch.' 6
     echo '***'
-    echo "* Currently on '${gcb}'"
+    echo "* Flow on '${branch}'"
     echo '*'
-    case ${kw} in
-      HEAD)
-        echo '* You are detached from branches with no direct git flow action.'
-        echo '*'
-        echo "* 1. Checkout to an existing branch, e.g. to dev branch."
-        ;;
-      ${REPO_STABLE}|${REPO_PROD})
-        echo '* This is considered a read-only stable branch.'
-        echo '* Do not commit any changes directly to this branch ever!'
-        echo '*'
-        echo "* 1. Run '${SCRIPT_NAME}' to create hotfix or leave."
-        ;;
-      ${REPO_DEV})
-        echo '* This is considered a development branch.'
-        echo '* It is designed for bug fixing and merging features.'
-        echo '*'
-        echo '* 1. Make some fixes and feel free to commit directly.'
-        echo "* 2. Run '${SCRIPT_NAME}' to create a new feature."
-        echo "* 3. Run '${SCRIPT_NAME} release' to release this branch."
-        ;;
-      ${REPO_STAGING})
-        echo '* This is a staging branch meant solely for bug fixing.'
-        echo '* It is also known as a release candidate branch (RC).'
-        echo '*'
-        echo '* 1. Make some fixes and feel free to commit directly.'
-        echo "* 2. Run '${SCRIPT_NAME}' to release this branch."
-        ;;
-      ${HOTFIX})
-        echo '* This is a temporary branch created from a stable branch.'
-        echo '* Its purpose is to fix one critical problem and dissolve.'
-        echo '* WARNING: Make only minimum necessary changes here!'
-        echo '*'
-        echo '* 1. Make sure you really HAVE to solve the problem now.'
-        echo '* 2. Fix the critical problem and commit changes.'
-        echo "* 3. Run '${SCRIPT_NAME}' to merge the hotfix back into stable branch."
-        echo '* 4. Good luck.'
-        ;;
-      ${FEATURE})
-        echo '* This is a temporary branch created from the development branch.'
-        echo '* Its purpose is to create a (one) new feature.'
-        echo '*'
-        echo '* 1. Create and develop the (one) feature. Stick to it.'
-        echo "* 2. Run '${SCRIPT_NAME}' to merge it back into dev."
-        ;;
-      *)
-        echo '* Not sure what this means (confused unga bunga).'
-    esac
+    branch_desc "${branch}"
     echo '***'
+  }
+
+  function branch_desc {
+    [[ "${1}" == "${REPO_STABLE}" || "$(is_prod_branch "${1}")" ]] \
+      && echo '* This is considered a read-only stable branch.' \
+      && echo '* Do not commit any changes directly to this branch ever!' \
+      && echo '*' \
+      && echo "* 1. Run '${SCRIPT_NAME}' to create a hotfix or leave." \
+      && return
+    [[ "${1}" == "${REPO_STAGING}" ]] \
+      && echo '* This branch is meant solely for bug fixing.' \
+      && echo '* Each commit must be merged into the development branch.' \
+      && echo '*' \
+      && echo '* 1. Make some fixes and feel free to commit directly.' \
+      && echo "* 2. Run '${SCRIPT_NAME}' to release this branch." \
+      && return
+    [[ "${1}" == "${REPO_DEV}" ]] \
+      && echo '* This is a development branch.' \
+      && echo '* It is designed for bug fixing and merging features.' \
+      && echo '*' \
+      && echo '* 1. Make some fixes and feel free to commit directly.' \
+      && echo "* 2. Run '${SCRIPT_NAME} feature_name' to create a new feature." \
+      && echo "* 3. Run '${SCRIPT_NAME}' to release this branch." \
+      && return
+    is_hotfix_branch "${1}" \
+      && echo '* This is a temporary hotfix branch created from a stable branch.' \
+      && echo '* Its purpose is to fix one critical problem and dissolve.' \
+      && echo '* WARNING: Make only minimum necessary changes here!' \
+      && echo '*' \
+      && echo '* 1. Make sure you really HAVE to hotfix the problem.' \
+      && echo '* 2. Fix the critical problem and commit changes.' \
+      && echo "* 3. Run '${SCRIPT_NAME}' to merge the hotfix back into stable branch." \
+      && echo '* 4. Good luck.' \
+      && return
+    echo '* This is a temporary feature branch.'
+    echo '* Its purpose is to create a (one) new feature.'
+    echo '*'
+    echo '* 1. Create and develop the feature. One feature is a perfect amount.'
+    echo "* 2. Run '${SCRIPT_NAME}' to merge it back into dev."
   }
 
   # global constants
@@ -1272,7 +1262,7 @@ function main {
   declare -r REFSHEADS='refs/heads'
   declare -r REFSTAGS='refs/tags'
   declare -r STABLE_ARR=(main master production prod live)
-  declare -r STAGING_ARR=(staging release rc preprod)
+  declare -r STAGING_ARR=(staging release rc preprod release-candidate)
   declare -r DEV_ARR=(dev devel develop next)
   declare USAGE
   USAGE=$(flow_usage)

@@ -7,7 +7,7 @@ Flow - manage git branching model
 SYNOPSIS
 ========
 
-flow [-cfhinrvVwy] [--color[=WHEN]] [ACTION [NAME]]
+flow [-cehinrsvVwy] [--color[=WHEN]] [--push] [--pull] [BRANCH]
 
 
 DESCRIPTION
