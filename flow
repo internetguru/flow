@@ -657,9 +657,6 @@ main() {
     validate_param "${DEFAULT_HOTFIX}"
     validate_param "${DEFAULT_FEATURE}"
     git_checkout "${gcb}"
-    [[ ${INIT} == 1 ]] \
-      && git_checkout "${REPO_DEV}" \
-      && exit
   }
 
   is_prod_branch() {
@@ -1271,6 +1268,7 @@ main() {
   declare CONFORM=0
   declare INIT=0
   declare REQUEST=0
+  declare PUSH=0
 
   while [[ ${#} -gt 0 ]]; do
     case ${1} in
@@ -1282,7 +1280,7 @@ main() {
      -i|--init) INIT=1; CONFORM=1; shift ;;
      -n|--dry-run) DRYRUN=1; shift ;;
      --pull) flow_pull; exit ;;
-     --push) flow_push; exit ;;
+     --push) PUSH=1; shift ;;
      -r|--request) REQUEST=1; shift ;;
      -v|--verbose) VERBOSE=1; shift ;;
      -V|--version) echo "${VERSION}"; exit ;;
@@ -1296,6 +1294,12 @@ main() {
 
   # process
   flow_validate "${@}"
+  [[ ${INIT} == 1 ]] \
+    && git_checkout "${REPO_DEV}" \
+    && exit
+  [[ ${PUSH} == 1 ]] \
+    && flow_push \
+    && exit
   flow_process "${@}"
 
 }
