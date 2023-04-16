@@ -701,19 +701,6 @@ function main {
     git_merge "${REPO_STABLE}"
   }
 
-  function unexpected_argument {
-    [[ -n ${1} ]] \
-      && err 'Unexpected argument' 2
-  }
-
-  # 1 name
-  # 2 current branch
-  # 3 kw
-  function is_releasable {
-    [[ -z ${1} && "${2%%-*}" == "${3}" ]] \
-      || [[ -n ${1} && "${2}" == "${3}-${1}" ]]
-  }
-
   function get_key_branch {
     [[ " ${STABLE_ARR[*]} " == *" ${1} "* ]] \
       && echo "${REPO_STABLE}" \
@@ -798,13 +785,6 @@ function main {
       && return
     # create feature branch
     create_feature "${1}"
-  }
-
-  function checkout_if_exists {
-    branch_exists "${1}" \
-      || return 1
-    confirm "* Checkout to branch '${1}'?"
-    git_checkout "${1}"
   }
 
   function release_dev {
