@@ -279,7 +279,7 @@ main() {
   checkout_branch() {
     #msg_start "Creating branch '${1}' on '${2}'"
     local out
-    out="$(git_checkout -B "${1}" "${2}")" \
+    out="$(git_checkout -b "${1}" "${2}")" \
       || err "${out}"
     #msg_done
   }
@@ -1072,16 +1072,16 @@ main() {
   }
 
   update_branch() {
-    checkout_branch "${1}" "${REPO_ORIGIN}/${1}"
-    git_merge --ff-only "${REPO_ORIGIN}/${1}"
-    git_branch --set-upstream-to="${REPO_ORIGIN}/${1}"
+    git_fetch "${REPO_ORIGIN}" "${1}:${1}"
   }
 
   flow_pull() {
     validate_git_remote
     confirm '* Pull all remote branches?'
     msg_start 'Pulling branches'
-    git_fetch --all --tags
+    git_fetch --all
+    git_fetch --tags
+    git_fetch "${REPO_ORIGIN}" --prune
     for branch in $(git_branch_format -r | grep "^${REPO_ORIGIN}" | sed "s/^${REPO_ORIGIN}\///"); do
       [[ "${branch}" == HEAD ]] \
         && continue
@@ -1242,7 +1242,7 @@ main() {
   declare -r REFSHEADS='refs/heads'
   declare -r REFSTAGS='refs/tags'
   declare -r STABLE_ARR=(main master production prod live)
-  declare -r STAGING_ARR=(staging release rc preprod release-candidate)
+  declare -r STAGING_ARR=(staging release rc preprod pre-production release-candidate)
   declare -r DEV_ARR=(dev devel develop next)
   declare USAGE
   USAGE=$(flow_usage)
