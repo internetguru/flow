@@ -263,13 +263,6 @@ main() {
     echo "${out}"
   }
 
-  git_branch_merged() {
-    local out
-    out="$(git branch --merged "${@}" 2>&1)" \
-      || err "${out}"
-    echo "${out}"
-  }
-
   git_push() {
     local out
     out="$(git push "${@}" 2>&1)" \
@@ -346,7 +339,7 @@ main() {
   }
 
   is_merged_to() {
-    git_branch_merged "${2}" | grep -q "${1}"
+    git_branch_format --merged "${2}" | grep -q "^${1}$"
   }
 
   # merge upwards preserving conflicts
@@ -809,7 +802,7 @@ main() {
   }
 
   create_feature() {
-    confirm "* Create branch '${1}' from '${REPO_DEV}'?"
+    confirm "* Create feature '${1}' from '${REPO_DEV}'?"
     checkout_branch "${1}" "${REPO_DEV}"
   }
 
@@ -942,31 +935,32 @@ main() {
       && add_changelog_entry "${1}" "${gcb}" \
       && return
     echo
-    echo '***'
-    echo "* Please enter the ${gcb} description for ${REPO_CHANGELOG}."
-    echo '*'
-    echo '* Supported keywords:'
-    echo "*   ${KEYWORDS[*]}"
-    echo '*'
-    echo "* Commits of '${gcb}':"
-    git_log "${2}".."${gcb}" --pretty=format:'*   %h %s'
-    echo '*'
-    echo '***'
+    echo '###'
+    echo "# Enter '${gcb}' description for ${REPO_CHANGELOG}"
+    echo '#   New line for multiple entries.'
+    echo '#   Empty message to skip or end editing.'
+    echo '#'
+    echo '# Format'
+    echo "#   'keyword: message'"
+    echo '#'
+    echo '# Available keywords'
+    echo "#   ${KEYWORDS[*]}"
+    echo '#'
+    echo "# Branch '${gcb}' commits"
+    git_log "${2}".."${gcb}" --pretty=format:'#   %h %s'
+    echo '###'
+    echo
     # What for?
     REPLY=
-    [[ ${ISSTDIN} == 0 ]] \
-      && echo 'Type "keyword: message". Empty line to end editing.' \
-      && echo "If omitted, the default keyword is '${1}'." \
-      && echo "Leave empty (press Enter) for default message: '${1}: ${gcb}'." \
-      && clear_stdin
-    while read -e -r line; do
-      [[ -z "${line}" ]] \
+    while read -eri "${1}: " line; do
+      [[ -z "${line#*:}" ]] \
         && break
       history -s "${line}"
-      kw="${line%%:*}"
+      kw="${line%%: *}"
       [[ " ${KEYWORDS[*]} " != *" ${kw} "* ]] \
         && kw=${1}
-      add_changelog_entry "${kw}" "$(echo "${line#*:}" | xargs)"
+      #add_changelog_entry "${kw}" "$(echo "${line#*:}" | xargs)"
+      add_changelog_entry "${kw}" "${line#*: }"
     done
     [[ -z "${kw}" ]] \
       && add_changelog_entry "${1}" "${gcb}"
@@ -978,7 +972,7 @@ main() {
     # shellcheck disable=SC2015
     [[ ${REQUEST} == 1 ]] \
       && confirm "* Request merge '${1}' into '${REPO_DEV}'?" \
-      || confirm "* Merge '${1}' into '${REPO_DEV}'?"
+      || confirm "* Merge feature '${1}' into '${REPO_DEV}'?"
     merge_fromto "${REPO_DEV}" "${1}"
     update_changelog Added "${REPO_DEV}"
     git_commit -am 'Update changelog'
@@ -1039,8 +1033,8 @@ main() {
       && err 'Nothing to merge.' 6
     # shellcheck disable=SC2015
     [[ "${dest}" == "${REPO_STABLE}" ]] \
-      && confirm '* Release the hotfix?' \
-      || confirm "* Obsolete major version. Merge to branch '${dest}'?"
+      && confirm "* Merge hotfix '${1}' to '${dest}'?" \
+      || confirm "* Merge hotfix '${1}' only into '${dest}'?"
     msg_start 'Updating control files'
     increment_patch "${verd}" > "${REPO_VERFILE}"
     local verh
