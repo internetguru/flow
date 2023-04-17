@@ -955,7 +955,7 @@ main() {
     # What for?
     REPLY=
     [[ ${ISSTDIN} == 0 ]] \
-      && echo 'Type "[Keyword]: [Message]". Empty line to end editing.' \
+      && echo 'Type "keyword: message". Empty line to end editing.' \
       && echo "If omitted, the default keyword is '${1}'." \
       && echo "Leave empty (press Enter) for default message: '${1}: ${gcb}'." \
       && clear_stdin
