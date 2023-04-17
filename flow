@@ -540,7 +540,7 @@ main() {
     echo
     echo "### Added"
     echo
-    echo " - This CHANGELOG file."
+    echo "- This CHANGELOG file."
     echo
     [[ -n "${url}" ]] \
       && echo "[${ver}]: ${url}/releases/tag/v${ver}" \
