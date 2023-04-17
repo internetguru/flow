@@ -884,7 +884,7 @@ main() {
       function add_entry () {
         print "### " kw
         print ""
-        print " - " msg
+        print "- " msg
         print ""
       }
       BEGIN {
@@ -916,7 +916,7 @@ main() {
         print
         getline
         print
-        print " - " msg
+        print "- " msg
         after = 1
         next
       }
