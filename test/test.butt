@@ -352,7 +352,7 @@ start "init on existing repo with commits and --stash"
   } >/dev/null
   debug "flow --init --yes --stash"
   assert_equal "${status}" 0
-  assert_equal "$(git_current_branch)" "dev"
+  assert_equal "$(git_current_branch)" "master"
   checkInitFiles master
   assert_equal "$(gsp | wc -l)" 0
   debug "flow -n"

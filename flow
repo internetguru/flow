@@ -1311,7 +1311,6 @@ main() {
     && exit
   flow_validate "${@}"
   [[ ${INIT} == 1 ]] \
-    && git_checkout "${REPO_DEV}" \
     && exit
   [[ ${PUSH} == 1 ]] \
     && flow_push \
