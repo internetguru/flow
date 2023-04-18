@@ -734,7 +734,7 @@ main() {
     create_feature "${1}"
   }
 
-  flow_process() {
+  flow_action() {
     local branch
     branch=$(get_key_branch "${1:-"$(current_branch)"}")
     git check-ref-format "${REFSHEADS}/${branch}" \
@@ -1193,9 +1193,12 @@ main() {
       && echo '*' \
       && echo "* 1. Run '${SCRIPT_NAME}' to create a hotfix or leave." \
       && return
-    [[ "${1}" == "${REPO_STAGING}" && "$(is_attached_to "${REPO_STAGING}" "${REPO_STABLE}")" ]] \
+    [[ "${1}" == "${REPO_STAGING}" ]] \
+      && is_attached_to "${REPO_STAGING}" "${REPO_STABLE}" \
       && echo '* This is a staging branch that is already released.' \
       && echo '* Nothing to do until a new version is released from dev.' \
+      && echo '*' \
+      && echo "* 1. Leave this branch." \
       && return
     [[ "${1}" == "${REPO_STAGING}" ]] \
       && echo '* This branch is meant solely for bug fixing.' \
@@ -1274,6 +1277,7 @@ main() {
   declare CONFORM=0
   declare INIT=0
   declare REQUEST=0
+  declare PULL=0
   declare PUSH=0
 
   while [[ ${#} -gt 0 ]]; do
@@ -1285,12 +1289,12 @@ main() {
      -h|-\?|--help) echo "${USAGE}"; exit ;;
      -i|--init) INIT=1; CONFORM=1; shift ;;
      -n|--dry-run) DRYRUN=1; shift ;;
-     --pull) flow_pull; exit ;;
+     --pull) PULL=1; shift ;;
      --push) PUSH=1; shift ;;
      -r|--request) REQUEST=1; shift ;;
      -v|--verbose) VERBOSE=1; shift ;;
      -V|--version) echo "${VERSION}"; exit ;;
-     -w|--what-now) flow_whatnow; exit ;;
+     -w|--what-now) WHATNOW=1; shift ;;
      -y|--yes) YES=1; shift ;;
       --) shift; break ;;
       *-) err "Unrecognized option '${1}'." 2 ;;
@@ -1298,7 +1302,10 @@ main() {
     esac
   done
 
-  # process
+  # flow process
+  [[ ${PULL} == 1 ]] \
+    && flow_pull \
+    && exit
   flow_validate "${@}"
   [[ ${INIT} == 1 ]] \
     && git_checkout "${REPO_DEV}" \
@@ -1306,7 +1313,10 @@ main() {
   [[ ${PUSH} == 1 ]] \
     && flow_push \
     && exit
-  flow_process "${@}"
+  [[ ${WHATNOW} == 1 ]] \
+    && flow_whatnow \
+    && exit
+  flow_action "${@}"
 
 }
 
