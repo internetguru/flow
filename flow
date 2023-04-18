@@ -287,8 +287,12 @@ main() {
     create_branch "${1}"
   }
 
+  is_behind_origin() {
+    git branch --verbose --list "${1}" | grep --quiet ' \[behind '
+  }
+
   validate_behind() {
-    ! git branch --verbose --list "${1}" | grep --quiet ' \[behind ' \
+    ! is_behind_origin "${1}" \
       && return
     [[ ${CONFORM} == 0 ]] \
       && err "Local branch '${1}' is behind remote." 3
@@ -778,7 +782,7 @@ main() {
   }
 
   release_dev() {
-    confirm "* Release '${REPO_DEV}' branch?"
+    confirm "* Release '${REPO_DEV}' branch into '${REPO_STAGING}'?"
     msg_start 'Releasing dev'
     git_checkout "${REPO_DEV}"
     local from to nthrc
@@ -1079,7 +1083,10 @@ main() {
     for branch in $(git_branch_format -r | grep "^${REPO_ORIGIN}" | sed "s/^${REPO_ORIGIN}\///"); do
       [[ "${branch}" == HEAD ]] \
         && continue
-      update_branch "${branch}"
+      git_checkout "${branch}"
+      is_behind_origin "${branch}" \
+        && git_merge --ff-only "${REPO_ORIGIN}/${branch}"
+      git_branch --set-upstream-to "${REPO_ORIGIN}/${branch}"
     done
     msg_done
   }
@@ -1088,7 +1095,8 @@ main() {
     validate_git_remote
     confirm '* Push all branches to the remote repository?'
     msg_start 'Pushing all branches and tags'
-    git_push "${REPO_ORIGIN}" --all --tags
+    git_push "${REPO_ORIGIN}" --all
+    git_push "${REPO_ORIGIN}" --tags
     msg_done
   }
 
