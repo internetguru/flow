@@ -1077,6 +1077,8 @@ main() {
     validate_git_remote
     confirm '* Pull all remote branches?'
     msg_start 'Pulling branches'
+    local gcb
+    gcb=$(current_branch)
     git_fetch --all
     git_fetch --tags
     git_fetch "${REPO_ORIGIN}" --prune
@@ -1088,6 +1090,7 @@ main() {
         && git_merge --ff-only "${REPO_ORIGIN}/${branch}"
       git_branch --set-upstream-to "${REPO_ORIGIN}/${branch}"
     done
+    git_checkout "${gcb}"
     msg_done
   }
 
