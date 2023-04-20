@@ -782,25 +782,48 @@ main() {
   }
 
   release_dev() {
-    confirm "* Release '${REPO_DEV}' branch into '${REPO_STAGING}'?"
-    msg_start 'Releasing dev'
-    git_checkout "${REPO_DEV}"
-    local from to nthrc
-    from=$(load_version "${REPO_STABLE}")
-    to=$(load_version "${REPO_DEV}")
-    nthrc=$(( $(grep -c "^\[${to//./\.}]" "${REPO_CHANGELOG}") + 1 ))
-    sed -i "s/^## \[${UNRELEASED}].*/## [${to}] - RC${nthrc}/" "${REPO_CHANGELOG}"
     is_attached_to "${REPO_STAGING}" "${REPO_STABLE}" \
-      && sed -i "s/^\[${UNRELEASED}].*/[${to}]: $(diff_url_esc "${from}" "${REPO_STAGING}")/" "${REPO_CHANGELOG}"
-    sed -i "/^\[${UNRELEASED}]/d" "${REPO_CHANGELOG}"
-    git_add -- "${REPO_CHANGELOG}"
-    git_commit -am 'Update changelog'
+      && create_staging \
+      && return
+    update_staging
+  }
+
+  create_staging() {
+    confirm "* Create new release candidate from '${REPO_DEV}'?"
+    msg_start 'Creating new release candidate'
+    local vers verd nthrc
+    vers=$(load_version "${REPO_STAGING}")
+    verd=$(load_version "${REPO_DEV}")
     merge_fromto "${REPO_DEV}" "${REPO_STAGING}"
+    sed -i "s/^## \[${UNRELEASED}].*/## [${verd}] - RC1/" "${REPO_CHANGELOG}"
+    sed -i "s/^\[${UNRELEASED}].*/[${verd}]: $(diff_url_esc "${vers}" "${REPO_STAGING}")/" "${REPO_CHANGELOG}"
+    sed -i "/^\[${UNRELEASED}]/d" "${REPO_CHANGELOG}"
+    git_add .
+    git_commit -am 'Update changelog'
     merge_fromto "${REPO_STAGING}" "${REPO_DEV}"
-    [[ "${nthrc}" == 1 ]] \
-      && increment_minor "$(load_version)" > "${REPO_VERFILE}" \
-      && changelog_stamp "${UNRELEASED}" "" "${REPO_STAGING}" "${REPO_DEV}" \
-      && git_commit -am "Increment minor version on '${REPO_DEV}'"
+    increment_minor "${verd}" > "${REPO_VERFILE}"
+    changelog_stamp "${UNRELEASED}" "" "${REPO_STAGING}" "${REPO_DEV}"
+    git_commit -am "Update changelog and increment version"
+    msg_done
+    git_checkout "${REPO_STAGING}"
+  }
+
+  update_staging() {
+    confirm "* Increment release candidate from '${REPO_DEV}'?"
+    msg_start 'Incrementing release candidate'
+    local vers verd nthrc
+    vers=$(load_version "${REPO_STAGING}")
+    verd=$(load_version "${REPO_DEV}")
+    merge_fromto "${REPO_DEV}" "${REPO_STAGING}"
+    nthrc=$(( $(grep -c "^## \[${vers//./\.}]" "${REPO_CHANGELOG}") + 1 ))
+    sed -i "s/^## \[${UNRELEASED}].*/## [${vers}] - RC${nthrc}/" "${REPO_CHANGELOG}"
+    sed -i "/^\[${UNRELEASED}]/d" "${REPO_CHANGELOG}"
+    echo "${vers}" > "${REPO_VERFILE}"
+    git_add .
+    git_commit -am 'Update version and changelog'
+    merge_fromto "${REPO_STAGING}" "${REPO_DEV}"
+    changelog_stamp "${UNRELEASED}" "" "${REPO_STAGING}" "${REPO_DEV}"
+    git_commit -am "Update changelog"
     msg_done
     git_checkout "${REPO_STAGING}"
   }

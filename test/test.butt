@@ -553,7 +553,7 @@ start "merge staging"
   load_log
   assert_contains "${log}" "(HEAD -> dev) Merge branch 'main' into dev"
   assert_contains "${log}" "(tag: v0.1.0, staging, prod-0, main) Merge branch 'staging'"
-  assert_contains "${log}" "Increment minor version on 'dev'"
+  assert_contains "${log}" "Update changelog and increment version"
   assert_equal "$(echo "$(git show-ref)" | grep /refs/heads/staging)" ""
   assert_equal "$(gsp)" ""
   debug "flow -n"
