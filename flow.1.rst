@@ -142,8 +142,8 @@ FLOW EXAMPLE
 
 1. Initialize the branching model on an empty folder::
 
-    mkdir a
-    cd a
+    mkdir myflow
+    cd myflow
     flow --init --yes
 
 This creates a git repository with key branches and a tag. The default version number is ``0.0.0`` on all branches except for dev, where it is ``0.1.0``. The --yes option serves to skip prompting individual steps.
@@ -198,8 +198,7 @@ Note: The git log graph may now look somewhat confusing. It will make much more 
 
     git log --oneline --decorate --color --graph --all
 
-Note: Changelog files contain some unreported conflicts. This will also make more sense once you delve deeper into branching principles. They are easy to fix manually and a nice challenge for future updates::
+Note: Check out the resulting changelog file if you want. It contains the added feature, hotfix, and all releases. The changelog on the development branch has additionally an 'unreleased' section::
 
-    git show dev:CHANGELOG.md
-    git show staging:CHANGELOG.md
     git show main:CHANGELOG.md
+    git diff main:CHANGELOG.md dev:CHANGELOG.md

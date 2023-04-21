@@ -351,18 +351,17 @@ main() {
   # upwards: feature->dev->release->master, hotfix->master
   # downwards: master->release->dev
   merge_fromto() {
-    local stream
-    stream='upwards'
+    local stream='upwards'
     [[ "${1}" == "${REPO_STABLE}" || "${2}" == "${REPO_DEV}" ]] \
       && stream='downwards'
     [[ "${1}" == "${REPO_DEV}" || "${2}" == "${REPO_STAGING}" ]] \
       && is_attached_to "${REPO_DEV}" "${REPO_STAGING}" \
       && stream='downwards'
     msg_start "Merging '${1}' to '${2}' (${stream})."
+    git_checkout "${2}"
     is_merged_to "${1}" "${2}" \
       && msg_pass \
       && return
-    git_checkout "${2}"
     git_merge_stream "${1}" "${stream}"
     msg_done
   }
@@ -372,9 +371,10 @@ main() {
       && git_merge --no-ff "${1}" \
       && return
     git_merge_nocommit "${1}"
-    git_checkout --ours "${REPO_VERFILE}"
-    #TODO: resolve changelog automatically
-    #git_checkout --ours "${REPO_CHANGELOG}"
+    # hard reset version file regardless of a conflict
+    git reset -q "${REPO_VERFILE}"
+    git_checkout "${REPO_VERFILE}"
+    sed -i '/^<<<<<<< /d;0,/^=======$/s///;/^=======$/d;/^>>>>>>> /d' "${REPO_CHANGELOG}"
     git_add .
     git_merge --continue
   }
@@ -459,7 +459,14 @@ main() {
     ! git_repo_exists \
       && git_init . \
       && git symbolic-ref HEAD "refs/heads/${REPO_STABLE}"
-    git_commit --allow-empty -m 'Initial empty commit'
+    git_commit --allow-empty -m 'Initial commit'
+    # [[ "${STASH}" == 1 ]] \
+    #   && stash_files
+    # msg_start 'Initializing files'
+    # echo "0.0.0" > "${REPO_VERFILE}"
+    # default_changelog "0.0.0" > "${REPO_CHANGELOG}"
+    # git_add .
+    # git_commit --allow-empty -m 'Initialize files'
     msg_done
   }
 
@@ -528,26 +535,25 @@ main() {
   }
 
   default_changelog() {
-    local ver url
-    ver=$(load_version)
+    local url
     url=$(git_remote_url)
     echo "${REPO_changelog_stamp}"
     echo
-    echo "## [${ver}] - $(today)"
+    echo "## [${1}] - $(today)"
     echo
     echo "### Added"
     echo
-    echo "- This CHANGELOG file."
+    echo "- New changelog file."
     echo
     [[ -n "${url}" ]] \
-      && echo "[${ver}]: ${url}/releases/tag/v${ver}" \
+      && echo "[${1}]: ${url}/releases/tag/v${1}" \
       && return
-    echo "[${ver}]"
+    echo "[${1}]"
   }
 
   restore_changelog() {
-    [[ -z "${1}" ]] \
-      && default_changelog > "${REPO_CHANGELOG}" \
+    [[ -z "${1:-}" ]] \
+      && default_changelog "$(load_version)" > "${REPO_CHANGELOG}" \
       && return
     git_show "${1}:${REPO_CHANGELOG}" > "${REPO_CHANGELOG}"
   }
@@ -561,8 +567,8 @@ main() {
   validate_changelog() {
     git_show_exists "${1}:${REPO_CHANGELOG}" \
       && [[ -n $(git_show "${1}:${REPO_CHANGELOG}") ]] \
-      && git_show "${1}:${REPO_CHANGELOG}" | grep -q "^## \[${3}]" \
-      && git_show "${1}:${REPO_CHANGELOG}" | grep -q "^\[${3}]" \
+      && git_show "${1}:${REPO_CHANGELOG}" | grep -q "^## \[${3//./\.}" \
+      && git_show "${1}:${REPO_CHANGELOG}" | grep -q "^\[${3//./\.}" \
       && return
     [[ ${CONFORM} == 0 ]] \
       && err "Missing or invalid changelog file on ${1}." 3
@@ -574,11 +580,12 @@ main() {
     [[ ! -f "${REPO_CHANGELOG}" || ! -s "${REPO_CHANGELOG}" ]] \
       && restore_changelog "${2}"
     # changelog must contain some heading and diff stamp
-    # shellcheck disable=SC2015
     grep -q '^## ' "${REPO_CHANGELOG}" \
       && grep -q '^\[' "${REPO_CHANGELOG}" \
       || restore_changelog "${2}"
-    changelog_stamp "${3}" "${4}" "${5}" "${6}"
+    grep -q "^## \[${3//./\.}]" "${REPO_CHANGELOG}" \
+      && grep -q "^\[${3//./\.}]" "${REPO_CHANGELOG}" \
+      || changelog_stamp "${3}" "${4}" "${5}" "${6}"
     git_add -- "${REPO_CHANGELOG}"
     git_commit -am "Conform changelog file on '${1}'"
     git_checkout "${gcb}"
@@ -635,7 +642,7 @@ main() {
     local from to
     from=$(load_version "${REPO_STABLE}")
     to=$(increment_patch "${from}")
-    # looking for the "from" stamp, else create an incremented stamp from to
+    # look for the "from" stamp, else create an incremented stamp from to
     validate_changelog "${REPO_STABLE}" "" "${from}" "$(today)" "${from}" "${to}"
     validate_tag
     validate_prod_branch
@@ -645,7 +652,7 @@ main() {
     ! is_attached_to "${REPO_STABLE}" "${REPO_STAGING}" \
       && validate_merged_to "${REPO_STABLE}" "${REPO_STAGING}" \
       && validate_version "${REPO_STAGING}" "$(increment_minor "$(load_version "${REPO_STABLE}")")" \
-      && validate_changelog "${REPO_STAGING}" "${REPO_STABLE}" "$(load_version "${REPO_STAGING}")" "RC1" "${from}" "${REPO_STAGING}" \
+      && validate_changelog "${REPO_STAGING}" "${REPO_STABLE}" "$(load_version "${REPO_STAGING}-rc.1")" "$(today)" "${from}" "${REPO_STAGING}" \
       && from=${REPO_STAGING}
     validate_merged_to "${REPO_STAGING}" "${REPO_DEV}"
     validate_version "${REPO_DEV}" "$(increment_minor "$(load_version "${REPO_STAGING}")")"
@@ -785,7 +792,7 @@ main() {
     is_attached_to "${REPO_STAGING}" "${REPO_STABLE}" \
       && create_staging \
       && return
-    update_staging
+    increment_staging
   }
 
   create_staging() {
@@ -795,36 +802,33 @@ main() {
     vers=$(load_version "${REPO_STAGING}")
     verd=$(load_version "${REPO_DEV}")
     merge_fromto "${REPO_DEV}" "${REPO_STAGING}"
-    sed -i "s/^## \[${UNRELEASED}].*/## [${verd}] - RC1/" "${REPO_CHANGELOG}"
-    sed -i "s/^\[${UNRELEASED}].*/[${verd}]: $(diff_url_esc "${vers}" "${REPO_STAGING}")/" "${REPO_CHANGELOG}"
-    sed -i "/^\[${UNRELEASED}]/d" "${REPO_CHANGELOG}"
+    changelog_stamp "${verd}-rc.1" "$(today)" "${vers}" "${REPO_STAGING}"
     git_add .
     git_commit -am 'Update changelog'
+    msg_done
     merge_fromto "${REPO_STAGING}" "${REPO_DEV}"
     increment_minor "${verd}" > "${REPO_VERFILE}"
     changelog_stamp "${UNRELEASED}" "" "${REPO_STAGING}" "${REPO_DEV}"
     git_commit -am "Update changelog and increment version"
-    msg_done
     git_checkout "${REPO_STAGING}"
   }
 
-  update_staging() {
+  increment_staging() {
     confirm "* Increment release candidate from '${REPO_DEV}'?"
     msg_start 'Incrementing release candidate'
-    local vers verd nthrc
+    local vers verp nthrc
     vers=$(load_version "${REPO_STAGING}")
-    verd=$(load_version "${REPO_DEV}")
+    verp=$(load_version "${REPO_STABLE}")
     merge_fromto "${REPO_DEV}" "${REPO_STAGING}"
-    nthrc=$(( $(grep -c "^## \[${vers//./\.}]" "${REPO_CHANGELOG}") + 1 ))
-    sed -i "s/^## \[${UNRELEASED}].*/## [${vers}] - RC${nthrc}/" "${REPO_CHANGELOG}"
-    sed -i "/^\[${UNRELEASED}]/d" "${REPO_CHANGELOG}"
+    nthrc=$(( $(grep -c "^## \[${vers//./\.}-rc\." "${REPO_CHANGELOG}") + 1 ))
+    changelog_stamp "${vers}-rc.${nthrc}" "$(today)" "${verp}" "${REPO_STAGING}"
     echo "${vers}" > "${REPO_VERFILE}"
     git_add .
-    git_commit -am 'Update version and changelog'
+    git_commit -am 'Update changelog and restore version'
+    msg_done
     merge_fromto "${REPO_STAGING}" "${REPO_DEV}"
     changelog_stamp "${UNRELEASED}" "" "${REPO_STAGING}" "${REPO_DEV}"
     git_commit -am "Update changelog"
-    msg_done
     git_checkout "${REPO_STAGING}"
   }
 
@@ -851,17 +855,16 @@ main() {
     msg_start 'Updating changelog'
     local from to
     from=$(load_version "${REPO_STABLE}")
-    to=$(load_version)
-    sed -i "0,/^## \[${to//./\.}].*/s//## [${to}] - $(today)/" "${REPO_CHANGELOG}"
-    sed -i "s/^\[${to//./\.}].*/[${to}]: $(diff_url_esc "${from}" "${to}")/" "${REPO_CHANGELOG}"
+    to=$(load_version "${REPO_STAGING}")
+    changelog_stamp "${to}" "$(today)" "${from}" "${to}"
     git_add -- "${REPO_CHANGELOG}"
     git_commit -am 'Update changelog'
     msg_done
     [[ ${REQUEST} == 1 ]] \
       && flow_request "${REPO_STABLE}" \
       && return
-    msg_start 'Updating branching structure'
     merge_fromto "${REPO_STAGING}" "${REPO_STABLE}"
+    msg_start 'Updating branching structure'
     git_tag "v${to}"
     git_checkout "${REPO_STAGING}"
     git_merge "${REPO_STABLE}"
@@ -872,8 +875,8 @@ main() {
       && git_checkout "${prod}" \
       && git_merge "${REPO_STABLE}" \
       || git_branch "${prod}"
-    merge_fromto "${REPO_STABLE}" "${REPO_DEV}"
     msg_done
+    merge_fromto "${REPO_STABLE}" "${REPO_DEV}"
   }
 
   # 1: stamp
@@ -881,18 +884,27 @@ main() {
   # 3: from
   # 4: to
   changelog_stamp() {
-    local heading diff
-    heading="## [${1}] - ${2}"
-    diff="[${1}]: $(diff_url_esc "${3}" "${4}")"
+    local head_stamp="## [${1}] - ${2}"
+    local diff_stamp
+    diff_stamp="[${1}]: $(diff_url_esc "${3}" "${4}")"
     [[ "${1}" == "${3}" ]] \
-        && heading="## [${4}] - ${2}" \
-        && diff="[${4}]: $(diff_url_esc "${3}" "${4}")"
-    # add heading stamp if not exists
-    ! grep -q "^## \[${1}]" "${REPO_CHANGELOG}" \
-      && sed -i "0,/^## /s//${heading%* - }\n\n&/" "${REPO_CHANGELOG}"
-    # add diff stamp if not exists
-    ! grep -q "^\[${1}]" "${REPO_CHANGELOG}" \
-      && sed -i "0,/^\[/s//${diff}\n&/" "${REPO_CHANGELOG}"
+      && head_stamp="## [${4}] - ${2}" \
+      && diff_stamp="[${4}]: $(diff_url_esc "${3}" "${4}")"
+    # always add head stamp or replace the unreleased
+    # shellcheck disable=SC2015
+    grep -q "^## \[${UNRELEASED}]" "${REPO_CHANGELOG}" \
+      && sed -i "s/^## \[${UNRELEASED}].*/${head_stamp}/" "${REPO_CHANGELOG}" \
+      || sed -i "0,/^## /s//${head_stamp%* - }\n\n&/" "${REPO_CHANGELOG}"
+    # update diff stamp if exists
+    grep -q "^\[${1//./\.}]" "${REPO_CHANGELOG}" \
+      && sed -i "s/^\[${1//./\.}].*/${diff_stamp}/" "${REPO_CHANGELOG}" \
+      && return
+    # replace unreleased if exists
+    grep -q "^\[${UNRELEASED}]" "${REPO_CHANGELOG}" \
+      && sed -i "s/^\[${UNRELEASED}].*/${diff_stamp}/" "${REPO_CHANGELOG}" \
+      && return
+    # else add diff stamp
+    sed -i "0,/^\[/s//${diff_stamp}\n&/" "${REPO_CHANGELOG}"
   }
 
   # 1: keyword
@@ -956,10 +968,11 @@ main() {
   # 1: default keyword
   # 2: source branch
   update_changelog() {
-    local gcb kw=
+    local gcb def kw=
     gcb=$(current_branch)
+    def="New feature '${gcb}'."
     [[ "${ENTRY}" == 1 ]] \
-      && add_changelog_entry "${1}" "${gcb}" \
+      && add_changelog_entry "${1}" "${def}" \
       && return
     echo
     echo '###'
@@ -990,7 +1003,7 @@ main() {
       add_changelog_entry "${kw}" "${line#*: }"
     done
     [[ -z "${kw}" ]] \
-      && add_changelog_entry "${1}" "${gcb}"
+      && add_changelog_entry "${1}" "${def}"
   }
 
   release_feature() {
