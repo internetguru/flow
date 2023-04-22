@@ -8,15 +8,15 @@ COLUMNS=${COLUMNS:-$(tput cols)}
 
 DATAPATH=${DATAPATH:-$(dirname "${BASH_SOURCE[0]}")}
 USAGE=${USAGE:-}
-VER_F=${VER_F:-}
+VERF=${VERF:-}
 
 ORIGIN=${ORIGIN:-origin}
 UPSTREAM=${UPSTREAM:-${ORIGIN}}
 CHANGELOG=${CHANGELOG:-CHANGELOG.md}
 VERSION=${VERSION:-VERSION}
-BCH_D=${BCH_D:-dev}
-BCH_S=${BCH_S:-staging}
-BCH_P=${BCH_P:-main}
+BCHD=${BCHD:-dev}
+BCHS=${BCHS:-staging}
+BCHP=${BCHP:-main}
 
 main() {
 
@@ -297,8 +297,8 @@ main() {
     branch_exists "${ORIGIN}/${1}" \
       && git_branch "${1}" "${ORIGIN}/${1}" \
       && return
-    branch_exists "${BCH_P}" \
-      && git_branch "${1}" "${BCH_P}" \
+    branch_exists "${BCHP}" \
+      && git_branch "${1}" "${BCHP}" \
       && return
     git_branch "${1}"
   }
@@ -345,10 +345,10 @@ main() {
   # downwards: master->release->dev
   merge_fromto() {
     local stream='upwards'
-    [[ "${1}" == "${BCH_P}" || "${2}" == "${BCH_D}" ]] \
+    [[ "${1}" == "${BCHP}" || "${2}" == "${BCHD}" ]] \
       && stream='downwards'
-    [[ "${1}" == "${BCH_D}" || "${2}" == "${BCH_S}" ]] \
-      && is_attached_to "${BCH_D}" "${BCH_S}" \
+    [[ "${1}" == "${BCHD}" || "${2}" == "${BCHS}" ]] \
+      && is_attached_to "${BCHD}" "${BCHS}" \
       && stream='downwards'
     msg_start "Merging '${1}' to '${2}' (${stream})."
     git_checkout "${2}"
@@ -448,10 +448,10 @@ main() {
     confirm "Initialize repository?"
     msg_start 'Initializing repository'
     # this requires newer git version
-    #git_init --initial-branch="${BCH_P}"
+    #git_init --initial-branch="${BCHP}"
     ! git_repo_exists \
       && git_init . \
-      && git symbolic-ref HEAD "refs/heads/${BCH_P}"
+      && git symbolic-ref HEAD "refs/heads/${BCHP}"
     git_commit --allow-empty -m 'Initial commit'
     msg_done
   }
@@ -462,21 +462,21 @@ main() {
     confirm 'Conform version tag?'
     local ver
     ver=$(increment_patch "${1}")
-    update_version "${BCH_P}" "${ver}"
-    git_tag "v${ver}" "${BCH_P}"
+    update_version "${BCHP}" "${ver}"
+    git_tag "v${ver}" "${BCHP}"
   }
 
   validate_tag() {
-    has_tag "${BCH_P}" "v${VER_P}" \
-      && [[ $(git_rev_list "${REFSTAGS}/v${VER_P}") == "$(latest_commit "${BCH_P}")" ]] \
+    has_tag "${BCHP}" "v${VERP}" \
+      && [[ $(git_rev_list "${REFSTAGS}/v${VERP}") == "$(latest_commit "${BCHP}")" ]] \
       && return
-    has_tag "${BCH_P}" "v${VER_P}" \
-      && hotfix_vertag "${VER_P}" \
+    has_tag "${BCHP}" "v${VERP}" \
+      && hotfix_vertag "${VERP}" \
       && return
     [[ ${CONFORM} == 0 ]] \
-      && err "Missing version tag 'v${VER_P}'." 3
+      && err "Missing version tag 'v${VERP}'." 3
     confirm 'Create version tag?'
-    git_tag "v${VER_P}" "${BCH_P}"
+    git_tag "v${VERP}" "${BCHP}"
   }
 
   validate_merged_to() {
@@ -619,35 +619,35 @@ main() {
   flow_validate() {
     [[ ${#} -gt 1 ]] \
       && err 'Too many arguments.' 2
-    local gcb=${BCH_D}
+    local gcb=${BCHD}
     validate_requirements
     git_repo_exists \
       && gcb=$(current_branch)
     validate_repository
     validate_status_empty
-    BCH_P=$(find_or_first "${BCH_P}" "${ARR_P[@]}")
-    BCH_S=$(find_or_first "${BCH_S}" "${ARR_S[@]}")
-    BCH_D=$(find_or_first "${BCH_D}" "${ARR_D[@]}")
-    validate_branch "${BCH_P}"
-    validate_version "${BCH_P}" "$(top_vertag)"
-    VER_P=$(load_version "${BCH_P}")
-    # look for the VER_P stamp, else create an incremented stamp from VER_P to VER_P++
-    validate_changelog "${BCH_P}" "" "${VER_P}" "$(today)" "${VER_P}" "$(increment_patch "${VER_P}")"
+    BCHP=$(find_or_first "${BCHP}" "${ARRP[@]}")
+    BCHS=$(find_or_first "${BCHS}" "${ARRS[@]}")
+    BCHD=$(find_or_first "${BCHD}" "${ARRD[@]}")
+    validate_branch "${BCHP}"
+    validate_version "${BCHP}" "$(top_vertag)"
+    VERP=$(load_version "${BCHP}")
+    # look for the VERP stamp, else create an incremented stamp from VERP to VERP++
+    validate_changelog "${BCHP}" "" "${VERP}" "$(today)" "${VERP}" "$(increment_patch "${VERP}")"
     validate_tag
     validate_prod_branch
-    validate_branch "${BCH_S}"
-    validate_branch "${BCH_D}"
-    validate_merged_to "${BCH_P}" "${BCH_D}"
-    VER_S=${VER_P}
-    ! is_attached_to "${BCH_P}" "${BCH_S}" \
-      && validate_merged_to "${BCH_P}" "${BCH_S}" \
-      && validate_version "${BCH_S}" "$(increment_minor "${VER_P}")" \
-      && VER_S=$(load_version "${BCH_S}") \
-      && validate_changelog "${BCH_S}" "${BCH_P}" "${VER_S}-rc.1" "$(today)" "${VER_P}" "${BCH_S}"
-    validate_merged_to "${BCH_S}" "${BCH_D}"
-    validate_version "${BCH_D}" "$(increment_minor "${VER_S}")"
-    VER_D=$(load_version "${BCH_D}")
-    validate_changelog "${BCH_D}" "${BCH_S}" "${UNRELEASED}" "" "${BCH_S}" "${BCH_D}"
+    validate_branch "${BCHS}"
+    validate_branch "${BCHD}"
+    validate_merged_to "${BCHP}" "${BCHD}"
+    VERS=${VERP}
+    ! is_attached_to "${BCHP}" "${BCHS}" \
+      && validate_merged_to "${BCHP}" "${BCHS}" \
+      && validate_version "${BCHS}" "$(increment_minor "${VERP}")" \
+      && VERS=$(load_version "${BCHS}") \
+      && validate_changelog "${BCHS}" "${BCHP}" "${VERS}-rc.1" "$(today)" "${VERP}" "${BCHS}"
+    validate_merged_to "${BCHS}" "${BCHD}"
+    validate_version "${BCHD}" "$(increment_minor "${VERS}")"
+    VERD=$(load_version "${BCHD}")
+    validate_changelog "${BCHD}" "${BCHS}" "${UNRELEASED}" "" "${BCHS}" "${BCHD}"
     validate_param "${1:-}"
     validate_param "${DEFAULT_HOTFIX}"
     validate_param "${DEFAULT_FEATURE}"
@@ -655,7 +655,7 @@ main() {
   }
 
   is_prod_branch() {
-    [[ "${1}" =~ ^${BCH_P}-[0-9]+$ ]]
+    [[ "${1}" =~ ^${BCHP}-[0-9]+$ ]]
   }
 
   # prod* must exist
@@ -675,32 +675,32 @@ main() {
   }
 
   validate_prod_branch() {
-    local prod="${BCH_P}-${VER_P%%.*}"
+    local prod="${BCHP}-${VERP%%.*}"
     validate_branch "${prod}"
-    is_attached_to "${prod}" "${BCH_P}" \
+    is_attached_to "${prod}" "${BCHP}" \
       && return
     [[ ${CONFORM} == 0 ]] \
-      && err "Branch '${prod}' is behind '${BCH_P}'." 3
-    confirm "Merge branch '${prod}' into '${BCH_P}'?"
+      && err "Branch '${prod}' is behind '${BCHP}'." 3
+    confirm "Merge branch '${prod}' into '${BCHP}'?"
     git_checkout "${prod}"
-    git_merge "${BCH_P}"
+    git_merge "${BCHP}"
   }
 
   get_key_branch() {
-    [[ " ${ARR_P[*]} " == *" ${1} "* ]] \
-      && echo "${BCH_P}" \
+    [[ " ${ARRP[*]} " == *" ${1} "* ]] \
+      && echo "${BCHP}" \
       && return
-    [[ " ${ARR_S[*]} " == *" ${1} "* ]] \
-      && echo "${BCH_S}" \
+    [[ " ${ARRS[*]} " == *" ${1} "* ]] \
+      && echo "${BCHS}" \
       && return
-    [[ " ${ARR_D[*]} " == *" ${1} "* ]] \
-      && echo "${BCH_D}" \
+    [[ " ${ARRD[*]} " == *" ${1} "* ]] \
+      && echo "${BCHD}" \
       && return
     echo "${1}"
   }
 
   is_hotfix_branch() {
-    [[ "$(git merge-base "${1}" "${BCH_D}")" == "$(git merge-base "${BCH_P}" "${BCH_D}")" ]]
+    [[ "$(git merge-base "${1}" "${BCHD}")" == "$(git merge-base "${BCHP}" "${BCHD}")" ]]
   }
 
   # 1: dest branch
@@ -709,7 +709,7 @@ main() {
     branch_exists "${1}" \
       && release_hotfix "${1}" \
       && return
-    local branch="${BCH_P}"
+    local branch="${BCHP}"
     [[ "$(is_prod_branch "$(current_branch)")" ]] \
       && branch=$(current_branch)
     [[ -n "${2:-}" ]] \
@@ -733,16 +733,16 @@ main() {
       && [[ "${branch,,}" != "head" ]] \
       || err "Invalid branch name." 2
     # flow dev* -> release dev
-    [[ "${branch}" == "${BCH_D}" ]] \
+    [[ "${branch}" == "${BCHD}" ]] \
       && release_dev \
       && return
     # flow staging* -> release staging
-    [[ "${branch}" == "${BCH_S}" ]] \
+    [[ "${branch}" == "${BCHS}" ]] \
       && release_staging \
       && return
     # flow stable* -> create/release default hotfix
-    [[ "${branch}" == "${BCH_P}" ]] \
-      && flow_hotfix "${DEFAULT_HOTFIX}" "${BCH_P}" \
+    [[ "${branch}" == "${BCHP}" ]] \
+      && flow_hotfix "${DEFAULT_HOTFIX}" "${BCHP}" \
       && return
     # flow prod* -> create/release (default?) hotfix on a prod* branch
     is_prod_branch "${branch}" \
@@ -774,46 +774,46 @@ main() {
   }
 
   release_dev() {
-    is_attached_to "${BCH_S}" "${BCH_P}" \
+    is_attached_to "${BCHS}" "${BCHP}" \
       && create_staging \
       && return
     increment_staging
   }
 
   create_staging() {
-    confirm "* Create new release candidate from '${BCH_D}'?"
+    confirm "* Create new release candidate from '${BCHD}'?"
     msg_start 'Creating new release candidate'
-    merge_fromto "${BCH_D}" "${BCH_S}"
-    changelog_stamp "${VER_D}-rc.1" "$(today)" "${VER_S}" "${BCH_S}"
+    merge_fromto "${BCHD}" "${BCHS}"
+    changelog_stamp "${VERD}-rc.1" "$(today)" "${VERS}" "${BCHS}"
     git_add .
     git_commit -am 'Update changelog'
     msg_done
-    merge_fromto "${BCH_S}" "${BCH_D}"
-    increment_minor "${VER_D}" > "${VERSION}"
-    changelog_stamp "${UNRELEASED}" "" "${BCH_S}" "${BCH_D}"
+    merge_fromto "${BCHS}" "${BCHD}"
+    increment_minor "${VERD}" > "${VERSION}"
+    changelog_stamp "${UNRELEASED}" "" "${BCHS}" "${BCHD}"
     git_commit -am "Update changelog and increment version"
-    git_checkout "${BCH_S}"
+    git_checkout "${BCHS}"
   }
 
   increment_staging() {
-    confirm "* Increment release candidate from '${BCH_D}'?"
+    confirm "* Increment release candidate from '${BCHD}'?"
     msg_start 'Incrementing release candidate'
-    merge_fromto "${BCH_D}" "${BCH_S}"
-    local nthrc=$(( $(grep -c "^## \[${VER_S//./\.}-rc\." "${CHANGELOG}") + 1 ))
-    changelog_stamp "${VER_S}-rc.${nthrc}" "$(today)" "${VER_P}" "${BCH_S}"
-    echo "${VER_S}" > "${VERSION}"
+    merge_fromto "${BCHD}" "${BCHS}"
+    local nthrc=$(( $(grep -c "^## \[${VERS//./\.}-rc\." "${CHANGELOG}") + 1 ))
+    changelog_stamp "${VERS}-rc.${nthrc}" "$(today)" "${VERP}" "${BCHS}"
+    echo "${VERS}" > "${VERSION}"
     git_add .
     git_commit -am 'Update changelog and restore version'
     msg_done
-    merge_fromto "${BCH_S}" "${BCH_D}"
-    changelog_stamp "${UNRELEASED}" "" "${BCH_S}" "${BCH_D}"
+    merge_fromto "${BCHS}" "${BCHD}"
+    changelog_stamp "${UNRELEASED}" "" "${BCHS}" "${BCHD}"
     git_commit -am "Update changelog"
-    git_checkout "${BCH_S}"
+    git_checkout "${BCHS}"
   }
 
   create_feature() {
-    confirm "* Create feature '${1}' from '${BCH_D}'?"
-    checkout_branch "${1}" "${BCH_D}"
+    confirm "* Create feature '${1}' from '${BCHD}'?"
+    checkout_branch "${1}" "${BCHD}"
   }
 
   # 1 dest name
@@ -826,34 +826,34 @@ main() {
   release_staging() {
     # shellcheck disable=SC2015
     [[ ${REQUEST} == 1 ]] \
-      && confirm "* Request merge '${BCH_S}' to '${BCH_P}'?" \
-      || confirm "* Release '${BCH_S}' branch to '${BCH_P}'?"
-    is_attached_to "${BCH_S}" "${BCH_P}" \
+      && confirm "* Request merge '${BCHS}' to '${BCHP}'?" \
+      || confirm "* Release '${BCHS}' branch to '${BCHP}'?"
+    is_attached_to "${BCHS}" "${BCHP}" \
       && err 'Staging branch is already released.' 6
-    merge_fromto "${BCH_P}" "${BCH_S}"
+    merge_fromto "${BCHP}" "${BCHS}"
     msg_start 'Updating changelog'
     local note
     note="Stable release based on $(grep -om1 "^\[[^\]\+]" "${CHANGELOG}")."
-    changelog_stamp "${VER_S}" "$(today)" "${VER_P}" "${VER_S}" "${note}"
+    changelog_stamp "${VERS}" "$(today)" "${VERP}" "${VERS}" "${note}"
     git_add -- "${CHANGELOG}"
     git_commit -am 'Update changelog'
     msg_done
     [[ ${REQUEST} == 1 ]] \
-      && flow_request "${BCH_P}" \
+      && flow_request "${BCHP}" \
       && return
-    merge_fromto "${BCH_S}" "${BCH_P}"
+    merge_fromto "${BCHS}" "${BCHP}"
     msg_start 'Updating branching structure'
-    git_tag "v${VER_S}"
-    git_checkout "${BCH_S}"
-    git_merge "${BCH_P}"
-    local prod="${BCH_P}-${VER_S%%.*}"
+    git_tag "v${VERS}"
+    git_checkout "${BCHS}"
+    git_merge "${BCHP}"
+    local prod="${BCHP}-${VERS%%.*}"
     # shellcheck disable=SC2015
     branch_exists "${prod}" \
       && git_checkout "${prod}" \
-      && git_merge "${BCH_P}" \
+      && git_merge "${BCHP}" \
       || git_branch "${prod}"
     msg_done
-    merge_fromto "${BCH_P}" "${BCH_D}"
+    merge_fromto "${BCHP}" "${BCHD}"
   }
 
   # 1: stamp
@@ -984,19 +984,19 @@ main() {
   }
 
   release_feature() {
-    is_merged_to "${1}" "${BCH_D}" \
+    is_merged_to "${1}" "${BCHD}" \
       && err 'Nothing to merge.' 6
     # shellcheck disable=SC2015
     [[ ${REQUEST} == 1 ]] \
-      && confirm "* Request merge '${1}' into '${BCH_D}'?" \
-      || confirm "* Merge feature '${1}' into '${BCH_D}'?"
-    merge_fromto "${BCH_D}" "${1}"
-    update_changelog Added "${BCH_D}"
+      && confirm "* Request merge '${1}' into '${BCHD}'?" \
+      || confirm "* Merge feature '${1}' into '${BCHD}'?"
+    merge_fromto "${BCHD}" "${1}"
+    update_changelog Added "${BCHD}"
     git_commit -am 'Update changelog'
     [[ ${REQUEST} == 1 ]] \
-      && flow_request "${BCH_D}" \
+      && flow_request "${BCHD}" \
       && return
-    merge_fromto "${1}" "${BCH_D}"
+    merge_fromto "${1}" "${BCHD}"
     delete_branch "${1}"
   }
 
@@ -1039,16 +1039,16 @@ main() {
     verh=$(load_version "${1}")
     # shellcheck disable=SC2015
     [[ -n "${verh}" ]] \
-      && [[ ! "${verh%%.*}" > "${VER_P%%.*}" ]] \
+      && [[ ! "${verh%%.*}" > "${VERP%%.*}" ]] \
       || err "Invalid hotfix version." 4
-    local dest=${BCH_P}-${verh%%.*}
+    local dest=${BCHP}-${verh%%.*}
     ! branch_exists "${dest}" \
       && err "Branch '${dest}' not found." 4
     is_merged_to "${1}" "${dest}" \
       && err 'Nothing to merge.' 6
     # shellcheck disable=SC2015
-    [[ "${verh%%.*}" == "${VER_P%%.*}" ]] \
-      && confirm "* Merge hotfix '${1}' into '${dest}' and '${BCH_P}'?" \
+    [[ "${verh%%.*}" == "${VERP%%.*}" ]] \
+      && confirm "* Merge hotfix '${1}' into '${dest}' and '${BCHP}'?" \
       || confirm "* Merge hotfix '${1}' only into '${dest}'?"
     msg_start 'Updating control files'
     git_checkout "${1}"
@@ -1065,21 +1065,21 @@ main() {
       && return
     merge_fromto "${1}" "${dest}"
     git_tag "v${verh}"
-    [[ "${verh%%.*}" != "${VER_P%%.*}" ]] \
+    [[ "${verh%%.*}" != "${VERP%%.*}" ]] \
       && delete_branch "${1}" \
       && return
-    git_checkout "${BCH_P}"
+    git_checkout "${BCHP}"
     git_merge "${dest}"
-    [[ "${VER_P}" == "${VER_S}" ]] \
-      && git_checkout "${BCH_S}" \
-      && git_merge "${BCH_P}" \
-      && merge_fromto "${BCH_P}" "${BCH_D}" \
+    [[ "${VERP}" == "${VERS}" ]] \
+      && git_checkout "${BCHS}" \
+      && git_merge "${BCHP}" \
+      && merge_fromto "${BCHP}" "${BCHD}" \
       && delete_branch "${1}" \
       && return
-    merge_fromto "${BCH_P}" "${BCH_S}"
-    merge_fromto "${BCH_S}" "${BCH_D}"
+    merge_fromto "${BCHP}" "${BCHS}"
+    merge_fromto "${BCHS}" "${BCHD}"
     delete_branch "${1}"
-    git_checkout "${BCH_D}"
+    git_checkout "${BCHD}"
   }
 
   update_branch() {
@@ -1136,7 +1136,7 @@ main() {
 
   flow_request_url() {
     local url upstream_url to gcb
-    to="${1:-${BCH_D}}"
+    to="${1:-${BCHD}}"
     url=$(trim_url "$(git config remote."${ORIGIN}".url)")
     upstream_url="$(git config remote."${UPSTREAM}".url)"
     upstream_url="$(trim_url "${upstream_url}")"
@@ -1184,8 +1184,8 @@ main() {
   }
 
   flow_version() {
-    [[ -n "${VER_F}" ]] \
-      && echo "flow ${VER_F}" \
+    [[ -n "${VERF}" ]] \
+      && echo "flow ${VERF}" \
       && return
     echo "flow $(<"${DATAPATH}/VERSION")"
   }
@@ -1203,27 +1203,27 @@ main() {
   }
 
   branch_desc() {
-    [[ "${1}" == "${BCH_P}" || "$(is_prod_branch "${1}")" ]] \
+    [[ "${1}" == "${BCHP}" || "$(is_prod_branch "${1}")" ]] \
       && echo '* This is considered a read-only stable branch.' \
       && echo '* Do not commit any changes directly to this branch ever!' \
       && echo '*' \
       && echo "* 1. Run '${SCRIPT_NAME}' to create a hotfix or leave." \
       && return
-    [[ "${1}" == "${BCH_S}" ]] \
-      && is_attached_to "${BCH_S}" "${BCH_P}" \
+    [[ "${1}" == "${BCHS}" ]] \
+      && is_attached_to "${BCHS}" "${BCHP}" \
       && echo '* This is a staging branch that is already released.' \
       && echo '* Nothing to do until a new version is released from dev.' \
       && echo '*' \
       && echo "* 1. Leave this branch." \
       && return
-    [[ "${1}" == "${BCH_S}" ]] \
+    [[ "${1}" == "${BCHS}" ]] \
       && echo '* This branch is meant solely for bug fixing.' \
       && echo '* Each commit must be merged into the development branch.' \
       && echo '*' \
       && echo '* 1. Make some fixes and feel free to commit directly.' \
       && echo "* 2. Run '${SCRIPT_NAME}' to release this branch." \
       && return
-    [[ "${1}" == "${BCH_D}" ]] \
+    [[ "${1}" == "${BCHD}" ]] \
       && echo '* This is a development branch.' \
       && echo '* It is designed for bug fixing and merging features.' \
       && echo '*' \
@@ -1262,9 +1262,9 @@ main() {
   declare -r KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
   declare -r REFSHEADS='refs/heads'
   declare -r REFSTAGS='refs/tags'
-  declare -r ARR_P=(main master production prod live)
-  declare -r ARR_S=(staging release rc preprod pre-production release-candidate prerelease)
-  declare -r ARR_D=(dev devel develop next)
+  declare -r ARRP=(main master production prod live)
+  declare -r ARRS=(staging release rc preprod pre-production release-candidate prerelease)
+  declare -r ARRD=(dev devel develop next)
 
   # process options
   line=$(IFS=' ' getopt -n "${0}" \
