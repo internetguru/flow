@@ -6,18 +6,17 @@ set -u
 LINES=${LINES:-$(tput lines)}
 COLUMNS=${COLUMNS:-$(tput cols)}
 
-FLOW_DATAPATH=${FLOW_DATAPATH:-$(dirname "${BASH_SOURCE[0]}")}
-FLOW_USAGE=${FLOW_USAGE:-}
-FLOW_VERNUM=${FLOW_VERNUM:-}
-FLOW_VERFILE=${FLOW_VERFILE:-${FLOW_DATAPATH}/VERSION}
+DATAPATH=${DATAPATH:-$(dirname "${BASH_SOURCE[0]}")}
+USAGE=${USAGE:-}
+VER_F=${VER_F:-}
 
-REPO_CHANGELOG=${REPO_CHANGELOG:-CHANGELOG.md}
-REPO_VERFILE=${REPO_VERFILE:-VERSION}
-REPO_DEV=${REPO_DEV:-dev}
-REPO_STAGING=${REPO_STAGING:-staging}
-REPO_PROD=${REPO_PROD:-main}
-REPO_ORIGIN=${REPO_ORIGIN:-origin}
-REPO_UPSTREAM=${REPO_UPSTREAM:-${REPO_ORIGIN}}
+ORIGIN=${ORIGIN:-origin}
+UPSTREAM=${UPSTREAM:-${ORIGIN}}
+CHANGELOG=${CHANGELOG:-CHANGELOG.md}
+VERSION=${VERSION:-VERSION}
+BCH_D=${BCH_D:-dev}
+BCH_S=${BCH_S:-staging}
+BCH_P=${BCH_P:-main}
 
 main() {
 
@@ -153,7 +152,7 @@ main() {
   }
 
   git_remote_url() {
-    git config remote."${REPO_ORIGIN}".url | sed -e 's~^git@\([^:]\+\):~https://\1/~' -e 's/\.git$//'
+    git config remote."${ORIGIN}".url | sed -e 's~^git@\([^:]\+\):~https://\1/~' -e 's/\.git$//'
   }
 
   diff_url() {
@@ -295,11 +294,11 @@ main() {
   }
 
   create_branch() {
-    branch_exists "${REPO_ORIGIN}/${1}" \
-      && git_branch "${1}" "${REPO_ORIGIN}/${1}" \
+    branch_exists "${ORIGIN}/${1}" \
+      && git_branch "${1}" "${ORIGIN}/${1}" \
       && return
-    branch_exists "${REPO_PROD}" \
-      && git_branch "${1}" "${REPO_PROD}" \
+    branch_exists "${BCH_P}" \
+      && git_branch "${1}" "${BCH_P}" \
       && return
     git_branch "${1}"
   }
@@ -318,8 +317,8 @@ main() {
   }
 
   validate_git_remote() {
-    git config remote."${REPO_ORIGIN}".url >/dev/null \
-      || err "Remote url for '${REPO_ORIGIN}' not found."
+    git config remote."${ORIGIN}".url >/dev/null \
+      || err "Remote url for '${ORIGIN}' not found."
   }
 
   current_branch() {
@@ -346,10 +345,10 @@ main() {
   # downwards: master->release->dev
   merge_fromto() {
     local stream='upwards'
-    [[ "${1}" == "${REPO_PROD}" || "${2}" == "${REPO_DEV}" ]] \
+    [[ "${1}" == "${BCH_P}" || "${2}" == "${BCH_D}" ]] \
       && stream='downwards'
-    [[ "${1}" == "${REPO_DEV}" || "${2}" == "${REPO_STAGING}" ]] \
-      && is_attached_to "${REPO_DEV}" "${REPO_STAGING}" \
+    [[ "${1}" == "${BCH_D}" || "${2}" == "${BCH_S}" ]] \
+      && is_attached_to "${BCH_D}" "${BCH_S}" \
       && stream='downwards'
     msg_start "Merging '${1}' to '${2}' (${stream})."
     git_checkout "${2}"
@@ -366,21 +365,21 @@ main() {
       && return
     git_merge_nocommit "${1}"
     # hard reset version file regardless of a conflict
-    git reset -q "${REPO_VERFILE}"
-    git_checkout "${REPO_VERFILE}"
-    sed -i '/^<<<<<<< /d;0,/^=======$/s///;/^=======$/d;/^>>>>>>> /d' "${REPO_CHANGELOG}"
+    git reset -q "${VERSION}"
+    git_checkout "${VERSION}"
+    sed -i '/^<<<<<<< /d;0,/^=======$/s///;/^=======$/d;/^>>>>>>> /d' "${CHANGELOG}"
     git_add .
     git_merge --continue
   }
 
   delete_remote_branch() {
     msg_start "Deleting remote branch '${1}'"
-    ! branch_exists "${REPO_ORIGIN}/${1}" \
+    ! branch_exists "${ORIGIN}/${1}" \
       && msg_pass \
       && return
     #TODO: used to be:
-    #git push "${REPO_ORIGIN}" ":${REFSHEADS}/${1}" 2>&1
-    git push -qd "${REPO_ORIGIN}" "${1}"
+    #git push "${ORIGIN}" ":${REFSHEADS}/${1}" 2>&1
+    git push -qd "${ORIGIN}" "${1}"
     msg_done
   }
 
@@ -396,8 +395,8 @@ main() {
   load_version() {
     local branch ver
     branch=${1:-$(current_branch)}
-    git_show_exists "${branch}:${REPO_VERFILE}" \
-      && ver=$(git_show "${branch}:${REPO_VERFILE}") \
+    git_show_exists "${branch}:${VERSION}" \
+      && ver=$(git_show "${branch}:${VERSION}") \
       && is_valid_version "${ver}" \
       && echo "${ver}"
   }
@@ -449,16 +448,16 @@ main() {
     confirm "Initialize repository?"
     msg_start 'Initializing repository'
     # this requires newer git version
-    #git_init --initial-branch="${REPO_PROD}"
+    #git_init --initial-branch="${BCH_P}"
     ! git_repo_exists \
       && git_init . \
-      && git symbolic-ref HEAD "refs/heads/${REPO_PROD}"
+      && git symbolic-ref HEAD "refs/heads/${BCH_P}"
     git_commit --allow-empty -m 'Initial commit'
     # [[ "${STASH}" == 1 ]] \
     #   && stash_files
     # msg_start 'Initializing files'
-    # echo "0.0.0" > "${REPO_VERFILE}"
-    # default_changelog "0.0.0" > "${REPO_CHANGELOG}"
+    # echo "0.0.0" > "${VERSION}"
+    # default_changelog "0.0.0" > "${CHANGELOG}"
     # git_add .
     # git_commit --allow-empty -m 'Initialize files'
     msg_done
@@ -470,23 +469,23 @@ main() {
     confirm 'Conform version tag?'
     local ver
     ver=$(increment_patch "${1}")
-    update_version "${REPO_PROD}" "${ver}"
-    git_tag "v${ver}" "${REPO_PROD}"
+    update_version "${BCH_P}" "${ver}"
+    git_tag "v${ver}" "${BCH_P}"
   }
 
   validate_tag() {
     local ver
-    ver="$(load_version "${REPO_PROD}")"
-    has_tag "${REPO_PROD}" "v${ver}" \
-      && [[ $(git_rev_list "${REFSTAGS}/v${ver}") == "$(latest_commit "${REPO_PROD}")" ]] \
+    ver="$(load_version "${BCH_P}")"
+    has_tag "${BCH_P}" "v${ver}" \
+      && [[ $(git_rev_list "${REFSTAGS}/v${ver}") == "$(latest_commit "${BCH_P}")" ]] \
       && return
-    has_tag "${REPO_PROD}" "v${ver}" \
+    has_tag "${BCH_P}" "v${ver}" \
       && hotfix_vertag "${ver}" \
       && return
     [[ ${CONFORM} == 0 ]] \
       && err "Missing version tag 'v${ver}'." 3
     confirm 'Create version tag?'
-    git_tag "v${ver}" "${REPO_PROD}"
+    git_tag "v${ver}" "${BCH_P}"
   }
 
   validate_merged_to() {
@@ -507,8 +506,8 @@ main() {
     gcb=$(current_branch)
     msg_start 'Updating version number'
     git_checkout "${1}"
-    echo "${2}" > "${REPO_VERFILE}"
-    git_add "${REPO_VERFILE}"
+    echo "${2}" > "${VERSION}"
+    git_add "${VERSION}"
     git_commit -am 'Update version number'
     msg_done
     git_checkout "${gcb}"
@@ -551,9 +550,9 @@ main() {
 
   restore_changelog() {
     [[ -z "${1:-}" ]] \
-      && default_changelog "$(load_version)" > "${REPO_CHANGELOG}" \
+      && default_changelog "$(load_version)" > "${CHANGELOG}" \
       && return
-    git_show "${1}:${REPO_CHANGELOG}" > "${REPO_CHANGELOG}"
+    git_show "${1}:${CHANGELOG}" > "${CHANGELOG}"
   }
 
   # 1: branch
@@ -563,10 +562,10 @@ main() {
   # 5: diff from
   # 6: diff to
   validate_changelog() {
-    git_show_exists "${1}:${REPO_CHANGELOG}" \
-      && [[ -n $(git_show "${1}:${REPO_CHANGELOG}") ]] \
-      && git_show "${1}:${REPO_CHANGELOG}" | grep -q "^## \[${3//./\.}" \
-      && git_show "${1}:${REPO_CHANGELOG}" | grep -q "^\[${3//./\.}" \
+    git_show_exists "${1}:${CHANGELOG}" \
+      && [[ -n $(git_show "${1}:${CHANGELOG}") ]] \
+      && git_show "${1}:${CHANGELOG}" | grep -q "^## \[${3//./\.}" \
+      && git_show "${1}:${CHANGELOG}" | grep -q "^\[${3//./\.}" \
       && return
     [[ ${CONFORM} == 0 ]] \
       && err "Missing or invalid changelog file on ${1}." 3
@@ -575,18 +574,18 @@ main() {
     gcb=$(current_branch)
     git_checkout "${1}"
     # changelog must exist and must be unempty
-    [[ ! -f "${REPO_CHANGELOG}" || ! -s "${REPO_CHANGELOG}" ]] \
+    [[ ! -f "${CHANGELOG}" || ! -s "${CHANGELOG}" ]] \
       && restore_changelog "${2}"
     # changelog must contain some heading and diff stamp
     # shellcheck disable=SC2015
-    grep -q '^## ' "${REPO_CHANGELOG}" \
-      && grep -q '^\[' "${REPO_CHANGELOG}" \
+    grep -q '^## ' "${CHANGELOG}" \
+      && grep -q '^\[' "${CHANGELOG}" \
       || restore_changelog "${2}"
     # shellcheck disable=SC2015
-    grep -q "^## \[${3//./\.}]" "${REPO_CHANGELOG}" \
-      && grep -q "^\[${3//./\.}]" "${REPO_CHANGELOG}" \
+    grep -q "^## \[${3//./\.}]" "${CHANGELOG}" \
+      && grep -q "^\[${3//./\.}]" "${CHANGELOG}" \
       || changelog_stamp "${3}" "${4}" "${5}" "${6}"
-    git_add -- "${REPO_CHANGELOG}"
+    git_add -- "${CHANGELOG}"
     git_commit -am "Conform changelog file on '${1}'"
     git_checkout "${gcb}"
   }
@@ -605,8 +604,8 @@ main() {
     local gcb
     gcb=$(current_branch)
     git_checkout "${1}"
-    echo "${2:-0.0.0}" > "${REPO_VERFILE}"
-    git_add "${REPO_VERFILE}"
+    echo "${2:-0.0.0}" > "${VERSION}"
+    git_add "${VERSION}"
     git_commit -am "Conform version file on ${1}"
     git_checkout "${gcb}"
   }
@@ -618,7 +617,7 @@ main() {
         && return
     done
     for branch in "${@}"; do
-      branch_exists "${REPO_ORIGIN}/${branch}" \
+      branch_exists "${ORIGIN}/${branch}" \
         && echo "${branch}" \
         && return
     done
@@ -628,35 +627,35 @@ main() {
   flow_validate() {
     [[ ${#} -gt 1 ]] \
       && err 'Too many arguments.' 2
-    local gcb=${REPO_DEV}
+    local gcb=${BCH_D}
     validate_requirements
     git_repo_exists \
       && gcb=$(current_branch)
     validate_repository
     validate_status_empty
-    REPO_PROD=$(find_or_first "${REPO_PROD}" "${PROD_ARR[@]}")
-    REPO_STAGING=$(find_or_first "${REPO_STAGING}" "${STAGING_ARR[@]}")
-    REPO_DEV=$(find_or_first "${REPO_DEV}" "${DEV_ARR[@]}")
-    validate_branch "${REPO_PROD}"
-    validate_version "${REPO_PROD}" "$(top_vertag)"
+    BCH_P=$(find_or_first "${BCH_P}" "${ARR_P[@]}")
+    BCH_S=$(find_or_first "${BCH_S}" "${ARR_S[@]}")
+    BCH_D=$(find_or_first "${BCH_D}" "${ARR_D[@]}")
+    validate_branch "${BCH_P}"
+    validate_version "${BCH_P}" "$(top_vertag)"
     local from to
-    from=$(load_version "${REPO_PROD}")
+    from=$(load_version "${BCH_P}")
     to=$(increment_patch "${from}")
     # look for the "from" stamp, else create an incremented stamp from to
-    validate_changelog "${REPO_PROD}" "" "${from}" "$(today)" "${from}" "${to}"
+    validate_changelog "${BCH_P}" "" "${from}" "$(today)" "${from}" "${to}"
     validate_tag
     validate_prod_branch
-    validate_branch "${REPO_STAGING}"
-    validate_branch "${REPO_DEV}"
-    validate_merged_to "${REPO_PROD}" "${REPO_DEV}"
-    ! is_attached_to "${REPO_PROD}" "${REPO_STAGING}" \
-      && validate_merged_to "${REPO_PROD}" "${REPO_STAGING}" \
-      && validate_version "${REPO_STAGING}" "$(increment_minor "$(load_version "${REPO_PROD}")")" \
-      && validate_changelog "${REPO_STAGING}" "${REPO_PROD}" "$(load_version "${REPO_STAGING}-rc.1")" "$(today)" "${from}" "${REPO_STAGING}" \
-      && from=${REPO_STAGING}
-    validate_merged_to "${REPO_STAGING}" "${REPO_DEV}"
-    validate_version "${REPO_DEV}" "$(increment_minor "$(load_version "${REPO_STAGING}")")"
-    validate_changelog "${REPO_DEV}" "${REPO_STAGING}" "${UNRELEASED}" "" "${from}" "${REPO_DEV}"
+    validate_branch "${BCH_S}"
+    validate_branch "${BCH_D}"
+    validate_merged_to "${BCH_P}" "${BCH_D}"
+    ! is_attached_to "${BCH_P}" "${BCH_S}" \
+      && validate_merged_to "${BCH_P}" "${BCH_S}" \
+      && validate_version "${BCH_S}" "$(increment_minor "$(load_version "${BCH_P}")")" \
+      && validate_changelog "${BCH_S}" "${BCH_P}" "$(load_version "${BCH_S}-rc.1")" "$(today)" "${from}" "${BCH_S}" \
+      && from=${BCH_S}
+    validate_merged_to "${BCH_S}" "${BCH_D}"
+    validate_version "${BCH_D}" "$(increment_minor "$(load_version "${BCH_S}")")"
+    validate_changelog "${BCH_D}" "${BCH_S}" "${UNRELEASED}" "" "${from}" "${BCH_D}"
     validate_param "${1:-}"
     validate_param "${DEFAULT_HOTFIX}"
     validate_param "${DEFAULT_FEATURE}"
@@ -664,7 +663,7 @@ main() {
   }
 
   is_prod_branch() {
-    [[ "${1}" =~ ^${REPO_PROD}-[0-9]+$ ]]
+    [[ "${1}" =~ ^${BCH_P}-[0-9]+$ ]]
   }
 
   # prod* must exist
@@ -672,9 +671,9 @@ main() {
   validate_param() {
     [[ -z "${1}" ]] \
       && return
-    branch_exists "${REPO_ORIGIN}/${1}" \
+    branch_exists "${ORIGIN}/${1}" \
       && ! branch_exists "${1}" \
-      && git_branch "${1}" "${REPO_ORIGIN}/${1}"
+      && git_branch "${1}" "${ORIGIN}/${1}"
     ! branch_exists "${1}" \
       && ! is_prod_branch "${1}" \
       && return
@@ -685,38 +684,38 @@ main() {
 
   prod_name() {
     local ver
-    ver="${1:-$(load_version "${REPO_PROD}")}"
-    echo "${REPO_PROD}-${ver%%.*}"
+    ver="${1:-$(load_version "${BCH_P}")}"
+    echo "${BCH_P}-${ver%%.*}"
   }
 
   validate_prod_branch() {
     local prod
     prod=$(prod_name)
     validate_branch "${prod}"
-    is_attached_to "${prod}" "${REPO_PROD}" \
+    is_attached_to "${prod}" "${BCH_P}" \
       && return
     [[ ${CONFORM} == 0 ]] \
-      && err "Branch '${prod}' is behind '${REPO_PROD}'." 3
-    confirm "Merge branch '${prod}' into '${REPO_PROD}'?"
+      && err "Branch '${prod}' is behind '${BCH_P}'." 3
+    confirm "Merge branch '${prod}' into '${BCH_P}'?"
     git_checkout "${prod}"
-    git_merge "${REPO_PROD}"
+    git_merge "${BCH_P}"
   }
 
   get_key_branch() {
-    [[ " ${PROD_ARR[*]} " == *" ${1} "* ]] \
-      && echo "${REPO_PROD}" \
+    [[ " ${ARR_P[*]} " == *" ${1} "* ]] \
+      && echo "${BCH_P}" \
       && return
-    [[ " ${STAGING_ARR[*]} " == *" ${1} "* ]] \
-      && echo "${REPO_STAGING}" \
+    [[ " ${ARR_S[*]} " == *" ${1} "* ]] \
+      && echo "${BCH_S}" \
       && return
-    [[ " ${DEV_ARR[*]} " == *" ${1} "* ]] \
-      && echo "${REPO_DEV}" \
+    [[ " ${ARR_D[*]} " == *" ${1} "* ]] \
+      && echo "${BCH_D}" \
       && return
     echo "${1}"
   }
 
   is_hotfix_branch() {
-    [[ "$(git merge-base "${1}" "${REPO_DEV}")" == "$(git merge-base "${REPO_PROD}" "${REPO_DEV}")" ]]
+    [[ "$(git merge-base "${1}" "${BCH_D}")" == "$(git merge-base "${BCH_P}" "${BCH_D}")" ]]
   }
 
   # 1: dest branch
@@ -725,7 +724,7 @@ main() {
     branch_exists "${1}" \
       && release_hotfix "${1}" \
       && return
-    local branch="${REPO_PROD}"
+    local branch="${BCH_P}"
     [[ "$(is_prod_branch "$(current_branch)")" ]] \
       && branch=$(current_branch)
     [[ -n "${2:-}" ]] \
@@ -749,16 +748,16 @@ main() {
       && [[ "${branch,,}" != "head" ]] \
       || err "Invalid branch name." 2
     # flow dev* -> release dev
-    [[ "${branch}" == "${REPO_DEV}" ]] \
+    [[ "${branch}" == "${BCH_D}" ]] \
       && release_dev \
       && return
     # flow staging* -> release staging
-    [[ "${branch}" == "${REPO_STAGING}" ]] \
+    [[ "${branch}" == "${BCH_S}" ]] \
       && release_staging \
       && return
     # flow stable* -> create/release default hotfix
-    [[ "${branch}" == "${REPO_PROD}" ]] \
-      && flow_hotfix "${DEFAULT_HOTFIX}" "${REPO_PROD}" \
+    [[ "${branch}" == "${BCH_P}" ]] \
+      && flow_hotfix "${DEFAULT_HOTFIX}" "${BCH_P}" \
       && return
     # flow prod* -> create/release (default?) hotfix on a prod* branch
     is_prod_branch "${branch}" \
@@ -790,52 +789,52 @@ main() {
   }
 
   release_dev() {
-    is_attached_to "${REPO_STAGING}" "${REPO_PROD}" \
+    is_attached_to "${BCH_S}" "${BCH_P}" \
       && create_staging \
       && return
     increment_staging
   }
 
   create_staging() {
-    confirm "* Create new release candidate from '${REPO_DEV}'?"
+    confirm "* Create new release candidate from '${BCH_D}'?"
     msg_start 'Creating new release candidate'
     local vers verd nthrc
-    vers=$(load_version "${REPO_STAGING}")
-    verd=$(load_version "${REPO_DEV}")
-    merge_fromto "${REPO_DEV}" "${REPO_STAGING}"
-    changelog_stamp "${verd}-rc.1" "$(today)" "${vers}" "${REPO_STAGING}"
+    vers=$(load_version "${BCH_S}")
+    verd=$(load_version "${BCH_D}")
+    merge_fromto "${BCH_D}" "${BCH_S}"
+    changelog_stamp "${verd}-rc.1" "$(today)" "${vers}" "${BCH_S}"
     git_add .
     git_commit -am 'Update changelog'
     msg_done
-    merge_fromto "${REPO_STAGING}" "${REPO_DEV}"
-    increment_minor "${verd}" > "${REPO_VERFILE}"
-    changelog_stamp "${UNRELEASED}" "" "${REPO_STAGING}" "${REPO_DEV}"
+    merge_fromto "${BCH_S}" "${BCH_D}"
+    increment_minor "${verd}" > "${VERSION}"
+    changelog_stamp "${UNRELEASED}" "" "${BCH_S}" "${BCH_D}"
     git_commit -am "Update changelog and increment version"
-    git_checkout "${REPO_STAGING}"
+    git_checkout "${BCH_S}"
   }
 
   increment_staging() {
-    confirm "* Increment release candidate from '${REPO_DEV}'?"
+    confirm "* Increment release candidate from '${BCH_D}'?"
     msg_start 'Incrementing release candidate'
     local vers verp nthrc
-    vers=$(load_version "${REPO_STAGING}")
-    verp=$(load_version "${REPO_PROD}")
-    merge_fromto "${REPO_DEV}" "${REPO_STAGING}"
-    nthrc=$(( $(grep -c "^## \[${vers//./\.}-rc\." "${REPO_CHANGELOG}") + 1 ))
-    changelog_stamp "${vers}-rc.${nthrc}" "$(today)" "${verp}" "${REPO_STAGING}"
-    echo "${vers}" > "${REPO_VERFILE}"
+    vers=$(load_version "${BCH_S}")
+    verp=$(load_version "${BCH_P}")
+    merge_fromto "${BCH_D}" "${BCH_S}"
+    nthrc=$(( $(grep -c "^## \[${vers//./\.}-rc\." "${CHANGELOG}") + 1 ))
+    changelog_stamp "${vers}-rc.${nthrc}" "$(today)" "${verp}" "${BCH_S}"
+    echo "${vers}" > "${VERSION}"
     git_add .
     git_commit -am 'Update changelog and restore version'
     msg_done
-    merge_fromto "${REPO_STAGING}" "${REPO_DEV}"
-    changelog_stamp "${UNRELEASED}" "" "${REPO_STAGING}" "${REPO_DEV}"
+    merge_fromto "${BCH_S}" "${BCH_D}"
+    changelog_stamp "${UNRELEASED}" "" "${BCH_S}" "${BCH_D}"
     git_commit -am "Update changelog"
-    git_checkout "${REPO_STAGING}"
+    git_checkout "${BCH_S}"
   }
 
   create_feature() {
-    confirm "* Create feature '${1}' from '${REPO_DEV}'?"
-    checkout_branch "${1}" "${REPO_DEV}"
+    confirm "* Create feature '${1}' from '${BCH_D}'?"
+    checkout_branch "${1}" "${BCH_D}"
   }
 
   # 1 dest name
@@ -848,37 +847,37 @@ main() {
   release_staging() {
     # shellcheck disable=SC2015
     [[ ${REQUEST} == 1 ]] \
-      && confirm "* Request merge '${REPO_STAGING}' to '${REPO_PROD}'?" \
-      || confirm "* Release '${REPO_STAGING}' branch to '${REPO_PROD}'?"
-    is_attached_to "${REPO_STAGING}" "${REPO_PROD}" \
+      && confirm "* Request merge '${BCH_S}' to '${BCH_P}'?" \
+      || confirm "* Release '${BCH_S}' branch to '${BCH_P}'?"
+    is_attached_to "${BCH_S}" "${BCH_P}" \
       && err 'Staging branch is already released.' 6
-    merge_fromto "${REPO_PROD}" "${REPO_STAGING}"
+    merge_fromto "${BCH_P}" "${BCH_S}"
     msg_start 'Updating changelog'
     local from to note
-    from=$(load_version "${REPO_PROD}")
-    to=$(load_version "${REPO_STAGING}")
-    note="Stable release based on $(grep -om1 "^\[[^\]\+]" "${REPO_CHANGELOG}")."
+    from=$(load_version "${BCH_P}")
+    to=$(load_version "${BCH_S}")
+    note="Stable release based on $(grep -om1 "^\[[^\]\+]" "${CHANGELOG}")."
     changelog_stamp "${to}" "$(today)" "${from}" "${to}" "${note}"
-    git_add -- "${REPO_CHANGELOG}"
+    git_add -- "${CHANGELOG}"
     git_commit -am 'Update changelog'
     msg_done
     [[ ${REQUEST} == 1 ]] \
-      && flow_request "${REPO_PROD}" \
+      && flow_request "${BCH_P}" \
       && return
-    merge_fromto "${REPO_STAGING}" "${REPO_PROD}"
+    merge_fromto "${BCH_S}" "${BCH_P}"
     msg_start 'Updating branching structure'
     git_tag "v${to}"
-    git_checkout "${REPO_STAGING}"
-    git_merge "${REPO_PROD}"
+    git_checkout "${BCH_S}"
+    git_merge "${BCH_P}"
     local prod
     prod=$(prod_name)
     # shellcheck disable=SC2015
     branch_exists "${prod}" \
       && git_checkout "${prod}" \
-      && git_merge "${REPO_PROD}" \
+      && git_merge "${BCH_P}" \
       || git_branch "${prod}"
     msg_done
-    merge_fromto "${REPO_PROD}" "${REPO_DEV}"
+    merge_fromto "${BCH_P}" "${BCH_D}"
   }
 
   # 1: stamp
@@ -892,21 +891,21 @@ main() {
     diff_stamp="[${1}]: $(diff_url_esc "${3}" "${4}")"
     # always add head stamp or replace the unreleased one
     # shellcheck disable=SC2015
-    grep -q "^## \[${UNRELEASED}]" "${REPO_CHANGELOG}" \
-      && sed -i "s/^## \[${UNRELEASED}].*/${head_stamp}/" "${REPO_CHANGELOG}" \
-      || sed -i "0,/^## /s//${head_stamp%* - }\n\n&/" "${REPO_CHANGELOG}"
+    grep -q "^## \[${UNRELEASED}]" "${CHANGELOG}" \
+      && sed -i "s/^## \[${UNRELEASED}].*/${head_stamp}/" "${CHANGELOG}" \
+      || sed -i "0,/^## /s//${head_stamp%* - }\n\n&/" "${CHANGELOG}"
     [[ -n "${5:-}" ]] \
-      && sed -i "0,/^## \[.*/s//\0\n\n_${5}_/" "${REPO_CHANGELOG}"
+      && sed -i "0,/^## \[.*/s//\0\n\n_${5}_/" "${CHANGELOG}"
     # update diff stamp if exists
-    grep -q "^\[${1//./\.}]" "${REPO_CHANGELOG}" \
-      && sed -i "s/^\[${1//./\.}].*/${diff_stamp}/" "${REPO_CHANGELOG}" \
+    grep -q "^\[${1//./\.}]" "${CHANGELOG}" \
+      && sed -i "s/^\[${1//./\.}].*/${diff_stamp}/" "${CHANGELOG}" \
       && return
     # replace unreleased if exists
-    grep -q "^\[${UNRELEASED}]" "${REPO_CHANGELOG}" \
-      && sed -i "s/^\[${UNRELEASED}].*/${diff_stamp}/" "${REPO_CHANGELOG}" \
+    grep -q "^\[${UNRELEASED}]" "${CHANGELOG}" \
+      && sed -i "s/^\[${UNRELEASED}].*/${diff_stamp}/" "${CHANGELOG}" \
       && return
     # else add diff stamp
-    sed -i "0,/^\[/s//${diff_stamp}\n&/" "${REPO_CHANGELOG}"
+    sed -i "0,/^\[/s//${diff_stamp}\n&/" "${CHANGELOG}"
   }
 
   # 1: keyword
@@ -963,8 +962,8 @@ main() {
       {
         print
       }
-    ' "${REPO_CHANGELOG}" > "${tmpfile}"
-    mv "${tmpfile}" "${REPO_CHANGELOG}"
+    ' "${CHANGELOG}" > "${tmpfile}"
+    mv "${tmpfile}" "${CHANGELOG}"
   }
 
   # 1: default keyword
@@ -978,7 +977,7 @@ main() {
       && return
     echo
     echo '###'
-    echo "# Enter '${gcb}' description for ${REPO_CHANGELOG}"
+    echo "# Enter '${gcb}' description for ${CHANGELOG}"
     echo '#   New line for multiple entries.'
     echo '#   Empty message to skip or end editing.'
     echo '#'
@@ -1009,19 +1008,19 @@ main() {
   }
 
   release_feature() {
-    is_merged_to "${1}" "${REPO_DEV}" \
+    is_merged_to "${1}" "${BCH_D}" \
       && err 'Nothing to merge.' 6
     # shellcheck disable=SC2015
     [[ ${REQUEST} == 1 ]] \
-      && confirm "* Request merge '${1}' into '${REPO_DEV}'?" \
-      || confirm "* Merge feature '${1}' into '${REPO_DEV}'?"
-    merge_fromto "${REPO_DEV}" "${1}"
-    update_changelog Added "${REPO_DEV}"
+      && confirm "* Request merge '${1}' into '${BCH_D}'?" \
+      || confirm "* Merge feature '${1}' into '${BCH_D}'?"
+    merge_fromto "${BCH_D}" "${1}"
+    update_changelog Added "${BCH_D}"
     git_commit -am 'Update changelog'
     [[ ${REQUEST} == 1 ]] \
-      && flow_request "${REPO_DEV}" \
+      && flow_request "${BCH_D}" \
       && return
-    merge_fromto "${1}" "${REPO_DEV}"
+    merge_fromto "${1}" "${BCH_D}"
     delete_branch "${1}"
   }
 
@@ -1061,11 +1060,11 @@ main() {
 
   release_hotfix() {
     local dest vers verd
-    dest=${REPO_PROD}
+    dest=${BCH_P}
     vers=$(load_version "${1}")
-    verd=$(load_version "${REPO_PROD}")
+    verd=$(load_version "${BCH_P}")
     [[ "${vers%%.*}" > "${verd%%.*}" ]] \
-      && err "Hotfix version is greater than '${REPO_PROD}'." 4
+      && err "Hotfix version is greater than '${BCH_P}'." 4
     [[ "${vers%%.*}" < "${verd%%.*}" ]] \
       && dest="$(prod_name "${vers}")" \
       && verd="$(load_version "${dest}")"
@@ -1074,11 +1073,11 @@ main() {
     is_merged_to "${1}" "${dest}" \
       && err 'Nothing to merge.' 6
     # shellcheck disable=SC2015
-    [[ "${dest}" == "${REPO_PROD}" ]] \
+    [[ "${dest}" == "${BCH_P}" ]] \
       && confirm "* Merge hotfix '${1}' to '${dest}'?" \
       || confirm "* Merge hotfix '${1}' only into '${dest}'?"
     msg_start 'Updating control files'
-    increment_patch "${verd}" > "${REPO_VERFILE}"
+    increment_patch "${verd}" > "${VERSION}"
     local verh
     verh=$(increment_patch "${verd}")
     changelog_stamp "${verh}" "$(today)" "${verd}" "${verh}"
@@ -1090,25 +1089,25 @@ main() {
       && return
     merge_fromto "${1}" "${dest}"
     git_tag "v$(load_version)"
-    [[ "${dest}" != "${REPO_PROD}" ]] \
+    [[ "${dest}" != "${BCH_P}" ]] \
       && delete_branch "${1}" \
       && return
     git_checkout "$(prod_name "${verd}")"
-    git_merge "${REPO_PROD}"
-    verr=$(load_version "${REPO_STAGING}")
+    git_merge "${BCH_P}"
+    verr=$(load_version "${BCH_S}")
     [[ "${verr%.*}" == "${verd%.*}" ]] \
-      && git_checkout "${REPO_STAGING}" \
-      && git_merge "${REPO_PROD}" \
-      && merge_fromto "${REPO_PROD}" "${REPO_DEV}" \
+      && git_checkout "${BCH_S}" \
+      && git_merge "${BCH_P}" \
+      && merge_fromto "${BCH_P}" "${BCH_D}" \
       && delete_branch "${1}" \
       && return
-    merge_fromto "${REPO_PROD}" "${REPO_STAGING}"
-    merge_fromto "${REPO_STAGING}" "${REPO_DEV}"
+    merge_fromto "${BCH_P}" "${BCH_S}"
+    merge_fromto "${BCH_S}" "${BCH_D}"
     delete_branch "${1}"
   }
 
   update_branch() {
-    git_fetch "${REPO_ORIGIN}" "${1}:${1}"
+    git_fetch "${ORIGIN}" "${1}:${1}"
   }
 
   flow_pull() {
@@ -1119,14 +1118,14 @@ main() {
     gcb=$(current_branch)
     git_fetch --all
     git_fetch --tags
-    git_fetch "${REPO_ORIGIN}" --prune
-    for branch in $(git_branch_format -r | grep "^${REPO_ORIGIN}" | sed "s/^${REPO_ORIGIN}\///"); do
+    git_fetch "${ORIGIN}" --prune
+    for branch in $(git_branch_format -r | grep "^${ORIGIN}" | sed "s/^${ORIGIN}\///"); do
       [[ "${branch}" == HEAD ]] \
         && continue
       git_checkout "${branch}"
       is_behind_origin "${branch}" \
-        && git_merge --ff-only "${REPO_ORIGIN}/${branch}"
-      git_branch --set-upstream-to "${REPO_ORIGIN}/${branch}"
+        && git_merge --ff-only "${ORIGIN}/${branch}"
+      git_branch --set-upstream-to "${ORIGIN}/${branch}"
     done
     git_checkout "${gcb}"
     msg_done
@@ -1136,16 +1135,16 @@ main() {
     validate_git_remote
     confirm '* Push all branches to the remote repository?'
     msg_start 'Pushing all branches and tags'
-    git_push "${REPO_ORIGIN}" --all
-    git_push "${REPO_ORIGIN}" --tags
+    git_push "${ORIGIN}" --all
+    git_push "${ORIGIN}" --tags
     msg_done
   }
 
   flow_request() {
     validate_git_remote
-    [[ "${REPO_ORIGIN}" == "${REPO_UPSTREAM}" ]] \
-      || git_push "${REPO_ORIGIN}" "${1}"
-    git_push "${REPO_ORIGIN}" "${1}"
+    [[ "${ORIGIN}" == "${UPSTREAM}" ]] \
+      || git_push "${ORIGIN}" "${1}"
+    git_push "${ORIGIN}" "${1}"
     flow_request_url "${1}"
   }
 
@@ -1161,9 +1160,9 @@ main() {
 
   flow_request_url() {
     local url upstream_url to gcb
-    to="${1:-${REPO_DEV}}"
-    url=$(trim_url "$(git config remote."${REPO_ORIGIN}".url)")
-    upstream_url="$(git config remote."${REPO_UPSTREAM}".url)"
+    to="${1:-${BCH_D}}"
+    url=$(trim_url "$(git config remote."${ORIGIN}".url)")
+    upstream_url="$(git config remote."${UPSTREAM}".url)"
     upstream_url="$(trim_url "${upstream_url}")"
     gcb=$(current_branch)
     echo -n 'Pull request URL: '
@@ -1188,9 +1187,9 @@ main() {
 
   flow_usage() {
     local file head tail
-    head="$(echo "${FLOW_USAGE:-}" | head -n1)"
-    tail="$(echo "${FLOW_USAGE:-}" | tail -n+2)"
-    file="${FLOW_DATAPATH}/${SCRIPT_NAME}.usage"
+    head="$(echo "${USAGE:-}" | head -n1)"
+    tail="$(echo "${USAGE:-}" | tail -n+2)"
+    file="${DATAPATH}/${SCRIPT_NAME}.usage"
     [[ -z "${head}" ]] \
       && [[ ! -f "${file}" ]] \
       && echo 'Usage is not available in source file.' \
@@ -1209,10 +1208,10 @@ main() {
   }
 
   flow_version() {
-    [[ -n "${FLOW_VERNUM}" ]] \
-      && echo "flow ${FLOW_VERNUM}" \
+    [[ -n "${VER_F}" ]] \
+      && echo "flow ${VER_F}" \
       && return
-    echo "flow $(<"${FLOW_VERFILE}")"
+    echo "flow $(<"${DATAPATH}/VERSION")"
   }
 
   flow_whatnow() {
@@ -1228,27 +1227,27 @@ main() {
   }
 
   branch_desc() {
-    [[ "${1}" == "${REPO_PROD}" || "$(is_prod_branch "${1}")" ]] \
+    [[ "${1}" == "${BCH_P}" || "$(is_prod_branch "${1}")" ]] \
       && echo '* This is considered a read-only stable branch.' \
       && echo '* Do not commit any changes directly to this branch ever!' \
       && echo '*' \
       && echo "* 1. Run '${SCRIPT_NAME}' to create a hotfix or leave." \
       && return
-    [[ "${1}" == "${REPO_STAGING}" ]] \
-      && is_attached_to "${REPO_STAGING}" "${REPO_PROD}" \
+    [[ "${1}" == "${BCH_S}" ]] \
+      && is_attached_to "${BCH_S}" "${BCH_P}" \
       && echo '* This is a staging branch that is already released.' \
       && echo '* Nothing to do until a new version is released from dev.' \
       && echo '*' \
       && echo "* 1. Leave this branch." \
       && return
-    [[ "${1}" == "${REPO_STAGING}" ]] \
+    [[ "${1}" == "${BCH_S}" ]] \
       && echo '* This branch is meant solely for bug fixing.' \
       && echo '* Each commit must be merged into the development branch.' \
       && echo '*' \
       && echo '* 1. Make some fixes and feel free to commit directly.' \
       && echo "* 2. Run '${SCRIPT_NAME}' to release this branch." \
       && return
-    [[ "${1}" == "${REPO_DEV}" ]] \
+    [[ "${1}" == "${BCH_D}" ]] \
       && echo '* This is a development branch.' \
       && echo '* It is designed for bug fixing and merging features.' \
       && echo '*' \
@@ -1287,9 +1286,9 @@ main() {
   declare -r KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
   declare -r REFSHEADS='refs/heads'
   declare -r REFSTAGS='refs/tags'
-  declare -r PROD_ARR=(main master production prod live)
-  declare -r STAGING_ARR=(staging release rc preprod pre-production release-candidate prerelease)
-  declare -r DEV_ARR=(dev devel develop next)
+  declare -r ARR_P=(main master production prod live)
+  declare -r ARR_S=(staging release rc preprod pre-production release-candidate prerelease)
+  declare -r ARR_D=(dev devel develop next)
 
   # process options
   line=$(IFS=' ' getopt -n "${0}" \
