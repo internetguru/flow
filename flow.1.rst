@@ -182,7 +182,7 @@ Notice the version number ``0.1.0`` from dev branch moves to the staging branch 
 
 Ideally, every commit of the staging branch must be merged into dev. The script recognizes the unmerged state and fixes it using the --conform option while advancing with the release.
 
-Note: The staging branch, the 'prod-0', and the main are now on the same commit. There is also a tag with the newly released version number. Does it seem a little far fetched? It will make more sense over time as the project grows.
+Note: The staging branch and both production branches ('main' and 'main-0') are now on the same commit. There is also a tag with the newly released version number. This may seem a little far fetched. It will make more sense over time as the project grows.
 
 5. Hotfix the production::
 

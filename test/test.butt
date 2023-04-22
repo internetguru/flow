@@ -28,7 +28,7 @@ function checkInitRefs {
   assert_contains "$(git show-ref)" "refs/heads/dev"
   assert_contains "$(git show-ref)" "refs/heads/${1:-main}"
   assert_contains "$(git show-ref)" "refs/heads/staging"
-  assert_contains "$(git show-ref)" "refs/heads/prod-0"
+  assert_contains "$(git show-ref)" "refs/heads/${1:-main}-0"
   assert_contains "$(git show-ref)" "refs/tags/v0.0.0"
 }
 
@@ -36,7 +36,7 @@ function checkInitFiles {
   assert_equal "$(git show dev:VERSION)" "0.1.0"
   assert_equal "$(git show "${1:-main}":VERSION)" "0.0.0"
   assert_equal "$(git show staging:VERSION)" "0.0.0"
-  assert_equal "$(git show prod-0:VERSION)" "0.0.0"
+  assert_equal "$(git show "${1:-main}"-0:VERSION)" "0.0.0"
   assert_equal "$(head -n1 CHANGELOG.md)" "# Change Log"
 }
 
@@ -208,7 +208,7 @@ start "version change on dev"
   assert_equal "${status}" 0
   load_log
   assert_contains "${log}" "(HEAD -> dev) Merge branch 'main' into dev"
-  assert_contains "${log}" "(tag: v0.0.1, staging, prod-0, main) Merge branch 'hotfix-$(whoami)'"
+  assert_contains "${log}" "(tag: v0.0.1, staging, main-0, main) Merge branch 'hotfix-$(whoami)'"
   assert_contains "${log}" "Merge branch 'main' into dev"
   assert_equal "$(git show main:VERSION)" "0.0.1"
   assert_equal "$(git show staging:VERSION)" "0.0.1"
@@ -552,7 +552,7 @@ start "merge staging"
   assert_equal "$(git show main:VERSION)" "0.1.0"
   load_log
   assert_contains "${log}" "(HEAD -> dev) Merge branch 'main' into dev"
-  assert_contains "${log}" "(tag: v0.1.0, staging, prod-0, main) Merge branch 'staging'"
+  assert_contains "${log}" "(tag: v0.1.0, staging, main-0, main) Merge branch 'staging'"
   assert_contains "${log}" "Update changelog and increment version"
   assert_equal "$(echo "$(git show-ref)" | grep /refs/heads/staging)" ""
   assert_equal "$(gsp)" ""
@@ -684,7 +684,7 @@ start "merge main hotfix"
   assert_equal "${status}" 0
   load_log
   assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'main' into dev"
-  assert_contains "${log}" "(tag: v0.0.1, staging, prod-0, main) Merge branch 'myhotfix'"
+  assert_contains "${log}" "(tag: v0.0.1, staging, main-0, main) Merge branch 'myhotfix'"
   assert_equal "$(git show dev:VERSION)" "0.1.0"
   assert_equal "$(git show staging:VERSION)" "0.0.1"
   assert_equal "$(git show main:VERSION)" "0.0.1"
@@ -709,7 +709,7 @@ start "merge hotfix with unmerged staging"
   assert_equal "${status}" 0
   load_log
   assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'staging' into dev"
-  assert_contains "${log}" "(tag: v0.0.1, prod-0, main) Merge branch 'hotfix-$(whoami)'"
+  assert_contains "${log}" "(tag: v0.0.1, main-0, main) Merge branch 'hotfix-$(whoami)'"
   assert_equal "$(git show dev:VERSION)" "0.2.0"
   assert_equal "$(git show staging:VERSION)" "0.1.0"
   assert_equal "$(git show main:VERSION)" "0.0.1"
