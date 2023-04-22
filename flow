@@ -18,11 +18,6 @@ REPO_STAGING=${REPO_STAGING:-staging}
 REPO_PROD=${REPO_PROD:-main}
 REPO_ORIGIN=${REPO_ORIGIN:-origin}
 REPO_UPSTREAM=${REPO_UPSTREAM:-${REPO_ORIGIN}}
-REPO_changelog_stamp=${REPO_changelog_stamp:-'# Change Log
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](http://keepachangelog.com/)
-and this project adheres to [Semantic Versioning](http://semver.org/).'}
 
 main() {
 
@@ -60,7 +55,7 @@ main() {
   err() {
     echo "${SCRIPT_NAME}: ${1:-Generic error}" >&2
     [[ "${2:-}" == 2 ]] \
-      && echo "${USAGE}" >&2
+      && echo "Run with --help to display usage." >&2
     [[ "${2:-}" == 3 ]] \
       && echo "This appears to be fixable with the --conform option." >&2
     [[ "${2:-}" == 5 ]] \
@@ -536,7 +531,11 @@ main() {
   default_changelog() {
     local url
     url=$(git_remote_url)
-    echo "${REPO_changelog_stamp}"
+    echo '# Change Log'
+    echo 'All notable changes to this project will be documented in this file.'
+    echo
+    echo 'The format is based on [Keep a Changelog](http://keepachangelog.com/)'
+    echo 'and this project adheres to [Semantic Versioning](http://semver.org/).'
     echo
     echo "## [${1}] - $(today)"
     echo
@@ -579,9 +578,11 @@ main() {
     [[ ! -f "${REPO_CHANGELOG}" || ! -s "${REPO_CHANGELOG}" ]] \
       && restore_changelog "${2}"
     # changelog must contain some heading and diff stamp
+    # shellcheck disable=SC2015
     grep -q '^## ' "${REPO_CHANGELOG}" \
       && grep -q '^\[' "${REPO_CHANGELOG}" \
       || restore_changelog "${2}"
+    # shellcheck disable=SC2015
     grep -q "^## \[${3//./\.}]" "${REPO_CHANGELOG}" \
       && grep -q "^\[${3//./\.}]" "${REPO_CHANGELOG}" \
       || changelog_stamp "${3}" "${4}" "${5}" "${6}"
@@ -633,7 +634,7 @@ main() {
       && gcb=$(current_branch)
     validate_repository
     validate_status_empty
-    REPO_PROD=$(find_or_first "${REPO_PROD}" "${STABLE_ARR[@]}")
+    REPO_PROD=$(find_or_first "${REPO_PROD}" "${PROD_ARR[@]}")
     REPO_STAGING=$(find_or_first "${REPO_STAGING}" "${STAGING_ARR[@]}")
     REPO_DEV=$(find_or_first "${REPO_DEV}" "${DEV_ARR[@]}")
     validate_branch "${REPO_PROD}"
@@ -702,7 +703,7 @@ main() {
   }
 
   get_key_branch() {
-    [[ " ${STABLE_ARR[*]} " == *" ${1} "* ]] \
+    [[ " ${PROD_ARR[*]} " == *" ${1} "* ]] \
       && echo "${REPO_PROD}" \
       && return
     [[ " ${STAGING_ARR[*]} " == *" ${1} "* ]] \
@@ -1286,13 +1287,9 @@ main() {
   declare -r KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
   declare -r REFSHEADS='refs/heads'
   declare -r REFSTAGS='refs/tags'
-  declare -r STABLE_ARR=(main master production prod live)
+  declare -r PROD_ARR=(main master production prod live)
   declare -r STAGING_ARR=(staging release rc preprod pre-production release-candidate prerelease)
   declare -r DEV_ARR=(dev devel develop next)
-  declare USAGE
-  USAGE=$(flow_usage)
-  declare VERSION
-  VERSION=$(flow_version)
 
   # process options
   line=$(IFS=' ' getopt -n "${0}" \
@@ -1326,14 +1323,14 @@ main() {
      -e|--auto-entry) ENTRY=1; shift ;;
      --color|--colour) shift; setcolor "${1}"; shift ;;
      -s|--stash) STASH=1; shift ;;
-     -h|-\?|--help) echo "${USAGE}"; exit ;;
+     -h|-\?|--help) flow_usage; exit ;;
      -i|--init) INIT=1; CONFORM=1; shift ;;
      -n|--dry-run) DRYRUN=1; shift ;;
      --pull) PULL=1; shift ;;
      --push) PUSH=1; shift ;;
      -r|--request) REQUEST=1; shift ;;
      -v|--verbose) VERBOSE=1; shift ;;
-     -V|--version) echo "${VERSION}"; exit ;;
+     -V|--version) flow_version; exit ;;
      -w|--what-now) WHATNOW=1; shift ;;
      -y|--yes) YES=1; shift ;;
       --) shift; break ;;
