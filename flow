@@ -9,9 +9,6 @@ COLUMNS=${COLUMNS:-$(tput cols)}
 DATAPATH=${DATAPATH:-$(dirname "${BASH_SOURCE[0]}")}
 USAGE=${USAGE:-}
 VER_F=${VER_F:-}
-VER_P=0.0.0
-VER_S=0.0.0
-VER_D=0.1.0
 
 ORIGIN=${ORIGIN:-origin}
 UPSTREAM=${UPSTREAM:-${ORIGIN}}
@@ -470,18 +467,16 @@ main() {
   }
 
   validate_tag() {
-    local ver
-    ver="$(load_version "${BCH_P}")"
-    has_tag "${BCH_P}" "v${ver}" \
-      && [[ $(git_rev_list "${REFSTAGS}/v${ver}") == "$(latest_commit "${BCH_P}")" ]] \
+    has_tag "${BCH_P}" "v${VER_P}" \
+      && [[ $(git_rev_list "${REFSTAGS}/v${VER_P}") == "$(latest_commit "${BCH_P}")" ]] \
       && return
-    has_tag "${BCH_P}" "v${ver}" \
-      && hotfix_vertag "${ver}" \
+    has_tag "${BCH_P}" "v${VER_P}" \
+      && hotfix_vertag "${VER_P}" \
       && return
     [[ ${CONFORM} == 0 ]] \
-      && err "Missing version tag 'v${ver}'." 3
+      && err "Missing version tag 'v${VER_P}'." 3
     confirm 'Create version tag?'
-    git_tag "v${ver}" "${BCH_P}"
+    git_tag "v${VER_P}" "${BCH_P}"
   }
 
   validate_merged_to() {
@@ -544,6 +539,7 @@ main() {
     echo "[${1}]: git log v${1}"
   }
 
+  # 1: source branch, empty for default changelog
   restore_changelog() {
     [[ -z "${1:-}" ]] \
       && default_changelog "$(load_version)" > "${CHANGELOG}" \
@@ -787,16 +783,13 @@ main() {
   create_staging() {
     confirm "* Create new release candidate from '${BCH_D}'?"
     msg_start 'Creating new release candidate'
-    local vers verd nthrc
-    vers=$(load_version "${BCH_S}")
-    verd=$(load_version "${BCH_D}")
     merge_fromto "${BCH_D}" "${BCH_S}"
-    changelog_stamp "${verd}-rc.1" "$(today)" "${vers}" "${BCH_S}"
+    changelog_stamp "${VER_D}-rc.1" "$(today)" "${VER_S}" "${BCH_S}"
     git_add .
     git_commit -am 'Update changelog'
     msg_done
     merge_fromto "${BCH_S}" "${BCH_D}"
-    increment_minor "${verd}" > "${VERSION}"
+    increment_minor "${VER_D}" > "${VERSION}"
     changelog_stamp "${UNRELEASED}" "" "${BCH_S}" "${BCH_D}"
     git_commit -am "Update changelog and increment version"
     git_checkout "${BCH_S}"
@@ -805,13 +798,10 @@ main() {
   increment_staging() {
     confirm "* Increment release candidate from '${BCH_D}'?"
     msg_start 'Incrementing release candidate'
-    local vers verp nthrc
-    vers=$(load_version "${BCH_S}")
-    verp=$(load_version "${BCH_P}")
     merge_fromto "${BCH_D}" "${BCH_S}"
-    nthrc=$(( $(grep -c "^## \[${vers//./\.}-rc\." "${CHANGELOG}") + 1 ))
-    changelog_stamp "${vers}-rc.${nthrc}" "$(today)" "${verp}" "${BCH_S}"
-    echo "${vers}" > "${VERSION}"
+    local nthrc=$(( $(grep -c "^## \[${VER_S//./\.}-rc\." "${CHANGELOG}") + 1 ))
+    changelog_stamp "${VER_S}-rc.${nthrc}" "$(today)" "${VER_P}" "${BCH_S}"
+    echo "${VER_S}" > "${VERSION}"
     git_add .
     git_commit -am 'Update changelog and restore version'
     msg_done
@@ -842,11 +832,9 @@ main() {
       && err 'Staging branch is already released.' 6
     merge_fromto "${BCH_P}" "${BCH_S}"
     msg_start 'Updating changelog'
-    local from to note
-    from=$(load_version "${BCH_P}")
-    to=$(load_version "${BCH_S}")
+    local note
     note="Stable release based on $(grep -om1 "^\[[^\]\+]" "${CHANGELOG}")."
-    changelog_stamp "${to}" "$(today)" "${from}" "${to}" "${note}"
+    changelog_stamp "${VER_S}" "$(today)" "${VER_P}" "${VER_S}" "${note}"
     git_add -- "${CHANGELOG}"
     git_commit -am 'Update changelog'
     msg_done
@@ -855,7 +843,7 @@ main() {
       && return
     merge_fromto "${BCH_S}" "${BCH_P}"
     msg_start 'Updating branching structure'
-    git_tag "v${to}"
+    git_tag "v${VER_S}"
     git_checkout "${BCH_S}"
     git_merge "${BCH_P}"
     local prod="${BCH_P}-${VER_S%%.*}"
