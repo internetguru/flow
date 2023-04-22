@@ -9,6 +9,9 @@ COLUMNS=${COLUMNS:-$(tput cols)}
 DATAPATH=${DATAPATH:-$(dirname "${BASH_SOURCE[0]}")}
 USAGE=${USAGE:-}
 VER_F=${VER_F:-}
+VER_P=0.0.0
+VER_S=0.0.0
+VER_D=0.1.0
 
 ORIGIN=${ORIGIN:-origin}
 UPSTREAM=${UPSTREAM:-${ORIGIN}}
@@ -453,13 +456,6 @@ main() {
       && git_init . \
       && git symbolic-ref HEAD "refs/heads/${BCH_P}"
     git_commit --allow-empty -m 'Initial commit'
-    # [[ "${STASH}" == 1 ]] \
-    #   && stash_files
-    # msg_start 'Initializing files'
-    # echo "0.0.0" > "${VERSION}"
-    # default_changelog "0.0.0" > "${CHANGELOG}"
-    # git_add .
-    # git_commit --allow-empty -m 'Initialize files'
     msg_done
   }
 
@@ -564,8 +560,8 @@ main() {
   validate_changelog() {
     git_show_exists "${1}:${CHANGELOG}" \
       && [[ -n $(git_show "${1}:${CHANGELOG}") ]] \
-      && git_show "${1}:${CHANGELOG}" | grep -q "^## \[${3//./\.}" \
-      && git_show "${1}:${CHANGELOG}" | grep -q "^\[${3//./\.}" \
+      && git_show "${1}:${CHANGELOG}" | grep -q "^## \[${3//./\.}]" \
+      && git_show "${1}:${CHANGELOG}" | grep -q "^\[${3//./\.}]" \
       && return
     [[ ${CONFORM} == 0 ]] \
       && err "Missing or invalid changelog file on ${1}." 3
@@ -638,24 +634,24 @@ main() {
     BCH_D=$(find_or_first "${BCH_D}" "${ARR_D[@]}")
     validate_branch "${BCH_P}"
     validate_version "${BCH_P}" "$(top_vertag)"
-    local from to
-    from=$(load_version "${BCH_P}")
-    to=$(increment_patch "${from}")
-    # look for the "from" stamp, else create an incremented stamp from to
-    validate_changelog "${BCH_P}" "" "${from}" "$(today)" "${from}" "${to}"
+    VER_P=$(load_version "${BCH_P}")
+    # look for the VER_P stamp, else create an incremented stamp from VER_P to VER_P++
+    validate_changelog "${BCH_P}" "" "${VER_P}" "$(today)" "${VER_P}" "$(increment_patch "${VER_P}")"
     validate_tag
     validate_prod_branch
     validate_branch "${BCH_S}"
     validate_branch "${BCH_D}"
     validate_merged_to "${BCH_P}" "${BCH_D}"
+    VER_S=${VER_P}
     ! is_attached_to "${BCH_P}" "${BCH_S}" \
       && validate_merged_to "${BCH_P}" "${BCH_S}" \
-      && validate_version "${BCH_S}" "$(increment_minor "$(load_version "${BCH_P}")")" \
-      && validate_changelog "${BCH_S}" "${BCH_P}" "$(load_version "${BCH_S}-rc.1")" "$(today)" "${from}" "${BCH_S}" \
-      && from=${BCH_S}
+      && validate_version "${BCH_S}" "$(increment_minor "${VER_P}")" \
+      && VER_S=$(load_version "${BCH_S}") \
+      && validate_changelog "${BCH_S}" "${BCH_P}" "${VER_S}-rc.1" "$(today)" "${VER_P}" "${BCH_S}"
     validate_merged_to "${BCH_S}" "${BCH_D}"
-    validate_version "${BCH_D}" "$(increment_minor "$(load_version "${BCH_S}")")"
-    validate_changelog "${BCH_D}" "${BCH_S}" "${UNRELEASED}" "" "${from}" "${BCH_D}"
+    validate_version "${BCH_D}" "$(increment_minor "${VER_S}")"
+    VER_D=$(load_version "${BCH_D}")
+    validate_changelog "${BCH_D}" "${BCH_S}" "${UNRELEASED}" "" "${BCH_S}" "${BCH_D}"
     validate_param "${1:-}"
     validate_param "${DEFAULT_HOTFIX}"
     validate_param "${DEFAULT_FEATURE}"
@@ -682,15 +678,8 @@ main() {
     validate_behind "${1}"
   }
 
-  prod_name() {
-    local ver
-    ver="${1:-$(load_version "${BCH_P}")}"
-    echo "${BCH_P}-${ver%%.*}"
-  }
-
   validate_prod_branch() {
-    local prod
-    prod=$(prod_name)
+    local prod="${BCH_P}-${VER_P%%.*}"
     validate_branch "${prod}"
     is_attached_to "${prod}" "${BCH_P}" \
       && return
@@ -869,8 +858,7 @@ main() {
     git_tag "v${to}"
     git_checkout "${BCH_S}"
     git_merge "${BCH_P}"
-    local prod
-    prod=$(prod_name)
+    local prod="${BCH_P}-${VER_S%%.*}"
     # shellcheck disable=SC2015
     branch_exists "${prod}" \
       && git_checkout "${prod}" \
@@ -967,7 +955,7 @@ main() {
   }
 
   # 1: default keyword
-  # 2: source branch
+  # 2: dest branch
   update_changelog() {
     local gcb def kw=
     gcb=$(current_branch)
@@ -1059,27 +1047,27 @@ main() {
   }
 
   release_hotfix() {
-    local dest vers verd
-    dest=${BCH_P}
-    vers=$(load_version "${1}")
-    verd=$(load_version "${BCH_P}")
-    [[ "${vers%%.*}" > "${verd%%.*}" ]] \
-      && err "Hotfix version is greater than '${BCH_P}'." 4
-    [[ "${vers%%.*}" < "${verd%%.*}" ]] \
-      && dest="$(prod_name "${vers}")" \
-      && verd="$(load_version "${dest}")"
+    local verh
+    verh=$(load_version "${1}")
+    # shellcheck disable=SC2015
+    [[ -n "${verh}" ]] \
+      && [[ ! "${verh%%.*}" > "${VER_P%%.*}" ]] \
+      || err "Invalid hotfix version." 4
+    local dest=${BCH_P}-${verh%%.*}
     ! branch_exists "${dest}" \
-      && err "Branch '${dest} not found." 4
+      && err "Branch '${dest}' not found." 4
     is_merged_to "${1}" "${dest}" \
       && err 'Nothing to merge.' 6
     # shellcheck disable=SC2015
-    [[ "${dest}" == "${BCH_P}" ]] \
-      && confirm "* Merge hotfix '${1}' to '${dest}'?" \
+    [[ "${verh%%.*}" == "${VER_P%%.*}" ]] \
+      && confirm "* Merge hotfix '${1}' into '${dest}' and '${BCH_P}'?" \
       || confirm "* Merge hotfix '${1}' only into '${dest}'?"
     msg_start 'Updating control files'
-    increment_patch "${verd}" > "${VERSION}"
-    local verh
+    git_checkout "${1}"
+    local verd
+    verd=$(load_version "${dest}")
     verh=$(increment_patch "${verd}")
+    echo "${verh}" > "${VERSION}"
     changelog_stamp "${verh}" "$(today)" "${verd}" "${verh}"
     update_changelog Fixed "${dest}"
     git_commit -am 'Update control files'
@@ -1088,14 +1076,13 @@ main() {
       && flow_request "${dest}" \
       && return
     merge_fromto "${1}" "${dest}"
-    git_tag "v$(load_version)"
-    [[ "${dest}" != "${BCH_P}" ]] \
+    git_tag "v${verh}"
+    [[ "${verh%%.*}" != "${VER_P%%.*}" ]] \
       && delete_branch "${1}" \
       && return
-    git_checkout "$(prod_name "${verd}")"
-    git_merge "${BCH_P}"
-    verr=$(load_version "${BCH_S}")
-    [[ "${verr%.*}" == "${verd%.*}" ]] \
+    git_checkout "${BCH_P}"
+    git_merge "${dest}"
+    [[ "${VER_P}" == "${VER_S}" ]] \
       && git_checkout "${BCH_S}" \
       && git_merge "${BCH_P}" \
       && merge_fromto "${BCH_P}" "${BCH_D}" \
@@ -1104,6 +1091,7 @@ main() {
     merge_fromto "${BCH_P}" "${BCH_S}"
     merge_fromto "${BCH_S}" "${BCH_D}"
     delete_branch "${1}"
+    git_checkout "${BCH_D}"
   }
 
   update_branch() {
