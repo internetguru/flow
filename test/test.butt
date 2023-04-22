@@ -497,6 +497,51 @@ start "create staging"
   assert_equal "${status}" 0
 end
 #######################################
+: $((i++))
+start "create rc2"
+  take "${i}"
+  { flow --init --yes \
+    && flow -y dev
+  } >/dev/null
+  debug "flow -y dev"
+  assert_equal "${status}" 0
+  assert_equal "$(git show dev:VERSION)" "0.2.0"
+  assert_equal "$(git show staging:VERSION)" "0.1.0"
+  assert_equal "$(git show dev:CHANGELOG.md | head -7 | tail -1)" "## [Unreleased]"
+  assert_contains "$(git show dev:CHANGELOG.md | head -9 | tail -1)" "## [0.1.0-rc.2] - "
+  assert_contains "$(git show dev:CHANGELOG.md | head -11 | tail -1)" "## [0.1.0-rc.1] - "
+  assert_contains "$(git show staging:CHANGELOG.md | head -7 | tail -1)" "## [0.1.0-rc.2] - "
+  assert_contains "$(git show staging:CHANGELOG.md | head -9 | tail -1)" "## [0.1.0-rc.1] - "
+  assert_contains "$(git show-ref)" "refs/heads/staging"
+  assert_equal "$(gsp)" ""
+  debug "flow -n"
+  assert_equal "${status}" 0
+end
+#######################################
+: $((i++))
+start "release rc2"
+  take "${i}"
+  { flow --init --yes \
+    && flow -y dev \
+    && flow -y dev
+  } >/dev/null
+  debug "flow -y"
+  assert_equal "${status}" 0
+  assert_equal "$(git show dev:VERSION)" "0.2.0"
+  assert_equal "$(git show staging:VERSION)" "0.1.0"
+  assert_equal "$(git show dev:CHANGELOG.md | head -7 | tail -1)" "## [Unreleased]"
+  assert_contains "$(git show dev:CHANGELOG.md | head -9 | tail -1)" "## [0.1.0] - "
+  assert_contains "$(git show dev:CHANGELOG.md | head -13 | tail -1)" "## [0.1.0-rc.2] - "
+  assert_contains "$(git show dev:CHANGELOG.md | head -15 | tail -1)" "## [0.1.0-rc.1] - "
+  assert_contains "$(git show main:CHANGELOG.md | head -7 | tail -1)" "## [0.1.0] - "
+  assert_contains "$(git show main:CHANGELOG.md | head -11 | tail -1)" "## [0.1.0-rc.2] - "
+  assert_contains "$(git show main:CHANGELOG.md | head -13 | tail -1)" "## [0.1.0-rc.1] - "
+  assert_contains "$(git show-ref)" "refs/heads/dev"
+  assert_equal "$(gsp)" ""
+  debug "flow -n"
+  assert_equal "${status}" 0
+end
+#######################################
 # : $((i++))
 # start "try create two stagings"
 #   take "${i}"
