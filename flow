@@ -648,7 +648,7 @@ main() {
       && validate_merged_to "${BCHP}" "${BCHS}" \
       && validate_version "${BCHS}" "$(increment_minor "${VERP}")" \
       && VERS=$(load_version "${BCHS}") \
-      && validate_changelog "${BCHS}" "${BCHP}" "${VERS}-rc.1" "${VERP}" "${BCHS}"
+      && validate_changelog "${BCHS}" "${BCHP}" "${VERS}-rc.1" "${VERP}"
     validate_merged_to "${BCHS}" "${BCHD}"
     validate_version "${BCHD}" "$(increment_minor "${VERS}")"
     VERD=$(load_version "${BCHD}")
