@@ -155,7 +155,7 @@ main() {
     git config remote."${ORIGIN}".url | sed -e 's~^git@\([^:]\+\):~https://\1/~' -e 's/\.git$//'
   }
 
-  diff_url() {
+  diff_link() {
     local url from to
     url=$(git_remote_url)
     from=${1}
@@ -170,8 +170,20 @@ main() {
     echo "git diff ${from}..${to}"
   }
 
-  diff_url_esc() {
-    sed -e 's/[\/&]/\\&/g' <<< "$(diff_url "${1}" "${2}")"
+  abs_link() {
+    local url
+    url=$(git_remote_url)
+    [[ -n "${url}" ]] \
+      && echo "${url}/releases/tag/v${1}" \
+      && return
+    echo "git log v${1}"
+  }
+
+  link_esc() {
+    [[ -n "${2}" ]] \
+      && sed -e 's/[\/&]/\\&/g' <<< "$(diff_link "${1}" "${2}")" \
+      && return
+    sed -e 's/[\/&]/\\&/g' <<< "$(abs_link "${1}")"
   }
 
   git_init() {
@@ -459,7 +471,8 @@ main() {
   hotfix_vertag() {
     [[ ${CONFORM} == 0 ]] \
       && err "Invalid version tag 'v${1}' commit." 3
-    confirm 'Conform version tag?'
+    confirm 'Hotfix version tag?'
+    #TODO hotfix
     local ver
     ver=$(increment_patch "${1}")
     update_version "${BCHP}" "${ver}"
@@ -514,10 +527,6 @@ main() {
     err 'Uncommitted changes.' 5
   }
 
-  today() {
-    date '+%Y-%m-%d'
-  }
-
   default_changelog() {
     local url
     url=$(git_remote_url)
@@ -527,16 +536,13 @@ main() {
     echo 'The format is based on [Keep a Changelog](http://keepachangelog.com/)'
     echo 'and this project adheres to [Semantic Versioning](http://semver.org/).'
     echo
-    echo "## [${1}] - $(today)"
+    echo "## [${1}] - $(date "${DATE_FORMAT}")"
     echo
     echo "### Added"
     echo
     echo "- New changelog file."
     echo
-    [[ -n "${url}" ]] \
-      && echo "[${1}]: ${url}/releases/tag/v${1}" \
-      && return
-    echo "[${1}]: git log v${1}"
+    echo "[${1}]: $(abs_link "${1}")"
   }
 
   # 1: source branch, empty for default changelog
@@ -549,10 +555,9 @@ main() {
 
   # 1: branch
   # 2: restore from branch, empty for create new
-  # 3: stamp, e.g. version number or "Unreleased"
-  # 4: note, e.g. date
-  # 5: diff from
-  # 6: diff to
+  # 3: head stamp version or 'unreleased'
+  # 4: foot stamp from or empty
+  # 5: foot stamp to or empty
   validate_changelog() {
     git_show_exists "${1}:${CHANGELOG}" \
       && [[ -n $(git_show "${1}:${CHANGELOG}") ]] \
@@ -574,9 +579,10 @@ main() {
       && grep -q '^\[' "${CHANGELOG}" \
       || restore_changelog "${2}"
     # shellcheck disable=SC2015
-    grep -q "^## \[${3//./\.}]" "${CHANGELOG}" \
-      && grep -q "^\[${3//./\.}]" "${CHANGELOG}" \
-      || changelog_stamp "${3}" "${4}" "${5}" "${6}"
+    ! grep -q "^## \[${3//./\.}]" "${CHANGELOG}" \
+      && changelog_head "${3}"
+    ! grep -q "^\[${3//./\.}]" "${CHANGELOG}" \
+      && changelog_foot "${3}" "${4:-${3}}" "${5:-}"
     git_add -- "${CHANGELOG}"
     git_commit -am "Conform changelog file on '${1}'"
     git_checkout "${gcb}"
@@ -631,8 +637,7 @@ main() {
     validate_branch "${BCHP}"
     validate_version "${BCHP}" "$(top_vertag)"
     VERP=$(load_version "${BCHP}")
-    # look for the VERP stamp, else create an incremented stamp from VERP to VERP++
-    validate_changelog "${BCHP}" "" "${VERP}" "$(today)" "${VERP}" "$(increment_patch "${VERP}")"
+    validate_changelog "${BCHP}" "" "${VERP}"
     validate_tag
     validate_prod_branch
     validate_branch "${BCHS}"
@@ -643,11 +648,11 @@ main() {
       && validate_merged_to "${BCHP}" "${BCHS}" \
       && validate_version "${BCHS}" "$(increment_minor "${VERP}")" \
       && VERS=$(load_version "${BCHS}") \
-      && validate_changelog "${BCHS}" "${BCHP}" "${VERS}-rc.1" "$(today)" "${VERP}" "${BCHS}"
+      && validate_changelog "${BCHS}" "${BCHP}" "${VERS}-rc.1" "${VERP}" "${BCHS}"
     validate_merged_to "${BCHS}" "${BCHD}"
     validate_version "${BCHD}" "$(increment_minor "${VERS}")"
     VERD=$(load_version "${BCHD}")
-    validate_changelog "${BCHD}" "${BCHS}" "${UNRELEASED}" "" "${BCHS}" "${BCHD}"
+    validate_changelog "${BCHD}" "${BCHS}" "${UNRELEASED}" "${BCHS}" "${BCHD}"
     validate_param "${1:-}"
     validate_param "${DEFAULT_HOTFIX}"
     validate_param "${DEFAULT_FEATURE}"
@@ -784,13 +789,15 @@ main() {
     confirm "* Create new release candidate from '${BCHD}'?"
     msg_start 'Creating new release candidate'
     merge_fromto "${BCHD}" "${BCHS}"
-    changelog_stamp "${VERD}-rc.1" "$(today)" "${VERS}" "${BCHS}"
+    changelog_head "${VERD}-rc.1"
+    changelog_foot "${VERD}-rc.1" "${VERD}"
     git_add .
     git_commit -am 'Update changelog'
     msg_done
     merge_fromto "${BCHS}" "${BCHD}"
     increment_minor "${VERD}" > "${VERSION}"
-    changelog_stamp "${UNRELEASED}" "" "${BCHS}" "${BCHD}"
+    changelog_head "${UNRELEASED}"
+    changelog_foot "${UNRELEASED}" "${BCHS}" "${BCHD}"
     git_commit -am "Update changelog and increment version"
     git_checkout "${BCHS}"
   }
@@ -800,13 +807,15 @@ main() {
     msg_start 'Incrementing release candidate'
     merge_fromto "${BCHD}" "${BCHS}"
     local nthrc=$(( $(grep -c "^## \[${VERS//./\.}-rc\." "${CHANGELOG}") + 1 ))
-    changelog_stamp "${VERS}-rc.${nthrc}" "$(today)" "${VERP}" "${BCHS}"
+    changelog_head "${VERS}-rc.${nthrc}"
+    changelog_foot "${VERD}-rc.${nthrc}" "${VERD}"
     echo "${VERS}" > "${VERSION}"
     git_add .
     git_commit -am 'Update changelog and restore version'
     msg_done
     merge_fromto "${BCHS}" "${BCHD}"
-    changelog_stamp "${UNRELEASED}" "" "${BCHS}" "${BCHD}"
+    changelog_head "${UNRELEASED}"
+    changelog_foot "${UNRELEASED}" "${BCHS}" "${BCHD}"
     git_commit -am "Update changelog"
     git_checkout "${BCHS}"
   }
@@ -834,7 +843,8 @@ main() {
     msg_start 'Updating changelog'
     local note
     note="Stable release based on $(grep -om1 "^\[[^\]\+]" "${CHANGELOG}")."
-    changelog_stamp "${VERS}" "$(today)" "${VERP}" "${VERS}" "${note}"
+    changelog_head "${VERS}" "${note}"
+    changelog_foot "${VERS}" "${VERP}" "${VERS}"
     git_add -- "${CHANGELOG}"
     git_commit -am 'Update changelog'
     msg_done
@@ -856,32 +866,37 @@ main() {
     merge_fromto "${BCHP}" "${BCHD}"
   }
 
-  # 1: stamp
-  # 2: note
-  # 3: from
-  # 4: to
-  # 5: note
-  changelog_stamp() {
-    local head_stamp="## [${1}] - ${2}"
-    local diff_stamp
-    diff_stamp="[${1}]: $(diff_url_esc "${3}" "${4}")"
+  # 1: stamp version or empty for unreleased
+  # 2: optional note
+  changelog_head() {
+    local head_stamp="## [${1}]"
+    [[ "${1}" != "${UNRELEASED}" ]] \
+      && head_stamp="## [${1}] - $(date "${DATE_FORMAT}")"
     # always add head stamp or replace the unreleased one
     # shellcheck disable=SC2015
     grep -q "^## \[${UNRELEASED}]" "${CHANGELOG}" \
       && sed -i "s/^## \[${UNRELEASED}].*/${head_stamp}/" "${CHANGELOG}" \
       || sed -i "0,/^## /s//${head_stamp%* - }\n\n&/" "${CHANGELOG}"
-    [[ -n "${5:-}" ]] \
-      && sed -i "0,/^## \[.*/s//\0\n\n_${5}_/" "${CHANGELOG}"
+    [[ -n "${2:-}" ]] \
+      && sed -i "0,/^## \[.*/s//\0\n\n_${2}_/" "${CHANGELOG}"
+  }
+
+  # 1: stamp
+  # 2: from or at (if to is empty)
+  # 3: to or empty
+  changelog_foot() {
+    local stamp
+    stamp="[${1}]: $(link_esc "${2}" "${3:-}")"
     # update diff stamp if exists
     grep -q "^\[${1//./\.}]" "${CHANGELOG}" \
-      && sed -i "s/^\[${1//./\.}].*/${diff_stamp}/" "${CHANGELOG}" \
+      && sed -i "s/^\[${1//./\.}].*/${stamp}/" "${CHANGELOG}" \
       && return
     # replace unreleased if exists
     grep -q "^\[${UNRELEASED}]" "${CHANGELOG}" \
-      && sed -i "s/^\[${UNRELEASED}].*/${diff_stamp}/" "${CHANGELOG}" \
+      && sed -i "s/^\[${UNRELEASED}].*/${stamp}/" "${CHANGELOG}" \
       && return
     # else add diff stamp
-    sed -i "0,/^\[/s//${diff_stamp}\n&/" "${CHANGELOG}"
+    sed -i "0,/^\[/s//${stamp}\n&/" "${CHANGELOG}"
   }
 
   # 1: keyword
@@ -1056,7 +1071,8 @@ main() {
     verd=$(load_version "${dest}")
     verh=$(increment_patch "${verd}")
     echo "${verh}" > "${VERSION}"
-    changelog_stamp "${verh}" "$(today)" "${verd}" "${verh}"
+    changelog_head "${verh}"
+    changelog_foot "${verh}" "${verd}" "${verh}"
     update_changelog Fixed "${dest}"
     git_commit -am 'Update control files'
     msg_done
@@ -1255,6 +1271,7 @@ main() {
   declare -r GITHUB='github.com'
   declare -r BITBUCKET='bitbucket.org'
   declare -r HOTFIX='hotfix'
+  declare -r DATE_FORMAT='+%Y-%m-%d'
   declare -r DEFAULT_HOTFIX="${HOTFIX}-$(whoami)"
   declare -r FEATURE='feature'
   declare -r DEFAULT_FEATURE="${FEATURE}-$(whoami)"
