@@ -790,7 +790,7 @@ main() {
     msg_start 'Creating new release candidate'
     merge_fromto "${BCHD}" "${BCHS}"
     changelog_head "${VERD}-rc.1"
-    changelog_foot "${VERD}-rc.1" "${VERD}"
+    changelog_foot "${VERD}-rc.1" "${VERP}"
     git_add .
     git_commit -am 'Update changelog'
     msg_done
@@ -808,7 +808,7 @@ main() {
     merge_fromto "${BCHD}" "${BCHS}"
     local nthrc=$(( $(grep -c "^## \[${VERS//./\.}-rc\." "${CHANGELOG}") + 1 ))
     changelog_head "${VERS}-rc.${nthrc}"
-    changelog_foot "${VERD}-rc.${nthrc}" "${VERD}"
+    changelog_foot "${VERS}-rc.${nthrc}" "${VERP}"
     echo "${VERS}" > "${VERSION}"
     git_add .
     git_commit -am 'Update changelog and restore version'
