@@ -7,7 +7,7 @@ Flow - manage git branching model
 SYNOPSIS
 ========
 
-flow [-cehinrsvVwy] [--color[=WHEN]] [--push] [--pull] [BRANCH]
+flow [-cefhinrvVwy] [--color[=WHEN]] [--push] [--pull] [BRANCH]
 
 
 DESCRIPTION
@@ -32,6 +32,9 @@ OPTIONS
 \-e, --auto-entry
     Do not show changelog editor and insert general entry instead about the current action.
 
+\-f, --force
+    Clear and restore uncommitted changes before proceeding using git stash.
+
 \-h, --help
     Print help.
 
@@ -49,9 +52,6 @@ OPTIONS
 
 \-r, --request
     Instead of merging prepare current branch for pull request and push it to the origin.
-
-\-s, --stash
-    Temporary remove (stash and pop) uncommitted changes.
 
 \-v, --verbose
     Verbose mode.

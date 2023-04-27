@@ -263,10 +263,10 @@ start "init on non-empty folder"
 end
 #######################################
 : $((i++))
-start "init on non-empty folder with stash"
+start "force init on non-empty folder"
   take "${i}"
   { touch a; } >/dev/null
-  debug "flow --init --yes --stash"
+  debug "flow --init --yes --force"
   assert_equal "${status}" 0
   checkInitFiles
   assert_equal "$(git show-ref | wc -l)" 5
@@ -304,12 +304,12 @@ start "init on existing repo uncommitted"
 end
 #######################################
 : $((i++))
-start "init on existing repo without commits with --stash"
+start "force init on existing repo without commits"
   take "${i}"
   { git init -b master \
     && echo a > a
   } >/dev/null
-  debug "flow -v --init --yes --stash"
+  debug "flow -v --init --yes --force"
   assert_equal "${status}" 0
   checkInitFiles master
   assert_equal "$(git show-ref | wc -l)" 5
@@ -340,7 +340,7 @@ start "conform on existing repo without commits"
 end
 #######################################
 : $((i++))
-start "init on existing repo with commits and --stash"
+start "force init on existing repo with commits"
   take "${i}"
   { git init -b master \
     && echo a > a \
@@ -348,7 +348,7 @@ start "init on existing repo with commits and --stash"
     && git commit -am "first commit" \
     && echo b > b
   } >/dev/null
-  debug "flow --init --yes --stash"
+  debug "flow --init --yes --force"
   assert_equal "${status}" 0
   assert_equal "$(git_current_branch)" "dev"
   checkInitFiles master
@@ -358,7 +358,7 @@ start "init on existing repo with commits and --stash"
 end
 #######################################
 : $((i++))
-start "conform on existing repo with commits and --stash"
+start "force conform on existing repo with commits"
   take "${i}"
   { git init -b main \
     && echo a > a \
@@ -366,7 +366,7 @@ start "conform on existing repo with commits and --stash"
     && git commit -am "first commit" \
     && echo b > b
   } >/dev/null
-  debug "flow --conform --stash --yes"
+  debug "flow --conform --force --yes"
   assert_equal "${status}" 0
   assert_equal "$(git show-ref | wc -l)" 6
   assert_equal "$(git_current_branch)" "hotfix-$(whoami)"
@@ -390,12 +390,12 @@ start "create feature"
 end
 #######################################
 : $((i++))
-start "create feature with uncommited changes and --stash"
+start "force create feature with uncommited changes"
   take "${i}"
   { flow --init --yes \
     && echo a > a
   } >/dev/null
-  debug "flow -v --yes --stash myfeature"
+  debug "flow -v --yes --force myfeature"
   assert_equal "${status}" 0
   assert_equal "$(git show-ref | wc -l)" 6
   assert_contains "${outlines[0]}" "Stashing files"
@@ -439,7 +439,7 @@ start "merge empty feature"
 end
 #######################################
 : $((i++))
-start "merge feature with uncommitted changes and --stash"
+start "force merge feature with uncommitted changes"
   take "${i}"
   { flow --init --yes \
     && flow --yes myfeature \
@@ -448,7 +448,7 @@ start "merge feature with uncommitted changes and --stash"
     && git commit -am "add feature 1" \
     && echo b > b
   } >/dev/null
-  debug "echo 'feature1' | flow --yes --stash"
+  debug "echo 'feature1' | flow --yes --force"
   assert_equal "${status}" 0
   #assert_contains "${outlines[0]}" "Stashing files"
   load_log
@@ -560,7 +560,7 @@ end
 # end
 #######################################
 : $((i++))
-start "staging with uncommited changes and --stash"
+start "force staging with uncommited changes"
   take "${i}"
   { flow --init --yes \
     && echo a > a \
@@ -568,7 +568,7 @@ start "staging with uncommited changes and --stash"
     && git commit -m "add file a" \
     && echo b > b
   } >/dev/null
-  debug "flow -v --yes --stash"
+  debug "flow -v --yes --force"
   assert_equal "${status}" 0
   assert_contains "${outlines[0]}" "Stashing files"
   assert_contains "$(git show-ref)" "refs/heads/staging"

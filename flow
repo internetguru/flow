@@ -21,12 +21,12 @@ BCHP=${BCHP:-main}
 main() {
 
   msg_start() {
-    [[ ${VERBOSE} -eq 0 ]] \
+    [[ ${VERBOSE} == 0 ]] \
       && return
-    if stdoutpipe || [[ ${COLUMNS} -lt 41 ]]; then
-      echo -n "${1}" \
-        && return
-    fi
+    MSGOPEN=1
+    [[ "$(stdoutpipe)" || ${COLUMNS} -lt 41 ]] \
+      && echo -n "${1}" \
+      && return
     echo -n '[ '
     save_cursor_position
     echo " ....  ] ${1}"
@@ -41,12 +41,12 @@ main() {
   }
 
   msg_end() {
-    [[ ${VERBOSE} -eq 0 ]] \
+    [[ ${VERBOSE} == 0 || ${MSGOPEN} == 0 ]] \
       && return
-    if stdoutpipe || [[ ${COLUMNS} -lt 41 ]]; then
-      echo " [ ${1} ]" \
-        && return
-    fi
+    MSGOPEN=0
+    [[ "$(stdoutpipe)" || ${COLUMNS} -lt 41 ]] \
+      && echo " [ ${1} ]" \
+      && return
     set_cursor_position
     echo "${1}"
   }
@@ -58,7 +58,7 @@ main() {
     [[ "${2:-}" == 3 ]] \
       && echo "This appears to be fixable with the --conform option." >&2
     [[ "${2:-}" == 5 ]] \
-      && echo "Commit/stash your changes or use the --stash option." >&2
+      && echo "Commit/stash your changes or use the --force option." >&2
     exit "${2:-1}"
   }
 
@@ -339,16 +339,6 @@ main() {
     git_branch_format --show-current
   }
 
-  stash_files() {
-    msg_start 'Stashing files'
-    git_status_empty \
-      && msg_pass \
-      && return
-    git_add -A
-    git_stash push
-    msg_done
-  }
-
   flow_finalize() {
     [[ "${INITED}" == 1 ]] \
       && git_checkout "${BCHD}"
@@ -465,7 +455,7 @@ main() {
     [[ ${INIT} == 0 ]] \
       && [[ -z "$(git_branch_format)" ]] \
       && err 'Missing initial commit.' 3
-    [[ "$(ls -A .)" && "${STASH}" == 0 ]] \
+    [[ "$(ls -A .)" && "${FORCE}" == 0 ]] \
       && err 'Folder is not empty.' 5
     confirm "Initialize repository?"
     msg_start 'Initializing repository'
@@ -530,13 +520,17 @@ main() {
 
   # validate git status
   validate_status_empty() {
+    [[ ${FORCE} == 1 ]] \
+      && msg_start 'Stashing files'
     git_status_empty \
+      && msg_pass \
       && return
-    [[ ${STASH} == 1 ]] \
-      && stash_files \
-      && STASHED=1 \
-      && return
-    err 'Uncommitted changes.' 5
+    [[ ${FORCE} == 0 ]] \
+      && err 'Uncommitted changes.' 5
+    git_add -A
+    git_stash push
+    msg_done
+    STASHED=1
   }
 
   default_changelog() {
@@ -1291,8 +1285,8 @@ main() {
 
   # process options
   line=$(IFS=' ' getopt -n "${0}" \
-    -o cehinrsvVwy\? \
-    -l conform,color::,colour::,auto-entry,help,init,dry-run,request,stash,verbose,version,what-now,yes,pull,push \
+    -o cefhinrvVwy\? \
+    -l conform,color::,colour::,auto-entry,force,help,init,dry-run,request,verbose,version,what-now,yes,pull,push \
     -- "${@}" 2>&1) \
     || err "${line}" 2
   eval set -- "${line}"
@@ -1308,7 +1302,7 @@ main() {
   declare COLOR=auto
   declare POSX=1
   declare POSY=1
-  declare STASH=0
+  declare FORCE=0
   declare STASHED=0
   declare CONFORM=0
   declare INIT=0
@@ -1316,13 +1310,14 @@ main() {
   declare REQUEST=0
   declare PULL=0
   declare PUSH=0
+  declare MSGOPEN=0
 
   while [[ ${#} -gt 0 ]]; do
     case ${1} in
      -c|--conform) CONFORM=1; shift ;;
      -e|--auto-entry) ENTRY=1; shift ;;
      --color|--colour) shift; setcolor "${1}"; shift ;;
-     -s|--stash) STASH=1; shift ;;
+     -f|--force) FORCE=1; shift ;;
      -h|-\?|--help) flow_usage; exit ;;
      -i|--init) INIT=1; CONFORM=1; shift ;;
      -n|--dry-run) DRYRUN=1; shift ;;
