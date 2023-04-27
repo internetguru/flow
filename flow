@@ -115,7 +115,7 @@ main() {
 
   confirm() {
     [[ ${DRYRUN} == 1 ]] \
-      && exit
+      && flow_finalize
     [[ ${YES} == 1 ]] \
       && return
     if [[ ${ISSTDIN} == 0 ]]; then
@@ -130,7 +130,7 @@ main() {
     [[ "${REPLY,,}" =~ ^y(es)?$ || -z "${REPLY}" ]] \
       && return
     [[ "${REPLY,,}" =~ ^no?$ ]] \
-      && exit
+      && flow_finalize
     confirm 'Type'
   }
 
@@ -290,6 +290,8 @@ main() {
       && err "Local branch '${1}' not found." 3
     confirm "Create branch '${1}'?"
     create_branch "${1}"
+    [[ ${INIT} == 1 ]] \
+      && INITED=1
   }
 
   is_behind_origin() {
@@ -345,6 +347,14 @@ main() {
     git_add -A
     git_stash push
     msg_done
+  }
+
+  flow_finalize() {
+    [[ "${INITED}" == 1 ]] \
+      && git_checkout "${BCHD}"
+    [[ "${STASHED}" == 1 ]] \
+      && git_stash pop
+    exit 0
   }
 
   is_merged_to() {
@@ -465,6 +475,7 @@ main() {
       && git_init . \
       && git symbolic-ref HEAD "refs/heads/${BCHP}"
     git_commit --allow-empty -m 'Initial commit'
+    INITED=1
     msg_done
   }
 
@@ -523,6 +534,7 @@ main() {
       && return
     [[ ${STASH} == 1 ]] \
       && stash_files \
+      && STASHED=1 \
       && return
     err 'Uncommitted changes.' 5
   }
@@ -623,14 +635,8 @@ main() {
   }
 
   flow_validate() {
-    [[ ${#} -gt 1 ]] \
-      && err 'Too many arguments.' 2
-    local gcb=${BCHD}
-    validate_requirements
-    git_repo_exists \
-      && gcb=$(current_branch)
-    validate_repository
-    validate_status_empty
+    local gcb
+    gcb=$(current_branch)
     BCHP=$(find_or_first "${BCHP}" "${ARRP[@]}")
     BCHS=$(find_or_first "${BCHS}" "${ARRS[@]}")
     BCHD=$(find_or_first "${BCHD}" "${ARRD[@]}")
@@ -1303,8 +1309,10 @@ main() {
   declare POSX=1
   declare POSY=1
   declare STASH=0
+  declare STASHED=0
   declare CONFORM=0
   declare INIT=0
+  declare INITED=0
   declare REQUEST=0
   declare PULL=0
   declare PUSH=0
@@ -1332,19 +1340,25 @@ main() {
   done
 
   # flow process
+  [[ ${#} -gt 1 ]] \
+    && err 'Too many arguments.' 2
+  validate_requirements
+  validate_repository
+  validate_status_empty
   [[ ${PULL} == 1 ]] \
     && flow_pull \
-    && exit
+    && flow_finalize
   flow_validate "${@}"
   [[ ${INIT} == 1 ]] \
-    && exit
+    && flow_finalize
   [[ ${PUSH} == 1 ]] \
     && flow_push \
-    && exit
+    && flow_finalize
   [[ ${WHATNOW} == 1 ]] \
     && flow_whatnow \
-    && exit
-  flow_action "${@}"
+    && flow_finalize
+  flow_action "${@}" \
+    && flow_finalize
 
 }
 

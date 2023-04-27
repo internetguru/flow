@@ -269,11 +269,10 @@ start "init on non-empty folder with stash"
   debug "flow --init --yes --stash"
   assert_equal "${status}" 0
   checkInitFiles
-  assert_equal "$(git show-ref | wc -l)" 6
-  assert_contains "$(git show-ref)" "refs/stash"
-  assert_equal "$(gsp | wc -l)" 0
+  assert_equal "$(git show-ref | wc -l)" 5
+  assert_equal "$(gsp | wc -l)" 1
   debug "flow -n"
-  assert_equal "${status}" 0
+  assert_equal "${status}" 5
 end
 #######################################
 : $((i++))
@@ -313,11 +312,10 @@ start "init on existing repo without commits with --stash"
   debug "flow -v --init --yes --stash"
   assert_equal "${status}" 0
   checkInitFiles master
-  assert_equal "$(git show-ref | wc -l)" 6
-  assert_contains "$(git show-ref)" "refs/stash"
-  assert_equal "$(gsp | wc -l)" 0
+  assert_equal "$(git show-ref | wc -l)" 5
+  assert_equal "$(gsp | wc -l)" 1
   debug "flow -n"
-  assert_equal "${status}" 0
+  assert_equal "${status}" 5
 end
 #######################################
 ## Conform
@@ -352,11 +350,11 @@ start "init on existing repo with commits and --stash"
   } >/dev/null
   debug "flow --init --yes --stash"
   assert_equal "${status}" 0
-  assert_equal "$(git_current_branch)" "master"
+  assert_equal "$(git_current_branch)" "dev"
   checkInitFiles master
-  assert_equal "$(gsp | wc -l)" 0
+  assert_equal "$(gsp | wc -l)" 1
   debug "flow -n"
-  assert_equal "${status}" 0
+  assert_equal "${status}" 5
 end
 #######################################
 : $((i++))
@@ -370,12 +368,11 @@ start "conform on existing repo with commits and --stash"
   } >/dev/null
   debug "flow --conform --stash --yes"
   assert_equal "${status}" 0
-  assert_equal "$(git show-ref | wc -l)" 7
-  assert_contains "$(git show-ref)" "refs/stash"
+  assert_equal "$(git show-ref | wc -l)" 6
   assert_equal "$(git_current_branch)" "hotfix-$(whoami)"
-  assert_equal "$(gsp | wc -l)" 0
+  assert_equal "$(gsp | wc -l)" 1
   debug "flow -n"
-  assert_equal "${status}" 6
+  assert_equal "${status}" 5
 end
 #######################################
 ## Feature
@@ -400,13 +397,12 @@ start "create feature with uncommited changes and --stash"
   } >/dev/null
   debug "flow -v --yes --stash myfeature"
   assert_equal "${status}" 0
-  assert_equal "$(git show-ref | wc -l)" 7
-  assert_contains "$(git show-ref)" "refs/stash"
+  assert_equal "$(git show-ref | wc -l)" 6
   assert_contains "${outlines[0]}" "Stashing files"
   assert_equal "$(git_current_branch)" "myfeature"
-  assert_equal "$(gsp)" ""
+  assert_equal "$(gsp | wc -l)" 1
   debug "flow -n"
-  assert_equal "${status}" 6
+  assert_equal "${status}" 5
 end
 #######################################
 : $((i++))
@@ -459,9 +455,9 @@ start "merge feature with uncommitted changes and --stash"
   assert_contains "${log}" "Update changelog"
   assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'myfeature' into dev"
   assert_equal "$(git show-ref | grep /refs/heads/myfeature)" ""
-  assert_equal "$(gsp)" ""
+  assert_equal "$(gsp | wc -l)" 1
   debug "flow -n"
-  assert_equal "${status}" 0
+  assert_equal "${status}" 5
 end
 #######################################
 # start "merge feature with --request"
@@ -576,9 +572,9 @@ start "staging with uncommited changes and --stash"
   assert_equal "${status}" 0
   assert_contains "${outlines[0]}" "Stashing files"
   assert_contains "$(git show-ref)" "refs/heads/staging"
-  assert_equal "$(gsp)" ""
+  assert_equal "$(gsp | wc -l)" 1
   debug "flow -n"
-  assert_equal "${status}" 0
+  assert_equal "${status}" 5
 end
 #######################################
 : $((i++))
