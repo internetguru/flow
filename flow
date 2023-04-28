@@ -156,18 +156,20 @@ main() {
   }
 
   diff_link() {
-    local url from to
+    local url
     url=$(git_remote_url)
-    from=${1}
+    local from=${1}
     is_valid_version "${from}" \
       && from="v${1}"
-    to=${2}
+    local to=${2}
     is_valid_version "${to}" \
       && to="v${2}"
-    [[ -n "${url}" ]] \
-      && echo "${url}/compare/${from}...${to}" \
-      && return
-    echo "git diff ${from}..${to}"
+    case "${url}" in
+      *"${GITHUB}"*) echo "https://${url}/compare/${from}...${to}" ;;
+      *"${GITLAB}"*) echo "https://${url}/compare/${from}...${to}" ;;
+      *"${BITBUCKET}"*) echo "https://${url}/compare/${to}..${from}" ;;
+      *) echo "git diff ${from}..${to}" ;;
+    esac
   }
 
   abs_link() {
@@ -344,7 +346,7 @@ main() {
       && git_checkout "${BCHD}"
     [[ "${STASHED}" == 1 ]] \
       && git_stash pop
-    exit "${2:-0}"
+    exit "${1:-0}"
   }
 
   is_merged_to() {
@@ -1149,25 +1151,30 @@ main() {
   }
 
   flow_request_url() {
-    local url upstream_url to gcb
-    to="${1:-${BCHD}}"
+    local url upstream_url gcb
+    local to="${1:-${BCHD}}"
     url=$(trim_url "$(git config remote."${ORIGIN}".url)")
-    upstream_url="$(git config remote."${UPSTREAM}".url)"
-    upstream_url="$(trim_url "${upstream_url}")"
+    upstream_url="$(trim_url "$(git config remote."${UPSTREAM}".url)")"
     gcb=$(current_branch)
     echo -n 'Pull request URL: '
     case "${url}" in
+      *"${BITBUCKET}"*)
+        # shellcheck disable=SC1003
+        [[ "${url}" == "${upstream_url}" ]] \
+          && echo "https://${url}/compare/${gcb}..$(echo "${url}" | cut -d'/' -f2-3)%3A${to}" \
+          || echo "https://${url}/compare/${gcb}..$(echo "${upstream_url}" | cut -d'/' -f2-3)%3A${to}"
+      ;;
       *"${GITHUB}"*)
         # shellcheck disable=SC1003
         [[ "${url}" == "${upstream_url}" ]] \
           && echo "https://${url}/compare/${to}...${gcb}?expand=1" \
           || echo "https://${upstream_url}/compare/${to}...$(echo "${url}" | cut -d'/' -f2)%3A${gcb}?expand=1"
       ;;
-      *"${BITBUCKET}"*)
+      *"$GITLAB"*)
         # shellcheck disable=SC1003
         [[ "${url}" == "${upstream_url}" ]] \
-          && echo "https://${url}/compare/${gcb}..$(echo "${url}" | cut -d'/' -f2-3)%3A${to}" \
-          || echo "https://${url}/compare/${gcb}..$(echo "${upstream_url}" | cut -d'/' -f2-3)%3A${to}"
+          && echo "https://${url}/compare/${to}...${gcb}" \
+          || echo "https://${upstream_url}/compare/${to}...$(echo "${url}" | cut -d'/' -f2)"
       ;;
       *)
         err 'Unsupported remote server name.'
@@ -1266,8 +1273,9 @@ main() {
   declare -r SCRIPT_NAME=${0##*/}
   declare -r GREEN=2
   declare -r BLUE=4
-  declare -r GITHUB='github.com'
   declare -r BITBUCKET='bitbucket.org'
+  declare -r GITHUB='github.com'
+  declare -r GITLAB='gitlab.com'
   declare -r HOTFIX='hotfix'
   declare -r DATE_FORMAT='+%Y-%m-%d'
   declare -r DEFAULT_HOTFIX="${HOTFIX}-$(whoami)"
@@ -1281,16 +1289,8 @@ main() {
   declare -r ARRS=(staging release rc preprod pre-production release-candidate prerelease)
   declare -r ARRD=(dev devel develop next)
 
-  # process options
-  line=$(IFS=' ' getopt -n "${0}" \
-    -o cefhinrvVwy\? \
-    -l conform,color::,colour::,auto-entry,force,help,init,dry-run,request,verbose,version,what-now,yes,pull,push \
-    -- "${@}" 2>&1) \
-    || err "${line}" 2
-  eval set -- "${line}"
-
   # global variables
-  [ -t 0 ]
+  [[ -t 0 ]]
   declare ISSTDIN=${?}
   declare WHATNOW=0
   declare DRYRUN=0
@@ -1309,6 +1309,14 @@ main() {
   declare PULL=0
   declare PUSH=0
   declare MSGOPEN=0
+
+  # process options
+  line=$(IFS=' ' getopt -n "${0}" \
+    -o cefhinrvVwy\? \
+    -l conform,color::,colour::,auto-entry,force,help,init,dry-run,request,verbose,version,what-now,yes,pull,push \
+    -- "${@}" 2>&1) \
+    || err "${line}" 2
+  eval set -- "${line}"
 
   while [[ ${#} -gt 0 ]]; do
     case ${1} in
