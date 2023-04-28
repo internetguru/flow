@@ -751,6 +751,7 @@ start "merge hotfix with unmerged staging"
   load_log
   assert_contains "${loglines[0]}" "(HEAD -> dev) Merge branch 'staging' into dev"
   assert_contains "${log}" "(tag: v0.0.1, main-0, main) Merge branch 'hotfix-$(whoami)'"
+  assert_equal "$(git show staging:b)" "b"
   assert_equal "$(git show dev:VERSION)" "0.2.0"
   assert_equal "$(git show staging:VERSION)" "0.1.0"
   assert_equal "$(git show main:VERSION)" "0.0.1"
