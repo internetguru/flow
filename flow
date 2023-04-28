@@ -134,6 +134,14 @@ main() {
     confirm 'Type'
   }
 
+  flow_sed() {
+    if command -v gsed >/dev/null; then
+      gsed "${@}"
+    else
+      sed "${@}"
+    fi
+  }
+
   git_status_empty() {
     [[ -z "$(git status --porcelain)" ]]
   }
@@ -152,7 +160,7 @@ main() {
   }
 
   git_remote_url() {
-    git config remote."${ORIGIN}".url | sed -e 's~^git@\([^:]\+\):~https://\1/~' -e 's/\.git$//'
+    git config remote."${ORIGIN}".url | flow_sed -e 's~^git@\([^:]\+\):~https://\1/~' -e 's/\.git$//'
   }
 
   diff_link() {
@@ -183,9 +191,9 @@ main() {
 
   link_esc() {
     [[ -n "${2}" ]] \
-      && sed -e 's/[\/&]/\\&/g' <<< "$(diff_link "${1}" "${2}")" \
+      && flow_sed -e 's/[\/&]/\\&/g' <<< "$(diff_link "${1}" "${2}")" \
       && return
-    sed -e 's/[\/&]/\\&/g' <<< "$(abs_link "${1}")"
+    flow_sed -e 's/[\/&]/\\&/g' <<< "$(abs_link "${1}")"
   }
 
   git_init() {
@@ -381,7 +389,7 @@ main() {
     # hard reset version file regardless of a conflict
     git reset -q "${VERSION}"
     git_checkout "${VERSION}"
-    sed -i '/^<<<<<<< /d;0,/^=======$/s///;/^=======$/d;/^>>>>>>> /d' "${CHANGELOG}"
+    flow_sed -i '/^<<<<<<< /d;0,/^=======$/s///;/^=======$/d;/^>>>>>>> /d' "${CHANGELOG}"
     git_add .
     git_merge --continue
   }
@@ -420,7 +428,7 @@ main() {
   }
 
   parse_version() {
-    echo "${1}" | sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p'
+    echo "${1}" | flow_sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p'
   }
 
   version_gt() {
@@ -875,10 +883,10 @@ main() {
     # always add head stamp or replace the unreleased one
     # shellcheck disable=SC2015
     grep -q "^## \[${UNRELEASED}]" "${CHANGELOG}" \
-      && sed -i "s/^## \[${UNRELEASED}].*/${head_stamp}/" "${CHANGELOG}" \
-      || sed -i "0,/^## /s//${head_stamp%* - }\n\n&/" "${CHANGELOG}"
+      && flow_sed -i "s/^## \[${UNRELEASED}].*/${head_stamp}/" "${CHANGELOG}" \
+      || flow_sed -i "0,/^## /s//${head_stamp%* - }\n\n&/" "${CHANGELOG}"
     [[ -n "${2:-}" ]] \
-      && sed -i "0,/^## \[.*/s//\0\n\n_${2}_/" "${CHANGELOG}"
+      && flow_sed -i "0,/^## \[.*/s//\0\n\n_${2}_/" "${CHANGELOG}"
   }
 
   # 1: stamp
@@ -889,14 +897,14 @@ main() {
     stamp="[${1}]: $(link_esc "${2}" "${3:-}")"
     # update diff stamp if exists
     grep -q "^\[${1//./\.}]" "${CHANGELOG}" \
-      && sed -i "s/^\[${1//./\.}].*/${stamp}/" "${CHANGELOG}" \
+      && flow_sed -i "s/^\[${1//./\.}].*/${stamp}/" "${CHANGELOG}" \
       && return
     # replace unreleased if exists
     grep -q "^\[${UNRELEASED}]" "${CHANGELOG}" \
-      && sed -i "s/^\[${UNRELEASED}].*/${stamp}/" "${CHANGELOG}" \
+      && flow_sed -i "s/^\[${UNRELEASED}].*/${stamp}/" "${CHANGELOG}" \
       && return
     # else add diff stamp
-    sed -i "0,/^\[/s//${stamp}\n&/" "${CHANGELOG}"
+    flow_sed -i "0,/^\[/s//${stamp}\n&/" "${CHANGELOG}"
   }
 
   # 1: keyword
@@ -1111,7 +1119,7 @@ main() {
     git_fetch --all
     git_fetch --tags
     git_fetch "${ORIGIN}" --prune
-    for branch in $(git_branch_format -r | grep "^${ORIGIN}" | sed "s/^${ORIGIN}\///"); do
+    for branch in $(git_branch_format -r | grep "^${ORIGIN}" | flow_sed "s/^${ORIGIN}\///"); do
       [[ "${branch}" == HEAD ]] \
         && continue
       git_checkout "${branch}"
@@ -1199,7 +1207,7 @@ main() {
       && indent=5 \
       && export MANWIDTH=$(( COLUMNS + indent ))
     echo "${tail}" | man --nj --nh -l - 2>/dev/null \
-      | sed "1,2d;/^[[:space:]]*$/d;\${d};s/^ \{${indent}\}//"
+      | flow_sed "1,2d;/^[[:space:]]*$/d;\${d};s/^ \{${indent}\}//"
   }
 
   flow_version() {
