@@ -59,7 +59,7 @@ main() {
       && echo "This appears to be fixable with the --conform option." >&2
     [[ "${2:-}" == 5 ]] \
       && echo "Commit/stash your changes or use the --force option." >&2
-    exit "${2:-1}"
+    flow_finalize "${2:-1}"
   }
 
   setcolor() {
@@ -344,7 +344,7 @@ main() {
       && git_checkout "${BCHD}"
     [[ "${STASHED}" == 1 ]] \
       && git_stash pop
-    exit 0
+    exit "${2:-0}"
   }
 
   is_merged_to() {
@@ -1134,8 +1134,6 @@ main() {
 
   flow_request() {
     validate_git_remote
-    [[ "${ORIGIN}" == "${UPSTREAM}" ]] \
-      || git_push "${ORIGIN}" "${1}"
     git_push "${ORIGIN}" "${1}"
     flow_request_url "${1}"
   }
