@@ -9,7 +9,10 @@ Advance in a branching model according to the current branch or a branch specifi
 
 Additionally, Flow handles version incrementing and maintains a changelog. Before proceeding, it verifies the current repository for branching model compliance and offers to correct any detected imperfections.
 
-[Read more about Flow](https://blog.internetguru.io/tags/flow/)
+- [Installation](#installation)
+- [Flow options](https://github.com/internetguru/flow/blob/dev/flow.1.rst#options)
+- [Usage example](https://github.com/internetguru/flow/blob/dev/flow.1.rst#flow-example)
+- [Blog posts on Flow](https://blog.internetguru.io/categories/flow/)
 
 
 ### Branching model automation
