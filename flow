@@ -10,13 +10,13 @@ DATAPATH=${DATAPATH:-$(dirname "${BASH_SOURCE[0]}")}
 USAGE=${USAGE:-}
 VERF=${VERF:-}
 
-ORIGIN=${ORIGIN:-origin}
-UPSTREAM=${UPSTREAM:-${ORIGIN}}
-CHANGELOG=${CHANGELOG:-CHANGELOG.md}
-VERSION=${VERSION:-VERSION}
-BCHD=${BCHD:-dev}
-BCHS=${BCHS:-staging}
-BCHP=${BCHP:-main}
+ORIGIN=${FLOW_ORIGIN:-origin}
+UPSTREAM=${FLOW_UPSTREAM:-${ORIGIN}}
+CHANGELOG=${FLOW_CHANGELOG:-CHANGELOG.md}
+VERSION=${FLOW_VERSION:-VERSION}
+BCHD=${FLOW_BCHD:-dev}
+BCHS=${FLOW_BCHS:-staging}
+BCHP=${FLOW_BCHP:-main}
 
 main() {
 
@@ -432,15 +432,13 @@ main() {
   }
 
   validate_requirements() {
-    local bash_minv git_minv bash_ver git_ver
-    bash_minv=3.2
-    git_minv=1.8.0
+    local bash_ver git_ver
     bash_ver="$(parse_version "$(bash --version 2>/dev/null)")"
     git_ver="$(parse_version "$(git --version 2>/dev/null)")"
-    version_lte "${bash_minv}" "${bash_ver}" \
-      || err "Required bash version ${bash_minv} or later."
-    version_lte "${git_minv}" "${git_ver}" \
-      || err "Required git version ${git_minv} or later."
+    version_lte "${BASH_MINV}" "${bash_ver}" \
+      || err "Required bash version ${BASH_MINV} or later."
+    version_lte "${GIT_MINV}" "${git_ver}" \
+      || err "Required git version ${GIT_MINV} or later."
   }
 
   # 1) validate repository existence
@@ -1270,6 +1268,8 @@ main() {
   }
 
   # global constants
+  declare -r BASH_MINV=3.2
+  declare -r GIT_MINV=1.8.0
   declare -r SCRIPT_NAME=${0##*/}
   declare -r GREEN=2
   declare -r BLUE=4
