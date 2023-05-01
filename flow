@@ -757,7 +757,7 @@ main() {
     [[ "${branch}" == "${BCHP}" ]] \
       && flow_hotfix "${DEFAULT_HOTFIX}" "${BCHP}" \
       && return
-    # flow prod* -> create/release (default?) hotfix on a prod* branch
+    # flow prod* -> create/release default hotfix on a prod* branch
     is_prod_branch "${branch}" \
       && flow_hotfix "${DEFAULT_HOTFIX}" "${branch}" \
       && return
@@ -1142,8 +1142,11 @@ main() {
 
   flow_request() {
     validate_git_remote
+    local gcb
+    gcb=$(current_branch)
     git_push "${ORIGIN}" "${1}"
-    flow_request_url "${1}"
+    git_push "${ORIGIN}" "${gcb}"
+    request_url_fromto "${gcb}" "${1}"
   }
 
   trim_url() {
@@ -1156,31 +1159,31 @@ main() {
     echo "${url}"
   }
 
-  flow_request_url() {
-    local url upstream_url gcb
-    local to="${1:-${BCHD}}"
+  # 1: from
+  # 2: to
+  request_url_fromto() {
+    local url upstream_url
     url=$(trim_url "$(git config remote."${ORIGIN}".url)")
     upstream_url="$(trim_url "$(git config remote."${UPSTREAM}".url)")"
-    gcb=$(current_branch)
     echo -n 'Pull request URL: '
     case "${url}" in
       *"${BITBUCKET}"*)
         # shellcheck disable=SC1003
         [[ "${url}" == "${upstream_url}" ]] \
-          && echo "https://${url}/compare/${gcb}..$(echo "${url}" | cut -d'/' -f2-3)%3A${to}" \
-          || echo "https://${url}/compare/${gcb}..$(echo "${upstream_url}" | cut -d'/' -f2-3)%3A${to}"
+          && echo "https://${url}/compare/${1}..$(echo "${url}" | cut -d'/' -f2-3)%3A${2}" \
+          || echo "https://${url}/compare/${1}..$(echo "${upstream_url}" | cut -d'/' -f2-3)%3A${2}"
       ;;
       *"${GITHUB}"*)
         # shellcheck disable=SC1003
         [[ "${url}" == "${upstream_url}" ]] \
-          && echo "https://${url}/compare/${to}...${gcb}?expand=1" \
-          || echo "https://${upstream_url}/compare/${to}...$(echo "${url}" | cut -d'/' -f2)%3A${gcb}?expand=1"
+          && echo "https://${url}/compare/${2}...${1}?expand=1" \
+          || echo "https://${upstream_url}/compare/${2}...$(echo "${url}" | cut -d'/' -f2)%3A${1}?expand=1"
       ;;
       *"$GITLAB"*)
         # shellcheck disable=SC1003
         [[ "${url}" == "${upstream_url}" ]] \
-          && echo "https://${url}/compare/${to}...${gcb}" \
-          || echo "https://${upstream_url}/compare/${to}...$(echo "${url}" | cut -d'/' -f2)"
+          && echo "https://${url}/compare/${2}...${1}" \
+          || echo "https://${upstream_url}/compare/${2}...$(echo "${url}" | cut -d'/' -f2)"
       ;;
       *)
         err 'Unsupported remote server name.'
