@@ -1296,7 +1296,7 @@ main() {
   declare -r KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
   declare -r REFSHEADS='refs/heads'
   declare -r REFSTAGS='refs/tags'
-  declare -r ARRP=(main master production prod live)
+  declare -r ARRP=(production prod live main master)
   declare -r ARRS=(staging release rc preprod pre-production release-candidate prerelease)
   declare -r ARRD=(dev devel develop next)
 
