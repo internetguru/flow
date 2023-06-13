@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
 ### Added
  - All key branches validation on existence and merge status.
  - Version validation across all key branches.
@@ -30,8 +32,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
  - Show usage after all invalid option error.
  - Show hint after all fixable validation errors.
  - Project renamed from 'omgf' to 'flow'
-
-## [Unreleased]
 
 ## [2.2.0] - 2017-06-05
 ### Changed
