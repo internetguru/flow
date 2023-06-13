@@ -1,0 +1,28 @@
+name: tests
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  test:
+    name: BUTT tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+    - name: Install build requirements
+      run: sudo apt-get install -y man docutils-common
+    - name: Setup git user
+      run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "gh-actions"
+          git config --global init.defaultBranch "master"
+    - name: Build and install Flow
+      run: |
+        ./configure && make && sudo ./compiled/install
+    - name: Install BUTT
+      run: |
+        curl -sL https://github.com/InternetGuru/butt/releases/download/v0.3.0/butt.sh > butt
+        chmod +x butt
+    - name: Run tests
+      run: ./butt -vw. test/test.butt
+      env:
+        TERM: dumb

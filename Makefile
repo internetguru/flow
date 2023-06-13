@@ -19,11 +19,11 @@ SYSTEM       ?= $(system)
 SHELL       := /bin/bash
 DIRNAME     := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 RST2MAN     := rst2man
-PROG        := omgf
-PROGSINGLE  := omgf.sh
-DATAPATHVAR := OMGF_DATAPATH
-USAGEVAR    := OMGF_USAGE
-VERSIONVAR  := OMGF_VERNUM
+PROG        := flow
+PROGSINGLE  := flow.sh
+DATAPATHVAR := DATAPATH
+USAGEVAR    := USAGE
+VERSIONVAR  := VERF
 README      := README.md
 MANFILE     := $(PROG).1
 MANRST      := $(PROG).1.rst
@@ -52,7 +52,7 @@ define compile_usage
 	@ echo -n "$(USAGEHEADER)" > $(COMPILEDIR)/$(USAGEFILE)
 	@ grep "^$(PROG) \[" $(MANRST) | sed 's/\\|/|/g' >> $(COMPILEDIR)/$(USAGEFILE)
 	@ echo ".TH" >> $(COMPILEDIR)/$(USAGEFILE)
-	@ sed -n '/^OPTIONS/,/^BASIC FLOW EXAMPLES/p' $(MANRST)  | grep -v "^\(BASIC FLOW EXAMPLES\|OPTIONS\|======\)" \
+	@ sed -n '/^OPTIONS/,/^EXIT CODES/p' $(MANRST)  | grep -v "^\(EXIT CODES\|OPTIONS\|======\)" \
 	| sed 's/^\\//;s/^-/.TP 18\n-/' | sed 's/^    //' | sed '/^$$/d' >> $(COMPILEDIR)/$(USAGEFILE)
 	@ echo DONE
 endef
@@ -78,13 +78,13 @@ compile:
 	@ # Extract text from README between headers and convert it to troff syntax
 	@ echo -n "Compiling man file ..."
 	@ { \
-	echo -n ".TH \"OMGF\" \"1\" "; \
+	echo -n ".TH \"FLOW\" \"1\" "; \
 	echo -n "\""; echo -n $$(stat -c %z $(MANRST) | cut -d" " -f1); echo -n "\" "; \
 	echo -n "\"User Manual\" "; \
 	echo -n "\"Version "; echo -n $$(cat $(VERFILE)); echo -n "\" "; \
 	echo; \
 	} > $(COMPILEDIR)/$(MANFILE)
-	@ sed 's/`\([^`]\+\)<\([^>]\+\)>`__/\1\n  \2/g' $(MANRST) | $(RST2MAN) | tail -n+8 >> $(COMPILEDIR)/$(MANFILE)
+	@ sed 's/`\([^`]\+\)<\([^>]\+\)>`__/\1\n  \2/g' $(MANRST) | $(RST2MAN) | tail -n+33 >> $(COMPILEDIR)/$(MANFILE)
 	@ echo DONE
 
 	@ # Copy README and MAN rst into COMPILEDIR
