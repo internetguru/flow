@@ -13,15 +13,18 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Install requirements
+      run: sudo apt install -y python3-docutils
+
     - name: configure
       run: ./configure
 
     - name: Make dist
       run: make dist
-    
+
     - name: Make distsingle
       run: make distsingle
-    
+
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
