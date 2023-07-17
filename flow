@@ -1,0 +1,1377 @@
+#!/usr/bin/env bash
+
+shopt -s extglob
+set -u
+
+LINES=${LINES:-$(tput lines)}
+COLUMNS=${COLUMNS:-$(tput cols)}
+
+DATAPATH=${DATAPATH:-$(dirname "${BASH_SOURCE[0]}")}
+USAGE=${USAGE:-}
+VERF=${VERF:-}
+
+ORIGIN=${FLOW_ORIGIN:-origin}
+UPSTREAM=${FLOW_UPSTREAM:-${ORIGIN}}
+CHANGELOG=${FLOW_CHANGELOG:-CHANGELOG.md}
+VERSION=${FLOW_VERSION:-VERSION}
+BCHD=${FLOW_BCHD:-dev}
+BCHS=${FLOW_BCHS:-staging}
+BCHP=${FLOW_BCHP:-main}
+
+main() {
+
+  msg_start() {
+    [[ ${VERBOSE} == 0 ]] \
+      && return
+    MSGOPEN=1
+    [[ "$(stdoutpipe)" || ${COLUMNS} -lt 41 ]] \
+      && echo -n "${1}" \
+      && return
+    echo -n '[ '
+    save_cursor_position
+    echo " ....  ] ${1}"
+  }
+
+  msg_done() {
+    msg_end "$(colorize ' done ' "${GREEN}")"
+  }
+
+  msg_pass() {
+    msg_end "$(colorize ' pass ' "${BLUE}")"
+  }
+
+  msg_end() {
+    [[ ${VERBOSE} == 0 || ${MSGOPEN} == 0 ]] \
+      && return
+    MSGOPEN=0
+    [[ "$(stdoutpipe)" || ${COLUMNS} -lt 41 ]] \
+      && echo " [ ${1} ]" \
+      && return
+    set_cursor_position
+    echo "${1}"
+  }
+
+  err() {
+    echo "${SCRIPT_NAME}: ${1:-Generic error}" >&2
+    [[ "${2:-}" == 2 ]] \
+      && echo "Run with --help to display usage." >&2
+    [[ "${2:-}" == 3 ]] \
+      && echo "This appears to be fixable with the --conform option." >&2
+    [[ "${2:-}" == 5 ]] \
+      && echo "Commit/stash your changes or use the --force option." >&2
+    flow_finalize "${2:-1}"
+  }
+
+  setcolor() {
+    local c=${1:-always}
+    case ${c} in
+      always|never|auto)
+        COLOR=${c}
+        return 0
+      ;;
+    esac
+    err 'Unknown color value' 2
+  }
+
+  stdoutpipe() {
+    readlink /proc/$$/fd/1 | grep -q '^pipe:'
+  }
+
+  colorize() {
+    [[ ${COLOR} == never ]] \
+      && echo -n "${1}" \
+      && return
+    [[ ${COLOR} == auto ]] \
+      && stdoutpipe \
+      && echo -n "${1}" \
+      && return
+    tput setaf "${2:-${GREEN}}"
+    echo -n "${1}"
+    tput sgr0
+  }
+
+  clear_stdin() {
+    while read -r -t 0; do read -r; done
+  }
+
+  save_cursor_position() {
+    local curpos oldstty
+    curpos='1;1'
+    exec < /dev/tty
+    oldstty=$(stty -g)
+    stty raw -echo min 0
+    echo -en '\033[6n' >/dev/tty
+    # shellcheck disable=SC2162
+    read -d'R' curpos </dev/tty
+    stty "${oldstty}"
+    POSX=$( echo "${curpos#??}" | cut -d';' -f1 )
+    POSY=$( echo "${curpos#??}" | cut -d';' -f2 )
+  }
+
+  set_cursor_position() {
+    [[ "${POSX}" == "${LINES}" ]] && : $(( POSX -- ))
+    tput cup $(( POSX - 1 )) $(( POSY - 1 ))
+  }
+
+  confirm() {
+    [[ ${DRYRUN} == 1 ]] \
+      && flow_finalize
+    [[ ${YES} == 1 ]] \
+      && return
+    if [[ ${ISSTDIN} == 0 ]]; then
+      echo -n "${1:-'Are you sure?'} [YES/No] "
+      save_cursor_position
+      clear_stdin
+      read -r
+      [[ -z "${REPLY}" ]] && set_cursor_position && echo 'yes'
+    else
+      read -r
+    fi
+    [[ "${REPLY,,}" =~ ^y(es)?$ || -z "${REPLY}" ]] \
+      && return
+    [[ "${REPLY,,}" =~ ^no?$ ]] \
+      && flow_finalize
+    confirm 'Type'
+  }
+
+  flow_sed() {
+    if command -v gsed >/dev/null; then
+      gsed "${@}"
+    else
+      sed "${@}"
+    fi
+  }
+
+  git_status_empty() {
+    [[ -z "$(git status --porcelain)" ]]
+  }
+
+  git_checkout() {
+    local out
+    out="$(git checkout "${@}" 2>&1)" \
+      || err "${out}"
+  }
+
+  git_log() {
+    local out
+    out="$(git log "${@}" 2>&1)" \
+      || err "${out}"
+    echo "${out}"
+  }
+
+  git_remote_url() {
+    git config remote."${ORIGIN}".url | flow_sed -e 's~^git@\([^:]\+\):~https://\1/~' -e 's/\.git$//'
+  }
+
+  diff_link() {
+    local url
+    url=$(git_remote_url)
+    local from=${1}
+    is_valid_version "${from}" \
+      && from="v${1}"
+    local to=${2}
+    is_valid_version "${to}" \
+      && to="v${2}"
+    case "${url}" in
+      *"${GITHUB}"*) echo "https://${url}/compare/${from}...${to}" ;;
+      *"${GITLAB}"*) echo "https://${url}/compare/${from}...${to}" ;;
+      *"${BITBUCKET}"*) echo "https://${url}/compare/${to}..${from}" ;;
+      *) echo "git diff ${from}..${to}" ;;
+    esac
+  }
+
+  abs_link() {
+    local url
+    url=$(git_remote_url)
+    [[ -n "${url}" ]] \
+      && echo "${url}/releases/tag/v${1}" \
+      && return
+    echo "git log v${1}"
+  }
+
+  link_esc() {
+    [[ -n "${2}" ]] \
+      && flow_sed -e 's/[\/&]/\\&/g' <<< "$(diff_link "${1}" "${2}")" \
+      && return
+    flow_sed -e 's/[\/&]/\\&/g' <<< "$(abs_link "${1}")"
+  }
+
+  git_init() {
+    local out
+    out="$(git init "${@}" 2>&1)" \
+      || err "${out}"
+  }
+
+  git_add() {
+    local out
+    out="$(git add "${@}" 2>&1)" \
+      || err "${out}"
+  }
+
+  git_commit() {
+    local out
+    out="$(git commit "${@}" 2>&1)" \
+      || err "${out}"
+  }
+
+  git_stash() {
+    local out
+    out="$(git stash "${@}" 2>&1)" \
+      || err "${out}"
+  }
+
+  git_fetch() {
+    local out
+    out="$(git fetch --update-head-ok "${@}" 2>&1)" \
+      || err "${out}"
+  }
+
+  git_tag() {
+    local out
+    out="$(git tag "${@}" 2>&1)" \
+      || err "${out}" >&2
+  }
+
+  top_vertag() {
+    git tag --list | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -1 | tr -d v
+  }
+
+  git_merge_nocommit() {
+    env GIT_EDITOR=: git merge --no-ff --no-commit "${@}" >/dev/null 2>&1
+  }
+
+  git_merge() {
+    local out
+    out="$(env GIT_EDITOR=: git merge "${@}" 2>&1)" \
+      || err "${out}"
+  }
+
+  git_show() {
+    local out
+    out="$(git show "${@}" 2>&1)" \
+      || err "${out}"
+    echo "${out}"
+  }
+
+  git_show_exists() {
+    git show "${@}" >/dev/null 2>&1
+  }
+
+  latest_commit() {
+    git rev-parse "${1}"
+  }
+
+  git_rev_list() {
+    git rev-list -n1 "${1}"
+  }
+
+  git_branch() {
+    local out
+    out="$(git branch "${@}" 2>&1)" \
+      || err "${out}"
+  }
+
+  git_branch_format() {
+    local out
+    out="$(git branch --format='%(refname:short)' "${@}" 2>&1)" \
+      || err "${out}"
+    echo "${out}"
+  }
+
+  git_push() {
+    local out
+    out="$(git push "${@}" 2>&1)" \
+      || err "${out}"
+  }
+
+  checkout_branch() {
+    #msg_start "Creating branch '${1}' on '${2}'"
+    local out
+    out="$(git_checkout -b "${1}" "${2}")" \
+      || err "${out}"
+    #msg_done
+  }
+
+  validate_branch() {
+    branch_exists "${1}" \
+      && validate_behind "${1}" \
+      && return
+    [[ ${CONFORM} == 0 ]] \
+      && err "Local branch '${1}' not found." 3
+    confirm "Create branch '${1}'?"
+    create_branch "${1}"
+    [[ ${INIT} == 1 ]] \
+      && INITED=1
+  }
+
+  is_behind_origin() {
+    git branch --verbose --list "${1}" | grep --quiet ' \[behind '
+  }
+
+  validate_behind() {
+    ! is_behind_origin "${1}" \
+      && return
+    [[ ${CONFORM} == 0 ]] \
+      && err "Local branch '${1}' is behind remote." 3
+    confirm "Merge branch '${1}' with its remote?"
+    update_branch "${1}"
+  }
+
+  create_branch() {
+    branch_exists "${ORIGIN}/${1}" \
+      && git_branch "${1}" "${ORIGIN}/${1}" \
+      && return
+    branch_exists "${BCHP}" \
+      && git_branch "${1}" "${BCHP}" \
+      && return
+    git_branch "${1}"
+  }
+
+  branch_exists() {
+    [[ $(current_branch) == "${1}" ]] \
+     || git_branch_format --all | grep -q -E "^${1}\$"
+  }
+
+  has_tag() {
+    [[ -n $(git tag --merged "${1}" -l "${2}") ]]
+  }
+
+  git_repo_exists() {
+    [[ -d .git ]]
+  }
+
+  validate_git_remote() {
+    git config remote."${ORIGIN}".url >/dev/null \
+      || err "Remote url for '${ORIGIN}' not found."
+  }
+
+  current_branch() {
+    git_branch_format --show-current
+  }
+
+  flow_finalize() {
+    [[ "${INITED}" == 1 ]] \
+      && git_checkout "${BCHD}"
+    [[ "${STASHED}" == 1 ]] \
+      && git_stash pop
+    exit "${1:-0}"
+  }
+
+  is_merged_to() {
+    git_branch_format --merged "${2}" | grep -q "^${1}$"
+  }
+
+  # merge upwards preserving conflicts
+  # merge downwards ignoring VERSION and CHANGELOG conflicts
+  # upwards: feature->dev->release->master, hotfix->master
+  # downwards: master->release->dev
+  merge_fromto() {
+    local stream='upwards'
+    [[ "${1}" == "${BCHP}" || "${2}" == "${BCHD}" ]] \
+      && stream='downwards'
+    [[ "${1}" == "${BCHD}" || "${2}" == "${BCHS}" ]] \
+      && is_attached_to "${BCHD}" "${BCHS}" \
+      && stream='downwards'
+    msg_start "Merging '${1}' to '${2}' (${stream})."
+    git_checkout "${2}"
+    is_merged_to "${1}" "${2}" \
+      && msg_pass \
+      && return
+    git_merge_stream "${1}" "${stream}"
+    msg_done
+  }
+
+  git_merge_stream() {
+    [[ "${2}" == 'upwards' ]] \
+      && git_merge --no-ff "${1}" \
+      && return
+    git_merge_nocommit "${1}"
+    # hard reset version file regardless of a conflict
+    git reset -q "${VERSION}"
+    git_checkout "${VERSION}"
+    flow_sed -i '/^<<<<<<< /d;0,/^=======$/s///;/^=======$/d;/^>>>>>>> /d' "${CHANGELOG}"
+    git_add .
+    git_merge --continue
+  }
+
+  delete_remote_branch() {
+    msg_start "Deleting remote branch '${1}'"
+    ! branch_exists "${ORIGIN}/${1}" \
+      && msg_pass \
+      && return
+    #TODO: used to be:
+    #git push "${ORIGIN}" ":${REFSHEADS}/${1}" 2>&1
+    git push -qd "${ORIGIN}" "${1}"
+    msg_done
+  }
+
+  delete_branch() {
+    [[ "$(current_branch)" == "${1}" ]] \
+      && err 'Unable to delete checked branch'
+    delete_remote_branch "${1}"
+    msg_start "Deleting local branch '${1}'"
+    git_branch -d "${1}"
+    msg_done
+  }
+
+  load_version() {
+    local branch ver
+    branch=${1:-$(current_branch)}
+    git_show_exists "${branch}:${VERSION}" \
+      && ver=$(git_show "${branch}:${VERSION}") \
+      && is_valid_version "${ver}" \
+      && echo "${ver}"
+  }
+
+  is_valid_version() {
+    [[ "${1}" =~ ^[0-9]+\.[0-9]+\.[0-9]$ ]]
+  }
+
+  parse_version() {
+    echo "${1}" | flow_sed -n 's/.*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p'
+  }
+
+  version_gt() {
+    ! version_lte "${1}" "${2}"
+  }
+
+  version_lte() {
+    [[ "${1}" == "$(echo -e "${1}\n${2}" | sort -V | head -n1)" ]]
+  }
+
+  validate_requirements() {
+    local bash_ver git_ver
+    bash_ver="$(parse_version "$(bash --version 2>/dev/null)")"
+    git_ver="$(parse_version "$(git --version 2>/dev/null)")"
+    version_lte "${BASH_MINV}" "${bash_ver}" \
+      || err "Required bash version ${BASH_MINV} or later."
+    version_lte "${GIT_MINV}" "${git_ver}" \
+      || err "Required git version ${GIT_MINV} or later."
+  }
+
+  # 1) validate repository existence
+  # 2) validate repository consistency:
+  # - at least one commit
+  # - master branch
+  validate_repository() {
+    git_repo_exists \
+      && [[ -n "$(git_branch_format)" ]] \
+      && return
+    [[ ${INIT} == 0 ]] \
+      && ! git_repo_exists \
+      && err 'Git repository not found.' 3
+    [[ ${INIT} == 0 ]] \
+      && [[ -z "$(git_branch_format)" ]] \
+      && err 'Missing initial commit.' 3
+    [[ "$(ls -A .)" && "${FORCE}" == 0 ]] \
+      && err 'Folder is not empty.' 5
+    confirm "Initialize repository?"
+    msg_start 'Initializing repository'
+    # this requires newer git version
+    #git_init --initial-branch="${BCHP}"
+    ! git_repo_exists \
+      && git_init . \
+      && git symbolic-ref HEAD "refs/heads/${BCHP}"
+    git_commit --allow-empty -m 'Initial commit'
+    INITED=1
+    msg_done
+  }
+
+  hotfix_vertag() {
+    [[ ${CONFORM} == 0 ]] \
+      && err "Invalid version tag 'v${1}' commit." 3
+    confirm 'Hotfix version tag?'
+    #TODO hotfix
+    local ver
+    ver=$(increment_patch "${1}")
+    update_version "${BCHP}" "${ver}"
+    git_tag "v${ver}" "${BCHP}"
+  }
+
+  validate_tag() {
+    has_tag "${BCHP}" "v${VERP}" \
+      && [[ $(git_rev_list "${REFSTAGS}/v${VERP}") == "$(latest_commit "${BCHP}")" ]] \
+      && return
+    has_tag "${BCHP}" "v${VERP}" \
+      && hotfix_vertag "${VERP}" \
+      && return
+    [[ ${CONFORM} == 0 ]] \
+      && err "Missing version tag 'v${VERP}'." 3
+    confirm 'Create version tag?'
+    git_tag "v${VERP}" "${BCHP}"
+  }
+
+  validate_merged_to() {
+    is_merged_to "${1}" "${2}" \
+      && return
+    [[ ${CONFORM} == 0 ]] \
+      && err "Branch '${1}' is not merged into '${2}'." 3
+    confirm "Merge branch '${1}' into '${2}'?"
+    merge_fromto "${1}" "${2}"
+  }
+
+  is_attached_to() {
+    [[ $(git_rev_list "${REFSHEADS}/${1}") == $(git_rev_list "${REFSHEADS}/${2}") ]]
+  }
+
+  update_version() {
+    local gcb
+    gcb=$(current_branch)
+    msg_start 'Updating version number'
+    git_checkout "${1}"
+    echo "${2}" > "${VERSION}"
+    git_add "${VERSION}"
+    git_commit -am 'Update version number'
+    msg_done
+    git_checkout "${gcb}"
+  }
+
+  # validate git status
+  validate_status_empty() {
+    [[ ${FORCE} == 1 ]] \
+      && msg_start 'Stashing files'
+    git_status_empty \
+      && msg_pass \
+      && return
+    [[ ${FORCE} == 0 ]] \
+      && err 'Uncommitted changes.' 5
+    git_add -A
+    git_stash push
+    msg_done
+    STASHED=1
+  }
+
+  default_changelog() {
+    local url
+    url=$(git_remote_url)
+    echo '# Change Log'
+    echo 'All notable changes to this project will be documented in this file.'
+    echo
+    echo 'The format is based on [Keep a Changelog](http://keepachangelog.com/)'
+    echo 'and this project adheres to [Semantic Versioning](http://semver.org/).'
+    echo
+    echo "## [${1}] - $(date "${DATE_FORMAT}")"
+    echo
+    echo "### Added"
+    echo
+    echo "- New changelog file."
+    echo
+    echo "[${1}]: $(abs_link "${1}")"
+  }
+
+  # 1: source branch, empty for default changelog
+  restore_changelog() {
+    [[ -z "${1:-}" ]] \
+      && default_changelog "$(load_version)" > "${CHANGELOG}" \
+      && return
+    git_show "${1}:${CHANGELOG}" > "${CHANGELOG}"
+  }
+
+  # 1: branch
+  # 2: restore from branch, empty for create new
+  # 3: head stamp version or 'unreleased'
+  # 4: foot stamp from or empty
+  # 5: foot stamp to or empty
+  validate_changelog() {
+    git_show_exists "${1}:${CHANGELOG}" \
+      && [[ -n $(git_show "${1}:${CHANGELOG}") ]] \
+      && git_show "${1}:${CHANGELOG}" | grep -q "^## \[${3//./\.}]" \
+      && git_show "${1}:${CHANGELOG}" | grep -q "^\[${3//./\.}]" \
+      && return
+    [[ ${CONFORM} == 0 ]] \
+      && err "Missing or invalid changelog file on ${1}." 3
+    confirm "Conform changelog file on ${1}?"
+    local gcb
+    gcb=$(current_branch)
+    git_checkout "${1}"
+    # changelog must exist and must be unempty
+    [[ ! -f "${CHANGELOG}" || ! -s "${CHANGELOG}" ]] \
+      && restore_changelog "${2}"
+    # changelog must contain some heading and diff stamp
+    # shellcheck disable=SC2015
+    grep -q '^## ' "${CHANGELOG}" \
+      && grep -q '^\[' "${CHANGELOG}" \
+      || restore_changelog "${2}"
+    # shellcheck disable=SC2015
+    ! grep -q "^## \[${3//./\.}]" "${CHANGELOG}" \
+      && changelog_head "${3}"
+    ! grep -q "^\[${3//./\.}]" "${CHANGELOG}" \
+      && changelog_foot "${3}" "${4:-${3}}" "${5:-}"
+    git_add -- "${CHANGELOG}"
+    git_commit -am "Conform changelog file on '${1}'"
+    git_checkout "${gcb}"
+  }
+
+  # 1: branch
+  # 2: min version
+  validate_version() {
+    local ver
+    ver=$(load_version "${1}")
+    [[ -n "${ver}" ]] \
+      && ! version_gt "${2:-0.0.0}" "${ver}" \
+      && return
+    [[ ${CONFORM} == 0 ]] \
+      && err "Missing or invalid version file on ${1}." 3
+    confirm "Conform version file on ${1}?"
+    local gcb
+    gcb=$(current_branch)
+    git_checkout "${1}"
+    echo "${2:-0.0.0}" > "${VERSION}"
+    git_add "${VERSION}"
+    git_commit -am "Conform version file on ${1}"
+    git_checkout "${gcb}"
+  }
+
+  find_or_first() {
+    for branch in "${@}"; do
+      branch_exists "${branch}" \
+        && echo "${branch}" \
+        && return
+    done
+    for branch in "${@}"; do
+      branch_exists "${ORIGIN}/${branch}" \
+        && echo "${branch}" \
+        && return
+    done
+    echo "${1}"
+  }
+
+  flow_validate() {
+    local gcb
+    gcb=$(current_branch)
+    BCHP=$(find_or_first "${BCHP}" "${ARRP[@]}")
+    BCHS=$(find_or_first "${BCHS}" "${ARRS[@]}")
+    BCHD=$(find_or_first "${BCHD}" "${ARRD[@]}")
+    validate_branch "${BCHP}"
+    validate_version "${BCHP}" "$(top_vertag)"
+    VERP=$(load_version "${BCHP}")
+    validate_changelog "${BCHP}" "" "${VERP}"
+    validate_tag
+    validate_prod_branch
+    validate_branch "${BCHS}"
+    validate_branch "${BCHD}"
+    validate_merged_to "${BCHP}" "${BCHD}"
+    VERS=${VERP}
+    ! is_attached_to "${BCHP}" "${BCHS}" \
+      && validate_merged_to "${BCHP}" "${BCHS}" \
+      && validate_version "${BCHS}" "$(increment_minor "${VERP}")" \
+      && VERS=$(load_version "${BCHS}") \
+      && validate_changelog "${BCHS}" "${BCHP}" "${VERS}-rc.1" "${VERP}"
+    validate_merged_to "${BCHS}" "${BCHD}"
+    validate_version "${BCHD}" "$(increment_minor "${VERS}")"
+    VERD=$(load_version "${BCHD}")
+    validate_changelog "${BCHD}" "${BCHS}" "${UNRELEASED}" "${BCHS}" "${BCHD}"
+    validate_param "${1:-}"
+    validate_param "${DEFAULT_HOTFIX}"
+    validate_param "${DEFAULT_FEATURE}"
+    git_checkout "${gcb}"
+  }
+
+  is_prod_branch() {
+    [[ "${1}" =~ ^${BCHP}-[0-9]+$ ]]
+  }
+
+  # prod* must exist
+  # else optional
+  validate_param() {
+    [[ -z "${1}" ]] \
+      && return
+    branch_exists "${ORIGIN}/${1}" \
+      && ! branch_exists "${1}" \
+      && git_branch "${1}" "${ORIGIN}/${1}"
+    ! branch_exists "${1}" \
+      && ! is_prod_branch "${1}" \
+      && return
+    ! branch_exists "${1}" \
+      && err "Expected branch '${1}' not found." 4
+    validate_behind "${1}"
+  }
+
+  validate_prod_branch() {
+    local prod="${BCHP}-${VERP%%.*}"
+    validate_branch "${prod}"
+    is_attached_to "${prod}" "${BCHP}" \
+      && return
+    [[ ${CONFORM} == 0 ]] \
+      && err "Branch '${prod}' is behind '${BCHP}'." 3
+    confirm "Merge branch '${prod}' into '${BCHP}'?"
+    git_checkout "${prod}"
+    git_merge "${BCHP}"
+  }
+
+  get_key_branch() {
+    [[ " ${ARRP[*]} " == *" ${1} "* ]] \
+      && echo "${BCHP}" \
+      && return
+    [[ " ${ARRS[*]} " == *" ${1} "* ]] \
+      && echo "${BCHS}" \
+      && return
+    [[ " ${ARRD[*]} " == *" ${1} "* ]] \
+      && echo "${BCHD}" \
+      && return
+    echo "${1}"
+  }
+
+  is_hotfix_branch() {
+    [[ "$(git merge-base "${1}" "${BCHD}")" == "$(git merge-base "${BCHP}" "${BCHD}")" ]]
+  }
+
+  # 1: dest branch
+  # 2: source branch or empty
+  flow_hotfix() {
+    branch_exists "${1}" \
+      && release_hotfix "${1}" \
+      && return
+    local branch="${BCHP}"
+    [[ "$(is_prod_branch "$(current_branch)")" ]] \
+      && branch=$(current_branch)
+    [[ -n "${2:-}" ]] \
+      && branch="${2}"
+    create_hotfix "${1}" "${branch}"
+  }
+
+  # 1: dest branch
+  flow_feature() {
+    branch_exists "${1}" \
+      && release_feature "${1}" \
+      && return
+    create_feature "${1}"
+  }
+
+  flow_action() {
+    local branch
+    branch=$(get_key_branch "${1:-"$(current_branch)"}")
+    # shellcheck disable=SC2015
+    git check-ref-format "${REFSHEADS}/${branch}" \
+      && [[ "${branch,,}" != "head" ]] \
+      || err "Invalid branch name." 2
+    # flow dev* -> release dev
+    [[ "${branch}" == "${BCHD}" ]] \
+      && release_dev \
+      && return
+    # flow staging* -> release staging
+    [[ "${branch}" == "${BCHS}" ]] \
+      && release_staging \
+      && return
+    # flow stable* -> create/release default hotfix
+    [[ "${branch}" == "${BCHP}" ]] \
+      && flow_hotfix "${DEFAULT_HOTFIX}" "${BCHP}" \
+      && return
+    # flow prod* -> create/release default hotfix on a prod* branch
+    is_prod_branch "${branch}" \
+      && flow_hotfix "${DEFAULT_HOTFIX}" "${branch}" \
+      && return
+    # flow hotfix -> create/release default hotfix on a stable or prod* branch
+    [[ "${branch}" == "${HOTFIX}" ]] \
+      && flow_hotfix "${DEFAULT_HOTFIX}" \
+      && return
+    # flow feature -> create/release default feature
+    [[ "${branch}" == "${FEATURE}" ]] \
+      && flow_feature "${DEFAULT_FEATURE}" \
+      && return
+    # flow other existing hotfix branch -> release hotfix
+    branch_exists "${branch}" \
+      && is_hotfix_branch "${branch}" \
+      && release_hotfix "${branch}" \
+      && return
+    # if other existing branch -> release feature
+    branch_exists "${branch}" \
+      && release_feature "${branch}" \
+      && return
+    # if on stable|prod -> create hotfix branch
+    is_hotfix_branch "$(current_branch)" \
+      && create_hotfix "${1}" "$(current_branch)" \
+      && return
+    # create feature branch
+    create_feature "${1}"
+  }
+
+  release_dev() {
+    is_attached_to "${BCHS}" "${BCHP}" \
+      && create_staging \
+      && return
+    increment_staging
+  }
+
+  create_staging() {
+    confirm "* Create new release candidate from '${BCHD}'?"
+    msg_start 'Creating new release candidate'
+    merge_fromto "${BCHD}" "${BCHS}"
+    changelog_head "${VERD}-rc.1"
+    changelog_foot "${VERD}-rc.1" "${VERP}"
+    git_add .
+    git_commit -am 'Update changelog'
+    msg_done
+    merge_fromto "${BCHS}" "${BCHD}"
+    increment_minor "${VERD}" > "${VERSION}"
+    changelog_head "${UNRELEASED}"
+    changelog_foot "${UNRELEASED}" "${BCHS}" "${BCHD}"
+    git_commit -am "Update changelog and increment version"
+    git_checkout "${BCHS}"
+  }
+
+  increment_staging() {
+    confirm "* Increment release candidate from '${BCHD}'?"
+    msg_start 'Incrementing release candidate'
+    merge_fromto "${BCHD}" "${BCHS}"
+    local nthrc=$(( $(grep -c "^## \[${VERS//./\.}-rc\." "${CHANGELOG}") + 1 ))
+    changelog_head "${VERS}-rc.${nthrc}"
+    changelog_foot "${VERS}-rc.${nthrc}" "${VERP}"
+    echo "${VERS}" > "${VERSION}"
+    git_add .
+    git_commit -am 'Update changelog and restore version'
+    msg_done
+    merge_fromto "${BCHS}" "${BCHD}"
+    changelog_head "${UNRELEASED}"
+    changelog_foot "${UNRELEASED}" "${BCHS}" "${BCHD}"
+    git_commit -am "Update changelog"
+    git_checkout "${BCHS}"
+  }
+
+  create_feature() {
+    confirm "* Create feature '${1}' from '${BCHD}'?"
+    checkout_branch "${1}" "${BCHD}"
+  }
+
+  # 1 dest name
+  # 2 source branch
+  create_hotfix() {
+    confirm "* Create hotfix '${1}' from '${2}'?"
+    checkout_branch "${1}" "${2}"
+  }
+
+  release_staging() {
+    # shellcheck disable=SC2015
+    [[ ${REQUEST} == 1 ]] \
+      && confirm "* Request merge '${BCHS}' to '${BCHP}'?" \
+      || confirm "* Release '${BCHS}' branch to '${BCHP}'?"
+    is_attached_to "${BCHS}" "${BCHP}" \
+      && err 'Staging branch is already released.' 6
+    merge_fromto "${BCHP}" "${BCHS}"
+    msg_start 'Updating changelog'
+    local note
+    note="Stable release based on $(grep -om1 "^\[[^\]\+]" "${CHANGELOG}")."
+    changelog_head "${VERS}" "${note}"
+    changelog_foot "${VERS}" "${VERP}" "${VERS}"
+    git_add -- "${CHANGELOG}"
+    git_commit -am 'Update changelog'
+    msg_done
+    [[ ${REQUEST} == 1 ]] \
+      && flow_request "${BCHP}" \
+      && return
+    merge_fromto "${BCHS}" "${BCHP}"
+    msg_start 'Updating branching structure'
+    git_tag "v${VERS}"
+    git_checkout "${BCHS}"
+    git_merge "${BCHP}"
+    local prod="${BCHP}-${VERS%%.*}"
+    # shellcheck disable=SC2015
+    branch_exists "${prod}" \
+      && git_checkout "${prod}" \
+      && git_merge "${BCHP}" \
+      || git_branch "${prod}"
+    msg_done
+    merge_fromto "${BCHP}" "${BCHD}"
+  }
+
+  # 1: stamp version or empty for unreleased
+  # 2: optional note
+  changelog_head() {
+    local head_stamp="## [${1}]"
+    [[ "${1}" != "${UNRELEASED}" ]] \
+      && head_stamp="## [${1}] - $(date "${DATE_FORMAT}")"
+    # always add head stamp or replace the unreleased one
+    # shellcheck disable=SC2015
+    grep -q "^## \[${UNRELEASED}]" "${CHANGELOG}" \
+      && flow_sed -i "s/^## \[${UNRELEASED}].*/${head_stamp}/" "${CHANGELOG}" \
+      || flow_sed -i "0,/^## /s//${head_stamp%* - }\n\n&/" "${CHANGELOG}"
+    [[ -n "${2:-}" ]] \
+      && flow_sed -i "0,/^## \[.*/s//\0\n\n_${2}_/" "${CHANGELOG}"
+  }
+
+  # 1: stamp
+  # 2: from or at (if to is empty)
+  # 3: to or empty
+  changelog_foot() {
+    local stamp
+    stamp="[${1}]: $(link_esc "${2}" "${3:-}")"
+    # update diff stamp if exists
+    grep -q "^\[${1//./\.}]" "${CHANGELOG}" \
+      && flow_sed -i "s/^\[${1//./\.}].*/${stamp}/" "${CHANGELOG}" \
+      && return
+    # replace unreleased if exists
+    grep -q "^\[${UNRELEASED}]" "${CHANGELOG}" \
+      && flow_sed -i "s/^\[${UNRELEASED}].*/${stamp}/" "${CHANGELOG}" \
+      && return
+    # else add diff stamp
+    flow_sed -i "0,/^\[/s//${stamp}\n&/" "${CHANGELOG}"
+  }
+
+  # 1: keyword
+  # 2: message
+  add_changelog_entry() {
+    local tmpfile
+    tmpfile="$(mktemp)"
+    gawk -v kw="${1}" -v msg="${2}" -v kws="${KEYWORDS[*]#*${1}}" '
+      function add_entry () {
+        print "### " kw
+        print ""
+        print "- " msg
+        print ""
+      }
+      BEGIN {
+        before = 1
+        after = 0
+      }
+      /^$/ {
+        print
+        next
+      }
+      /^## \[/ && before == 1 && after == 0 {
+        before = 0
+        print
+        next
+      }
+      /^## \[/ && before == 0 {
+        if (after == 0) {
+          add_entry()
+        }
+        after = 1
+        print
+        next
+      }
+      before == 1 || after == 1 {
+        print
+        next
+      }
+      $0 ~ "^### " kw {
+        print
+        getline
+        print
+        print "- " msg
+        after = 1
+        next
+      }
+      $0 ~ "^### " kws {
+        add_entry()
+        print
+        after = 1
+        next
+      }
+      {
+        print
+      }
+    ' "${CHANGELOG}" > "${tmpfile}"
+    mv "${tmpfile}" "${CHANGELOG}"
+  }
+
+  # 1: default keyword
+  # 2: dest branch
+  update_changelog() {
+    local gcb def kw=
+    gcb=$(current_branch)
+    def="New feature '${gcb}'."
+    [[ "${ENTRY}" == 1 ]] \
+      && add_changelog_entry "${1}" "${def}" \
+      && return
+    echo
+    echo '###'
+    echo "# Enter '${gcb}' description for ${CHANGELOG}"
+    echo '#   New line for multiple entries.'
+    echo '#   Empty message to skip or end editing.'
+    echo '#'
+    echo '# Format'
+    echo "#   'keyword: message'"
+    echo '#'
+    echo '# Available keywords'
+    echo "#   ${KEYWORDS[*]}"
+    echo '#'
+    echo "# Branch '${gcb}' commits"
+    git_log "${2}".."${gcb}" --pretty=format:'#   %h %s'
+    echo '###'
+    echo
+    # What for?
+    REPLY=
+    while read -eri "${1}: " line; do
+      [[ -z "${line#*:}" ]] \
+        && break
+      history -s "${line}"
+      kw="${line%%: *}"
+      [[ " ${KEYWORDS[*]} " != *" ${kw} "* ]] \
+        && kw=${1}
+      #add_changelog_entry "${kw}" "$(echo "${line#*:}" | xargs)"
+      add_changelog_entry "${kw}" "${line#*: }"
+    done
+    [[ -z "${kw}" ]] \
+      && add_changelog_entry "${1}" "${def}"
+  }
+
+  release_feature() {
+    is_merged_to "${1}" "${BCHD}" \
+      && err 'Nothing to merge.' 6
+    # shellcheck disable=SC2015
+    [[ ${REQUEST} == 1 ]] \
+      && confirm "* Request merge '${1}' into '${BCHD}'?" \
+      || confirm "* Merge feature '${1}' into '${BCHD}'?"
+    merge_fromto "${BCHD}" "${1}"
+    update_changelog Added "${BCHD}"
+    git_commit -am 'Update changelog'
+    [[ ${REQUEST} == 1 ]] \
+      && flow_request "${BCHD}" \
+      && return
+    merge_fromto "${1}" "${BCHD}"
+    delete_branch "${1}"
+  }
+
+  # 1: version
+  # 2: major|minor|patch
+  increment_version() {
+    local major minor patch
+    major=$(echo "${1}" | cut -d. -f1)
+    minor=$(echo "${1}" | cut -d. -f2)
+    patch=$(echo "${1}" | cut -d. -f3)
+    case "${2:-}" in
+      major)
+        (( major ++ ))
+        minor=0
+        patch=0
+        ;;
+      minor)
+        (( minor ++ ))
+        patch=0
+        ;;
+      patch)
+        (( patch ++ ))
+        ;;
+      *)
+        err 'Version increment parameter missing or invalid.'
+    esac
+    echo "${major}.${minor}.${patch}"
+  }
+
+  increment_patch() {
+    increment_version "${1}" patch
+  }
+
+  increment_minor() {
+    increment_version "${1}" minor
+  }
+
+  release_hotfix() {
+    local verh
+    verh=$(load_version "${1}")
+    # shellcheck disable=SC2015
+    [[ -n "${verh}" ]] \
+      && [[ ! "${verh%%.*}" > "${VERP%%.*}" ]] \
+      || err "Invalid hotfix version." 4
+    local dest=${BCHP}-${verh%%.*}
+    ! branch_exists "${dest}" \
+      && err "Branch '${dest}' not found." 4
+    is_merged_to "${1}" "${dest}" \
+      && err 'Nothing to merge.' 6
+    # shellcheck disable=SC2015
+    [[ "${verh%%.*}" == "${VERP%%.*}" ]] \
+      && confirm "* Merge hotfix '${1}' into '${dest}' and '${BCHP}'?" \
+      || confirm "* Merge hotfix '${1}' only into '${dest}'?"
+    msg_start 'Updating control files'
+    git_checkout "${1}"
+    local verd
+    verd=$(load_version "${dest}")
+    verh=$(increment_patch "${verd}")
+    echo "${verh}" > "${VERSION}"
+    changelog_head "${verh}"
+    changelog_foot "${verh}" "${verd}" "${verh}"
+    update_changelog Fixed "${dest}"
+    git_commit -am 'Update control files'
+    msg_done
+    [[ ${REQUEST} == 1 ]] \
+      && flow_request "${dest}" \
+      && return
+    merge_fromto "${1}" "${dest}"
+    git_tag "v${verh}"
+    [[ "${verh%%.*}" != "${VERP%%.*}" ]] \
+      && delete_branch "${1}" \
+      && return
+    git_checkout "${BCHP}"
+    git_merge "${dest}"
+    [[ "${VERP}" == "${VERS}" ]] \
+      && git_checkout "${BCHS}" \
+      && git_merge "${BCHP}" \
+      && merge_fromto "${BCHP}" "${BCHD}" \
+      && delete_branch "${1}" \
+      && return
+    merge_fromto "${BCHP}" "${BCHS}"
+    merge_fromto "${BCHS}" "${BCHD}"
+    delete_branch "${1}"
+    git_checkout "${BCHD}"
+  }
+
+  update_branch() {
+    git_fetch "${ORIGIN}" "${1}:${1}"
+  }
+
+  flow_pull() {
+    validate_git_remote
+    confirm '* Pull all remote branches?'
+    msg_start 'Pulling branches'
+    local gcb
+    gcb=$(current_branch)
+    git_fetch --all
+    git_fetch --tags
+    git_fetch "${ORIGIN}" --prune
+    for branch in $(git_branch_format -r | grep "^${ORIGIN}" | flow_sed "s/^${ORIGIN}\///"); do
+      [[ "${branch}" == HEAD ]] \
+        && continue
+      git_checkout "${branch}"
+      is_behind_origin "${branch}" \
+        && git_merge --ff-only "${ORIGIN}/${branch}"
+      git_branch --set-upstream-to "${ORIGIN}/${branch}"
+    done
+    git_checkout "${gcb}"
+    msg_done
+  }
+
+  flow_push() {
+    validate_git_remote
+    confirm '* Push all branches to the remote repository?'
+    msg_start 'Pushing all branches and tags'
+    git_push "${ORIGIN}" --all
+    git_push "${ORIGIN}" --tags
+    msg_done
+  }
+
+  flow_request() {
+    validate_git_remote
+    local gcb
+    gcb=$(current_branch)
+    git_push "${ORIGIN}" "${1}"
+    git_push "${ORIGIN}" "${gcb}"
+    request_url_fromto "${gcb}" "${1}"
+  }
+
+  trim_url() {
+    local url
+    url="${1#https://}"
+    echo "${url}" | grep -q ":" \
+      && url="${url#*@}" \
+      && url="${url/://}" \
+      && url="${url/.git/}"
+    echo "${url}"
+  }
+
+  # 1: from
+  # 2: to
+  request_url_fromto() {
+    local url upstream_url
+    url=$(trim_url "$(git config remote."${ORIGIN}".url)")
+    upstream_url="$(trim_url "$(git config remote."${UPSTREAM}".url)")"
+    echo -n 'Pull request URL: '
+    case "${url}" in
+      *"${BITBUCKET}"*)
+        # shellcheck disable=SC1003
+        [[ "${url}" == "${upstream_url}" ]] \
+          && echo "https://${url}/compare/${1}..$(echo "${url}" | cut -d'/' -f2-3)%3A${2}" \
+          || echo "https://${url}/compare/${1}..$(echo "${upstream_url}" | cut -d'/' -f2-3)%3A${2}"
+      ;;
+      *"${GITHUB}"*)
+        # shellcheck disable=SC1003
+        [[ "${url}" == "${upstream_url}" ]] \
+          && echo "https://${url}/compare/${2}...${1}?expand=1" \
+          || echo "https://${upstream_url}/compare/${2}...$(echo "${url}" | cut -d'/' -f2)%3A${1}?expand=1"
+      ;;
+      *"$GITLAB"*)
+        # shellcheck disable=SC1003
+        [[ "${url}" == "${upstream_url}" ]] \
+          && echo "https://${url}/compare/${2}...${1}" \
+          || echo "https://${upstream_url}/compare/${2}...$(echo "${url}" | cut -d'/' -f2)"
+      ;;
+      *)
+        err 'Unsupported remote server name.'
+      ;;
+    esac
+  }
+
+  flow_usage() {
+    local file head tail
+    head="$(echo "${USAGE:-}" | head -n1)"
+    tail="$(echo "${USAGE:-}" | tail -n+2)"
+    file="${DATAPATH}/${SCRIPT_NAME}.usage"
+    [[ -z "${head}" ]] \
+      && [[ ! -f "${file}" ]] \
+      && echo 'Usage is not available in source file.' \
+      && return
+    [[ -z "${head}" ]] \
+      && head="$(head -n1 "${file}")" \
+      && tail="$(tail -n+2 "${file}")"
+    echo "${head}"
+    echo
+    local indent=0
+    [[ ${COLUMNS} -gt 1 ]] \
+      && indent=5 \
+      && export MANWIDTH=$(( COLUMNS + indent ))
+    echo "${tail}" | man --nj --nh -l - 2>/dev/null \
+      | flow_sed "1,2d;/^[[:space:]]*$/d;\${d};s/^ \{${indent}\}//"
+  }
+
+  flow_version() {
+    [[ -n "${VERF}" ]] \
+      && echo "flow ${VERF}" \
+      && return
+    echo "flow $(<"${DATAPATH}/VERSION")"
+  }
+
+  flow_whatnow() {
+    local branch
+    branch=$(current_branch)
+    [[ -z "${branch}" ]] \
+      && err 'Detached branch.' 6
+    echo '***'
+    echo "* Flow on '${branch}'"
+    echo '*'
+    branch_desc "${branch}"
+    echo '***'
+  }
+
+  branch_desc() {
+    [[ "${1}" == "${BCHP}" || "$(is_prod_branch "${1}")" ]] \
+      && echo '* This is considered a read-only stable branch.' \
+      && echo '* Do not commit any changes directly to this branch ever!' \
+      && echo '*' \
+      && echo "* 1. Run '${SCRIPT_NAME}' to create a hotfix or leave." \
+      && return
+    [[ "${1}" == "${BCHS}" ]] \
+      && is_attached_to "${BCHS}" "${BCHP}" \
+      && echo '* This is a staging branch that is already released.' \
+      && echo '* Nothing to do until a new version is released from dev.' \
+      && echo '*' \
+      && echo "* 1. Leave this branch." \
+      && return
+    [[ "${1}" == "${BCHS}" ]] \
+      && echo '* This branch is meant solely for bug fixing.' \
+      && echo '* Each commit must be merged into the development branch.' \
+      && echo '*' \
+      && echo '* 1. Make some fixes and feel free to commit directly.' \
+      && echo "* 2. Run '${SCRIPT_NAME}' to release this branch." \
+      && return
+    [[ "${1}" == "${BCHD}" ]] \
+      && echo '* This is a development branch.' \
+      && echo '* It is designed for bug fixing and merging features.' \
+      && echo '*' \
+      && echo '* 1. Make some fixes and feel free to commit directly.' \
+      && echo "* 2. Run '${SCRIPT_NAME} feature_name' to create a new feature." \
+      && echo "* 3. Run '${SCRIPT_NAME}' to release this branch." \
+      && return
+    is_hotfix_branch "${1}" \
+      && echo '* This is a temporary hotfix branch created from a stable branch.' \
+      && echo '* Its purpose is to fix one critical problem and dissolve.' \
+      && echo '* WARNING: Make only minimum necessary changes here!' \
+      && echo '*' \
+      && echo '* 1. Make sure you really HAVE to hotfix the problem.' \
+      && echo '* 2. Fix the critical problem and commit changes.' \
+      && echo "* 3. Run '${SCRIPT_NAME}' to merge the hotfix back into stable branch." \
+      && echo '* 4. Good luck.' \
+      && return
+    echo '* This is a temporary feature branch.'
+    echo '* Its purpose is to create a (one) new feature.'
+    echo '*'
+    echo '* 1. Create and develop the feature. One feature is a perfect amount.'
+    echo "* 2. Run '${SCRIPT_NAME}' to merge it back into dev."
+  }
+
+  # global constants
+  declare -r BASH_MINV=3.2
+  declare -r GIT_MINV=1.8.0
+  declare -r SCRIPT_NAME=${0##*/}
+  declare -r GREEN=2
+  declare -r BLUE=4
+  declare -r BITBUCKET='bitbucket.org'
+  declare -r GITHUB='github.com'
+  declare -r GITLAB='gitlab.com'
+  declare -r HOTFIX='hotfix'
+  declare -r DATE_FORMAT='+%Y-%m-%d'
+  declare -r DEFAULT_HOTFIX="${HOTFIX}-$(whoami)"
+  declare -r FEATURE='feature'
+  declare -r DEFAULT_FEATURE="${FEATURE}-$(whoami)"
+  declare -r UNRELEASED='Unreleased'
+  declare -r KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
+  declare -r REFSHEADS='refs/heads'
+  declare -r REFSTAGS='refs/tags'
+  declare -r ARRP=(production prod live main master)
+  declare -r ARRS=(staging release rc preprod pre-production release-candidate prerelease)
+  declare -r ARRD=(dev devel develop next)
+
+  # global variables
+  [[ -t 0 ]]
+  declare ISSTDIN=${?}
+  declare WHATNOW=0
+  declare DRYRUN=0
+  declare ENTRY=0
+  declare VERBOSE=0
+  declare YES=0
+  declare COLOR=auto
+  declare POSX=1
+  declare POSY=1
+  declare FORCE=0
+  declare STASHED=0
+  declare CONFORM=0
+  declare INIT=0
+  declare INITED=0
+  declare REQUEST=0
+  declare PULL=0
+  declare PUSH=0
+  declare MSGOPEN=0
+
+  # process options
+  line=$(IFS=' ' getopt -n "${0}" \
+    -o cefhinrvVwy\? \
+    -l conform,color::,colour::,auto-entry,force,help,init,dry-run,request,verbose,version,what-now,yes,pull,push \
+    -- "${@}" 2>&1) \
+    || err "${line}" 2
+  eval set -- "${line}"
+
+  while [[ ${#} -gt 0 ]]; do
+    case ${1} in
+     -c|--conform) CONFORM=1; shift ;;
+     -e|--auto-entry) ENTRY=1; shift ;;
+     --color|--colour) shift; setcolor "${1}"; shift ;;
+     -f|--force) FORCE=1; shift ;;
+     -h|-\?|--help) flow_usage; exit ;;
+     -i|--init) INIT=1; CONFORM=1; shift ;;
+     -n|--dry-run) DRYRUN=1; shift ;;
+     --pull) PULL=1; shift ;;
+     --push) PUSH=1; shift ;;
+     -r|--request) REQUEST=1; shift ;;
+     -v|--verbose) VERBOSE=1; shift ;;
+     -V|--version) flow_version; exit ;;
+     -w|--what-now) WHATNOW=1; shift ;;
+     -y|--yes) YES=1; shift ;;
+      --) shift; break ;;
+      *-) err "Unrecognized option '${1}'." 2 ;;
+       *) break ;;
+    esac
+  done
+
+  # flow process
+  [[ ${#} -gt 1 ]] \
+    && err 'Too many arguments.' 2
+  validate_requirements
+  validate_repository
+  validate_status_empty
+  [[ ${PULL} == 1 ]] \
+    && flow_pull \
+    && flow_finalize
+  flow_validate "${@}"
+  [[ ${INIT} == 1 ]] \
+    && flow_finalize
+  [[ ${PUSH} == 1 ]] \
+    && flow_push \
+    && flow_finalize
+  [[ ${WHATNOW} == 1 ]] \
+    && flow_whatnow \
+    && flow_finalize
+  flow_action "${@}" \
+    && flow_finalize
+
+}
+
+main "${@}"
