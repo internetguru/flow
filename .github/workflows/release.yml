@@ -53,6 +53,7 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./*.tar.gz
+        asset_name: flow.tar.gz
 
     - name: Upload Second Release Asset
       id: upload-release-asset-2
@@ -62,4 +63,5 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./*.sh
+        asset_name: flow.sh
 
