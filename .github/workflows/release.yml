@@ -25,10 +25,13 @@ jobs:
     - name: Make distsingle
       run: make distsingle
 
-    - name: Retrieve version
+    - name: Retrieve changes
       run: |
-        echo CHANGES="$(./scripts/changelog-latest CHANGELOG.md)" >> $GITHUB_OUTPUT
-      id: changelog
+        EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+        echo "JSON_RESPONSE<<$EOF" >> "$GITHUB_ENV"
+        ./scripts/changelog-latest CHANGELOG.md >> "$GITHUB_ENV"
+        curl https://example.com >> "$GITHUB_ENV"
+        echo "$EOF" >> "$GITHUB_ENV"
 
     - name: Create Release
       id: create_release
@@ -38,7 +41,7 @@ jobs:
       with:
         tag_name: ${{ github.ref }}
         release_name: Release ${{ github.ref }}
-        body: ${{ steps.changelog.outputs.CHANGES }}
+        body: ${{ env.CHANGES }}
         draft: false
         prerelease: false
 
