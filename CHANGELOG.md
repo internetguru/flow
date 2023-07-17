@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.0.1] - 2023-07-17
+
+### Fixed
+
+- Automatic release not working
+
 ## [3.0.0] - 2023-07-17
 
 _Stable release based on [3.0.0-rc.2]._
@@ -99,6 +105,7 @@ _Stable release based on [3.0.0-rc.2]._
 
 ## [1.0.0] - 2016-12-22
 
+[3.0.1]: https://https://github.com/internetguru/flow/compare/v3.0.0...v3.0.1
 [3.0.0]: https://https://github.com/internetguru/flow/compare/v2.2.0...v3.0.0
 [3.0.0-rc.2]: https://github.com/internetguru/flow/releases/tag/v2.2.0
 [3.0.0-rc.1]: https://github.com/internetguru/flow/releases/tag/v2.2.0
