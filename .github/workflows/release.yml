@@ -47,10 +47,8 @@ jobs:
 
     - name: Get Name of Artifact
       run: |
-        ARTIFACT_1_PATHNAME=$(ls *.tar.gz | head -n 1)
-        ARTIFACT_2_PATHNAME=$(ls *.sh | head -n 1)
-        echo ::set-env name=ARTIFACT_1_PATHNAME::${ARTIFACT_1_PATHNAME}
-        echo ::set-env name=ARTIFACT_2_PATHNAME::${ARTIFACT_2_PATHNAME}
+        echo "ARTIFACT_1_PATHNAME=$(ls *.tar.gz | head -n 1)" >> $GITHUB_ENV
+        echo "ARTIFACT_2_PATHNAME=$(ls *.tar.gz | head -n 1)" >> $GITHUB_ENV
 
     - name: Upload Release Asset
       id: upload-release-asset
