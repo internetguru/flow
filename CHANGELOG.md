@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.0.6] - 2023-07-17
+
+### Fixed
+
+- Add release assets name.
+
 ## [3.0.5] - 2023-07-17
 
 ### Fixed
@@ -129,6 +135,7 @@ _Stable release based on [3.0.0-rc.2]._
 
 ## [1.0.0] - 2016-12-22
 
+[3.0.6]: https://https://github.com/internetguru/flow/compare/v3.0.5...v3.0.6
 [3.0.5]: https://https://github.com/internetguru/flow/compare/v3.0.4...v3.0.5
 [3.0.4]: https://https://github.com/internetguru/flow/compare/v3.0.3...v3.0.4
 [3.0.3]: https://https://github.com/internetguru/flow/compare/v3.0.2...v3.0.3
