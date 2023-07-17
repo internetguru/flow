@@ -25,10 +25,20 @@ jobs:
     - name: Make distsingle
       run: make distsingle
 
-    - uses: "marvinpinto/action-automatic-releases@latest"
+    - name: Retrieve version
+      run: |
+        echo CHANGES="$(./scripts/changelog-latest CHANGELOG.md)" >> $GITHUB_OUTPUT
+      id: changelog
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        body: ${{ steps.changelog.outputs.CHANGES }}
+        draft: false
         prerelease: false
-        files: |
-          *.sh
-          *.tar.gz
+
