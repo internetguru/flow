@@ -8,8 +8,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [3.0.0-rc.2] - 2023-07-17
 
-## [3.0.0-rc.1] - 2023-06-13
-
 ### Added
  - All key branches validation on existence and merge status.
  - Version validation across all key branches.
@@ -36,6 +34,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
  - Show usage after all invalid option error.
  - Show hint after all fixable validation errors.
  - Project renamed from 'omgf' to 'flow'
+
+## [3.0.0-rc.1] - 2023-06-13
 
 ## [2.2.0] - 2017-06-05
 ### Changed
