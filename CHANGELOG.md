@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [3.0.8] - 2023-07-17
+
+### Fixed
+
+- Generate asset names automatically.
+
 ## [3.0.7] - 2023-07-17
 
 ### Fixed
@@ -144,6 +150,7 @@ _Stable release based on [3.0.0-rc.2]._
 ## [1.0.0] - 2016-12-22
 
 [Unreleased]: https://https://github.com/internetguru/flow/compare/staging...dev
+[3.0.8]: https://https://github.com/internetguru/flow/compare/v3.0.7...v3.0.8
 [3.0.7]: https://https://github.com/internetguru/flow/compare/v3.0.6...v3.0.7
 [3.0.6]: https://https://github.com/internetguru/flow/compare/v3.0.5...v3.0.6
 [3.0.5]: https://https://github.com/internetguru/flow/compare/v3.0.4...v3.0.5
