@@ -45,6 +45,13 @@ jobs:
         draft: false
         prerelease: false
 
+    - name: Get Name of Artifact
+       run: |
+         ARTIFACT_1_PATHNAME=$(ls *.tar.gz | head -n 1)
+         ARTIFACT_2_PATHNAME=$(ls *.sh | head -n 1)
+         echo ::set-env name=ARTIFACT_1_PATHNAME::${ARTIFACT_1_PATHNAME}
+         echo ::set-env name=ARTIFACT_2_PATHNAME::${ARTIFACT_2_PATHNAME}
+
     - name: Upload Release Asset
       id: upload-release-asset
       uses: actions/upload-release-asset@v1
@@ -52,7 +59,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./*.tar.gz
+        asset_path: ${{ env.ARTIFACT_1_PATHNAME }}
         asset_name: flow.tar.gz
         asset_content_type: application/gzip
 
@@ -63,7 +70,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./*.sh
+        asset_path: ${{ env.ARTIFACT_2_PATHNAME }}
         asset_name: flow.sh
         asset_content_type: application/x-sh
 
