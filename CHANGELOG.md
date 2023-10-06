@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [3.0.11] - 2023-10-06
+
+### Fixed
+
+- Version validation format single-digit patch number.
+
 ## [3.0.10] - 2023-07-17
 
 ### Fixed
@@ -162,6 +168,7 @@ _Stable release based on [3.0.0-rc.2]._
 ## [1.0.0] - 2016-12-22
 
 [Unreleased]: https://https://github.com/internetguru/flow/compare/staging...dev
+[3.0.11]: https://https://github.com/internetguru/flow/compare/v3.0.10...v3.0.11
 [3.0.10]: https://https://github.com/internetguru/flow/compare/v3.0.9...3.0.10
 [3.0.9]: https://https://github.com/internetguru/flow/compare/v3.0.8...v3.0.9
 [3.0.8]: https://https://github.com/internetguru/flow/compare/v3.0.7...v3.0.8
