@@ -14,7 +14,6 @@ Additionally, Flow handles version incrementing and maintains a changelog. Befor
 - [Usage example](https://github.com/internetguru/flow/blob/dev/flow.1.rst#flow-example)
 - [Blog posts on Flow](https://blog.internetguru.io/categories/flow/)
 
-
 ### Branching model automation
 
 - Flow requires *no arguments* and derives a default action.
@@ -36,11 +35,9 @@ Additionally, Flow handles version incrementing and maintains a changelog. Befor
  - Flow can convert any existing git repository to a git branching model.
  - Flow automatically adapts to existing branches, such as 'release' instead of the default 'staging'.
 
-
 ## Installation
 
 Download the [latest release from GitHub](https://github.com/internetguru/flow/releases/latest). You can install as a single file (easiest), with compiled distribution package (useful for system-wide install) or from the source.
-
 
 ### Requirements
 
@@ -53,7 +50,6 @@ Download the [latest release from GitHub](https://github.com/internetguru/flow/r
 - [GNU awk](https://www.gnu.org/software/gawk/)
   - On macOS install with Homebrew [`homebrew/dupes/grep`](https://github.com/Homebrew/homebrew-dupes)
 
-
 ### Single file script
 
 1. Place flow.sh into your `$PATH` (e.g. `~/bin`).
@@ -61,7 +57,6 @@ Download the [latest release from GitHub](https://github.com/internetguru/flow/r
    ```bash
    chmod +x flow.sh
    ```
-
 
 ### Compiled distribution package
 
@@ -86,7 +81,6 @@ This is how to install the script without root permissions.
 ```bash
 BINPATH=~/bin SHAREPATH=~/.local/share ./install
 ```
-
 
 ### Building from source
 
@@ -114,7 +108,6 @@ PREFIX=/usr make
 
 See the [man page](flow.1.rst) for more information and examples.
 
-
 ### Running unit tests
 
 Testing the script requires a built 'flow' command and [Bash Unit Testing Tool](https://github.com/internetguru/butt) -- AKA the 'butt' command.
@@ -123,11 +116,9 @@ Testing the script requires a built 'flow' command and [Bash Unit Testing Tool](
 butt ~/flow/test/test.butt
 ```
 
-
 ## Contributing
 
 Pull requests are welcome. Don't hesitate to contribute.
-
 
 ## Copyright
 
@@ -139,7 +130,6 @@ For commercial use, a nominal fee may be applicable based on the company size an
 
 Please do not hesitate to reach out to us for inquiries related to seminars, workshops, training, integration, support, custom development, and additional services. We are more than happy to assist you.
 
-
 ## Donation
 
 If you find this script useful, please consider making a donation to support its developers. We appreciate any contributions, no matter how small. Donations help us to dedicate more time and resources to this project, including covering our infrastructure expenses.
@@ -150,13 +140,11 @@ Please note that we are not a tax-exempt organization and cannot provide tax ded
 
 Thank you for your continued support!
 
-
 ### Honored donors
 
 - [Czech Technical University in Prague](https://www.fit.cvut.cz/en)
 - [WebExpo Conference in Prague](https://webexpo.net/)
 - [DATAMOLE data mining and machine learning](https://www.datamole.cz/)
-
 
 ## Alternatives
 
