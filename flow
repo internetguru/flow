@@ -314,7 +314,7 @@ main() {
     [[ ${CONFORM} == 0 ]] \
       && err "Local branch '${1}' is behind remote." 3
     confirm "Merge branch '${1}' with its remote?"
-    update_branch "${1}"
+    git fetch --update-head-ok "${ORIGIN}" "${1}:${1}"
   }
 
   create_branch() {
@@ -1106,19 +1106,14 @@ main() {
     git_checkout "${BCHD}"
   }
 
-  update_branch() {
-    git_fetch "${ORIGIN}" "${1}:${1}"
-  }
-
   flow_pull() {
     validate_git_remote
     confirm '* Pull all remote branches?'
     msg_start 'Pulling branches'
     local gcb
     gcb=$(current_branch)
-    git_fetch --all
-    git_fetch --tags
-    git_fetch "${ORIGIN}" --prune
+    git fetch --update-head-ok --all --prune
+    git fetch --tags
     for branch in $(git_branch_format -r | grep "^${ORIGIN}" | flow_sed "s/^${ORIGIN}\///"); do
       [[ "${branch}" == HEAD ]] \
         && continue
@@ -1135,8 +1130,8 @@ main() {
     validate_git_remote
     confirm '* Push all branches to the remote repository?'
     msg_start 'Pushing all branches and tags'
-    git_push "${ORIGIN}" --all
-    git_push "${ORIGIN}" --tags
+    git push "${ORIGIN}" --all
+    git push "${ORIGIN}" --tags
     msg_done
   }
 
@@ -1144,8 +1139,8 @@ main() {
     validate_git_remote
     local gcb
     gcb=$(current_branch)
-    git_push "${ORIGIN}" "${1}"
-    git_push "${ORIGIN}" "${gcb}"
+    git push "${ORIGIN}" "${1}"
+    git push "${ORIGIN}" "${gcb}"
     request_url_fromto "${gcb}" "${1}"
   }
 
