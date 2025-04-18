@@ -1122,6 +1122,8 @@ main() {
     for branch in $(git_branch_format -r | grep "^${ORIGIN}" | flow_sed "s/^${ORIGIN}\///"); do
       [[ "${branch}" == HEAD ]] \
         && continue
+      [[ "${branch}" == "${ORIGIN}" ]] \
+        && continue
       git_checkout "${branch}"
       is_behind_origin "${branch}" \
         && git_merge --ff-only "${ORIGIN}/${branch}"
