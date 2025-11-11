@@ -68,9 +68,9 @@ compile:
 	@ # Insert default datapath variable into $(PROG)
 	@ echo -n "Compiling command file ..."
 	@ { \
-	head -n1 $(PROG); \
+	head -n 1 $(PROG); \
 	echo "$(DATAPATHVAR)=\"$(SHAREPATH)/$(PROG)\""; \
-	tail -n+2 $(PROG); \
+	tail -n +2 $(PROG); \
 	} > $(COMPILEDIR)/$(PROG)
 	@ chmod +x $(COMPILEDIR)/$(PROG)
 	@ echo DONE
@@ -84,7 +84,7 @@ compile:
 	echo -n "\"Version "; echo -n $$(cat $(VERFILE)); echo -n "\" "; \
 	echo; \
 	} > $(COMPILEDIR)/$(MANFILE)
-	@ sed 's/`\([^`]\+\)<\([^>]\+\)>`__/\1\n  \2/g' $(MANRST) | $(RST2MAN) | tail -n+33 >> $(COMPILEDIR)/$(MANFILE)
+	@ sed 's/`\([^`]\+\)<\([^>]\+\)>`__/\1\n  \2/g' $(MANRST) | $(RST2MAN) | tail -n +33 >> $(COMPILEDIR)/$(MANFILE)
 	@ echo DONE
 
 	@ # Copy README and MAN rst into COMPILEDIR
@@ -144,10 +144,10 @@ distsingle:
 	@ echo -n "Compiling single script ..."
 	@ # Insert content of $(USAGEFILE) and $(VERFILE) into $(PROG) as variables
 	@ { \
-	head -n1 $(PROG); \
+	head -n 1 $(PROG); \
 	echo "$(USAGEVAR)=\"$$(cat $(USAGEFILE))\""; \
 	echo "$(VERSIONVAR)=\"$$(cat $(VERFILE))\""; \
-	tail -n+2 $(PROG); \
+	tail -n +2 $(PROG); \
 	} > $(PROGSINGLE)
 	@ chmod +x $(PROGSINGLE)
 	@ echo DONE
