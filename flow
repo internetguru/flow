@@ -95,15 +95,41 @@ main() {
   }
 
   save_cursor_position() {
-    local curpos oldstty
+    local curpos curecho curicanon curmin curtime
     curpos='1;1'
     exec < /dev/tty
-    oldstty=$(stty -g)
-    stty raw -echo min 0
+
+    # Capture the specific settings we’re going to modify
+    # Note: stty -a output formats vary; these extractions work with both GNU and uutils
+    get_flag() {
+      stty -a | grep -oE "\-?$1\b"
+    }
+
+    get_num() {
+      stty -a | grep -oP "\b$1 = \K\d+"
+    }
+
+    curecho=$(get_flag 'echo')
+    curicanon=$(get_flag 'icanon')
+    curmin=$(get_num min)
+    curtime=$(get_num time)
+
+    # Normalize defaults if detection failed
+    [[ -z "${curecho}" ]] && curecho='echo'
+    [[ -z "${curicanon}" ]] && curicanon='icanon'
+    [[ -z "${curmin}" ]] && curmin=1
+    [[ -z "${curtime}" ]] && curtime=0
+
+    stty -icanon -echo min 0
+
     echo -en '\033[6n' >/dev/tty
     # shellcheck disable=SC2162
     read -d'R' curpos </dev/tty
-    stty "${oldstty}"
+
+    # Restore only the flags we changed
+    # (This avoids depending on stty -g blobs and avoids side-effects of `raw`)
+    stty "${curicanon}" "${curecho}" min "${curmin}" time "${curtime}"
+
     POSX=$( echo "${curpos#??}" | cut -d';' -f1 )
     POSY=$( echo "${curpos#??}" | cut -d';' -f2 )
   }
