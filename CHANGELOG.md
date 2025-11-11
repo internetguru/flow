@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Standardized spacing in `head` and `tail` commands across scripts and Makefile for consistency (#90).
+
 ## [3.1.2] - 2025-11-11
 
 ### Fixed

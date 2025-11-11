@@ -264,7 +264,7 @@ main() {
   }
 
   top_vertag() {
-    git tag --list | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -1 | tr -d v
+    git tag --list | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -n 1 | tr -d v
   }
 
   git_merge_nocommit() {
@@ -467,7 +467,7 @@ main() {
   }
 
   version_lte() {
-    [[ "${1}" == "$(echo -e "${1}\n${2}" | sort -V | head -n1)" ]]
+    [[ "${1}" == "$(echo -e "${1}\n${2}" | sort -V | head -n 1)" ]]
   }
 
   validate_requirements() {
@@ -1221,16 +1221,16 @@ main() {
 
   flow_usage() {
     local file head tail
-    head="$(echo "${USAGE:-}" | head -n1)"
-    tail="$(echo "${USAGE:-}" | tail -n+2)"
+    head="$(echo "${USAGE:-}" | head -n 1)"
+    tail="$(echo "${USAGE:-}" | tail -n +2)"
     file="${DATAPATH}/${SCRIPT_NAME}.usage"
     [[ -z "${head}" ]] \
       && [[ ! -f "${file}" ]] \
       && echo 'Usage is not available in source file.' \
       && return
     [[ -z "${head}" ]] \
-      && head="$(head -n1 "${file}")" \
-      && tail="$(tail -n+2 "${file}")"
+      && head="$(head -n 1 "${file}")" \
+      && tail="$(tail -n +2 "${file}")"
     echo "${head}"
     echo
     local indent=0
