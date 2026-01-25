@@ -120,15 +120,41 @@ butt ~/flow/test/test.butt
 
 Pull requests are welcome. Don't hesitate to contribute.
 
-## Copyright
+## License & Commercial Terms
 
-Copyright © 2016--2023 [Internet Guru](https://www.internetguru.io)
+### Open Source License
 
-This software is licensed under the CC BY-NC-SA license. There is NO WARRANTY, to the extent permitted by law. See the [LICENSE](LICENSE) file.
+Copyright © 2026 **Internet Guru**
 
-For commercial use, a nominal fee may be applicable based on the company size and the nature of their product. In many instances, this could result in no fees being charged at all. Please contact us at info@internetguru.io for further information.
+This software is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)](http://creativecommons.org/licenses/by-nc-sa/4.0/) license.
 
-Please do not hesitate to reach out to us for inquiries related to seminars, workshops, training, integration, support, custom development, and additional services. We are more than happy to assist you.
+> **Disclaimer:** This software is provided "as is", without warranty of any kind, express or implied. In no event shall the authors or copyright holders be liable for any claim, damages or other liability.
+
+---
+
+### Commercial Use
+
+The standard CC BY-NC-SA license prohibits commercial use. If you wish to use this software in a commercial environment or product, we offer **flexible commercial licenses** tailored to:
+
+* Your company size.
+* The nature of your project.
+* Your specific integration needs.
+
+**Note:** In many instances (especially for startups or small-scale tools), this may result in no fees being charged at all. Please contact us to obtain written permission or a commercial agreement.
+
+**Contact for Licensing:** [info@internetguru.io](mailto:info@internetguru.io)
+
+---
+
+### Professional Services
+
+Are you looking to get the most out of this project? We are available for:
+
+* **Custom Development:** Tailoring the software to your specific requirements.
+* **Integration & Support:** Helping your team implement and maintain the solution.
+* **Training & Workshops:** Seminars and hands-on workshops for your developers.
+
+Reach out to us at [info@internetguru.io](mailto:info@internetguru.io) — we are more than happy to assist you!
 
 ## Donation
 
