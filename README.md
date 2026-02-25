@@ -122,15 +122,13 @@ Pull requests are welcome. Don't hesitate to contribute.
 
 ## License & Commercial Terms
 
-### Open Source License
+### License
 
 Copyright © 2026 **Internet Guru**
 
 This software is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)](http://creativecommons.org/licenses/by-nc-sa/4.0/) license.
 
 > **Disclaimer:** This software is provided "as is", without warranty of any kind, express or implied. In no event shall the authors or copyright holders be liable for any claim, damages or other liability.
-
----
 
 ### Commercial Use
 
@@ -143,8 +141,6 @@ The standard CC BY-NC-SA license prohibits commercial use. If you wish to use th
 **Note:** In many instances (especially for startups or small-scale tools), this may result in no fees being charged at all. Please contact us to obtain written permission or a commercial agreement.
 
 **Contact for Licensing:** [info@internetguru.io](mailto:info@internetguru.io)
-
----
 
 ### Professional Services
 
