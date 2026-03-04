@@ -1139,7 +1139,6 @@ main() {
 
   flow_pull() {
     validate_git_remote
-    confirm '* Pull all remote branches?'
     msg_start 'Pulling branches'
     local gcb
     gcb=$(current_branch)
@@ -1161,7 +1160,6 @@ main() {
 
   flow_push() {
     validate_git_remote
-    confirm '* Push all branches to the remote repository?'
     msg_start 'Pushing all branches and tags'
     git push "${ORIGIN}" --all
     git push "${ORIGIN}" --tags

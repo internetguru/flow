@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Remove redundant confirmation from --push and --pull options.
+
 ## [3.1.4] - 2026-02-25
 
 ### Fixed
