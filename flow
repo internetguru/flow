@@ -1396,6 +1396,8 @@ main() {
   [[ ${WHATNOW} == 1 ]] \
     && flow_whatnow \
     && flow_finalize
+  [[ ${PULL} == 1 ]] \
+    && flow_finalize
   flow_action "${@}" \
     && flow_finalize
 

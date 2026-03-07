@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [3.2.2] - 2026-03-07
+
+### Fixed
+
+- Do not continue with action when --pull and other flags.
+
 ## [3.2.1] - 2026-03-07
 
 ### Fixed
@@ -219,6 +225,7 @@ _Stable release based on [3.0.0-rc.2]._
 ## [1.0.0] - 2016-12-22
 
 [Unreleased]: https://https://github.com/internetguru/flow/compare/staging...dev
+[3.2.2]: https://https://github.com/internetguru/flow/compare/v3.2.1...v3.2.2
 [3.2.1]: https://https://github.com/internetguru/flow/compare/v3.2.0...v3.2.1
 [3.2.0]: https://https://github.com/internetguru/flow/compare/v3.1.4...v3.2.0
 [3.2.0-rc.1]: https://github.com/internetguru/flow/releases/tag/v3.1.4
