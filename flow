@@ -1384,7 +1384,8 @@ main() {
   validate_repository
   validate_status_empty
   [[ ${PULL} == 1 ]] \
-    && flow_pull \
+    && flow_pull
+  [[ ${PULL} == 1 && ${CONFORM} == 0 && ${PUSH} == 0 && ${INIT} == 0 && ${WHATNOW} == 0 && ${#} == 0 ]] \
     && flow_finalize
   flow_validate "${@}"
   [[ ${INIT} == 1 ]] \
