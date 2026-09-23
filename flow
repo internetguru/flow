@@ -172,9 +172,10 @@ main() {
     [[ -z "$(git status --porcelain)" ]]
   }
 
+  # never silently overwrite ignored files (they would be removed on switching back)
   git_checkout() {
     local out
-    out="$(git checkout "${@}" 2>&1)" \
+    out="$(git checkout --no-overwrite-ignore "${@}" 2>&1)" \
       || err "${out}"
   }
 
@@ -1144,17 +1145,22 @@ main() {
     gcb=$(current_branch)
     git fetch --update-head-ok --all --prune
     git fetch --tags
+    # update branches without checkout to keep the working tree (incl. ignored files) intact
     for branch in $(git_branch_format -r | grep "^${ORIGIN}" | flow_sed "s/^${ORIGIN}\///"); do
       [[ "${branch}" == HEAD ]] \
         && continue
       [[ "${branch}" == "${ORIGIN}" ]] \
         && continue
-      git_checkout "${branch}"
-      is_behind_origin "${branch}" \
-        && git_merge --ff-only "${ORIGIN}/${branch}"
-      git_branch --set-upstream-to "${ORIGIN}/${branch}"
+      ! branch_exists "${branch}" \
+        && git_branch "${branch}" "${ORIGIN}/${branch}"
+      git_branch --set-upstream-to "${ORIGIN}/${branch}" "${branch}"
+      ! is_behind_origin "${branch}" \
+        && continue
+      [[ "${branch}" == "${gcb}" ]] \
+        && git_merge --ff-only "${ORIGIN}/${branch}" \
+        && continue
+      git_fetch . "refs/remotes/${ORIGIN}/${branch}:${REFSHEADS}/${branch}"
     done
-    git_checkout "${gcb}"
     msg_done
   }
 
