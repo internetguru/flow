@@ -205,9 +205,9 @@ main() {
     is_valid_version "${to}" \
       && to="v${2}"
     case "${url}" in
-      *"${GITHUB}"*) echo "https://${url}/compare/${from}...${to}" ;;
-      *"${GITLAB}"*) echo "https://${url}/compare/${from}...${to}" ;;
-      *"${BITBUCKET}"*) echo "https://${url}/compare/${to}..${from}" ;;
+      *"${GITHUB}"*) echo "${url}/compare/${from}...${to}" ;;
+      *"${GITLAB}"*) echo "${url}/compare/${from}...${to}" ;;
+      *"${BITBUCKET}"*) echo "${url}/compare/${to}..${from}" ;;
       *) echo "git diff ${from}..${to}" ;;
     esac
   }
