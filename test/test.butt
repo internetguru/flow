@@ -769,6 +769,32 @@ start "merge main hotfix"
 end
 #######################################
 : $((i++))
+start "merge hotfix keeps one changelog link per version on dev"
+  take "${i}"
+  { flow -iy \
+    && gch main \
+    && flow --yes myhotfix \
+    && echo a > a \
+    && git add . \
+    && git commit -m "add file a" \
+    && echo '' | flow --yes \
+    && gch main \
+    && flow --yes myhotfix \
+    && sed -i 's/^\[0.0.1\]: .*/[0.0.1]: repaired link/' CHANGELOG.md \
+    && git commit -am "repair link"
+  } >/dev/null
+  debug "echo '' | flow --yes"
+  assert_equal "${status}" 0
+  links="[Unreleased]: git diff staging..dev
+[0.0.2]: git diff v0.0.1..v0.0.2
+[0.0.1]: repaired link
+[0.0.0]: git log v0.0.0"
+  assert_equal "$(git show dev:CHANGELOG.md | grep '^\[')" "${links}"
+  assert_equal "$(git show dev:CHANGELOG.md | tail -n 4)" "${links}"
+  assert_equal "$(gsp)" ""
+end
+#######################################
+: $((i++))
 start "merge hotfix with unmerged staging"
   take "${i}"
   { flow -iy \
