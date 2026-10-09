@@ -444,6 +444,21 @@ start "merge feature"
 end
 #######################################
 : $((i++))
+start "verbose merge feature without a terminal"
+  take "${i}"
+  { flow -iy \
+    && flow --yes myfeature \
+    && echo a > a \
+    && git add . \
+    && git commit -m "add feature 1"
+  } >/dev/null
+  debug "echo | flow -v --yes --color=never"
+  assert_equal "${status}" 0
+  assert_equal "${stderr}" ""
+  assert_contains "${stdout}" "Merging 'dev' to 'myfeature' (upwards). [  pass  ]"
+end
+#######################################
+: $((i++))
 start "merge empty feature"
   take "${i}"
   { flow --init --yes \
