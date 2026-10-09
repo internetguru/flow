@@ -470,6 +470,23 @@ end
 #   debug "echo 'feature1' | flow --yes --request"
 # fi
 #######################################
+: $((i++))
+start "pull request url of an https remote"
+  take "${i}"
+  { git init -q --bare ../"${i}"-origin.git \
+    && flow --init --yes \
+    && git remote add origin https://github.com/acme/repo.git \
+    && git config remote.origin.pushurl ../"${i}"-origin.git \
+    && flow --yes myfeature \
+    && echo a > a \
+    && git add . \
+    && git commit -qm "add feature 1"
+  } >/dev/null 2>&1
+  debug "echo | flow --yes --request"
+  assert_equal "${status}" 0
+  assert_contains "${stdout}" "Pull request URL: https://github.com/acme/repo/compare/dev...myfeature?expand=1"
+end
+#######################################
 ## RELEASE
 #######################################
 : $((i++))
