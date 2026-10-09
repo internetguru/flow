@@ -1186,9 +1186,8 @@ main() {
     url="${1#https://}"
     echo "${url}" | grep -q ":" \
       && url="${url#*@}" \
-      && url="${url/://}" \
-      && url="${url/.git/}"
-    echo "${url}"
+      && url="${url/://}"
+    echo "${url%.git}"
   }
 
   # 1: from
