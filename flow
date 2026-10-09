@@ -3,8 +3,8 @@
 shopt -s extglob
 set -u
 
-LINES=${LINES:-$(tput lines)}
-COLUMNS=${COLUMNS:-$(tput cols)}
+LINES=${LINES:-$(tput lines 2>/dev/null || echo 24)}
+COLUMNS=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
 
 DATAPATH=${DATAPATH:-$(dirname "${BASH_SOURCE[0]}")}
 USAGE=${USAGE:-}
@@ -85,9 +85,9 @@ main() {
       && stdoutpipe \
       && echo -n "${1}" \
       && return
-    tput setaf "${2:-${GREEN}}"
+    tput setaf "${2:-${GREEN}}" 2>/dev/null
     echo -n "${1}"
-    tput sgr0
+    tput sgr0 2>/dev/null
   }
 
   clear_stdin() {
