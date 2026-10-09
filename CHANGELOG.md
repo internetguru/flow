@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [3.2.9] - 2026-10-09
+
+### Fixed
+
+- Verbose output without a terminal prints plainly and keeps piped input.
+
 ## [3.2.8] - 2026-10-09
 
 ### Fixed
@@ -265,6 +271,7 @@ _Stable release based on [3.0.0-rc.2]._
 ## [1.0.0] - 2016-12-22
 
 [Unreleased]: https://github.com/internetguru/flow/compare/staging...dev
+[3.2.9]: https://github.com/internetguru/flow/compare/v3.2.8...v3.2.9
 [3.2.8]: https://github.com/internetguru/flow/compare/v3.2.7...v3.2.8
 [3.2.7]: https://github.com/internetguru/flow/compare/v3.2.6...v3.2.7
 [3.2.6]: https://github.com/internetguru/flow/compare/v3.2.5...v3.2.6

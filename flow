@@ -24,7 +24,7 @@ main() {
     [[ ${VERBOSE} == 0 ]] \
       && return
     MSGOPEN=1
-    [[ "$(stdoutpipe)" || ${COLUMNS} -lt 41 ]] \
+    [[ ! -t 1 || ${COLUMNS} -lt 41 ]] \
       && echo -n "${1}" \
       && return
     echo -n '[ '
@@ -44,7 +44,7 @@ main() {
     [[ ${VERBOSE} == 0 || ${MSGOPEN} == 0 ]] \
       && return
     MSGOPEN=0
-    [[ "$(stdoutpipe)" || ${COLUMNS} -lt 41 ]] \
+    [[ ! -t 1 || ${COLUMNS} -lt 41 ]] \
       && echo " [ ${1} ]" \
       && return
     set_cursor_position
@@ -97,16 +97,15 @@ main() {
   save_cursor_position() {
     local curpos curecho curicanon curmin curtime
     curpos='1;1'
-    exec < /dev/tty
 
     # Capture the specific settings we’re going to modify
     # Note: stty -a output formats vary; these extractions work with both GNU and uutils
     get_flag() {
-      stty -a | grep -oE "\-?$1\b"
+      stty -a </dev/tty | grep -oE "\-?$1\b"
     }
 
     get_num() {
-      stty -a | grep -oP "\b$1 = \K\d+"
+      stty -a </dev/tty | grep -oP "\b$1 = \K\d+"
     }
 
     curecho=$(get_flag 'echo')
@@ -120,7 +119,7 @@ main() {
     [[ -z "${curmin}" ]] && curmin=1
     [[ -z "${curtime}" ]] && curtime=0
 
-    stty -icanon -echo min 0
+    stty -icanon -echo min 0 </dev/tty
 
     echo -en '\033[6n' >/dev/tty
     # shellcheck disable=SC2162
@@ -128,7 +127,7 @@ main() {
 
     # Restore only the flags we changed
     # (This avoids depending on stty -g blobs and avoids side-effects of `raw`)
-    stty "${curicanon}" "${curecho}" min "${curmin}" time "${curtime}"
+    stty "${curicanon}" "${curecho}" min "${curmin}" time "${curtime}" </dev/tty
 
     POSX=$( echo "${curpos#??}" | cut -d';' -f1 )
     POSY=$( echo "${curpos#??}" | cut -d';' -f2 )
