@@ -422,8 +422,32 @@ main() {
     git_reset -q "${VERSION}"
     git_checkout "${VERSION}"
     flow_sed -i '/^<<<<<<< /d;0,/^=======$/s///;/^=======$/d;/^>>>>>>> /d' "${CHANGELOG}"
+    conform_changelog_links "${1}"
     git_add "${CHANGELOG}" "${VERSION}"
     git_merge --continue
+  }
+
+  # keep one link per version: links only the current branch has, then the merged branch's list
+  # 1: merged branch
+  conform_changelog_links() {
+    local tmpfile
+    git_show_exists "${1}:${CHANGELOG}" \
+      || return 0
+    tmpfile="$(mktemp)"
+    git_show "${1}:${CHANGELOG}" | gawk '
+      function label() { return substr($0, 1, index($0, "]")) }
+      /^\[(Unreleased|[0-9][^]]*)\]: / {
+        if (FILENAME == "-") { theirs = theirs $0 "\n"; known[label()] }
+        else if (!(label() in known)) ours = ours $0 "\n"
+        next
+      }
+      FILENAME != "-" { body = body $0 "\n" }
+      END {
+        sub(/\n+$/, "\n", body)
+        printf "%s\n%s%s", body, ours, theirs
+      }
+    ' - "${CHANGELOG}" > "${tmpfile}"
+    mv "${tmpfile}" "${CHANGELOG}"
   }
 
   delete_remote_branch() {
