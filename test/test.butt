@@ -98,6 +98,22 @@ start "flow -V shows version"
   assert_equal "${status}" 3
 end
 #######################################
+: $((i++))
+start "no tput errors without a terminal type"
+  take "${i}"
+  debug "env -u TERM -u LINES -u COLUMNS flow -V"
+  assert_equal "${status}" 0
+  assert_equal "${stderr}" ""
+  { flow -iy \
+    && gch main \
+    && git branch -D dev
+  } >/dev/null 2>&1
+  debug "env -u TERM flow"
+  assert_equal "${status}" 3
+  assert_equal "${errlines[0]}" "flow: Local branch 'dev' not found."
+  assert_equal "${#errlines[@]}" 2
+end
+#######################################
 # : $((i++))
 # start "man flow"
 #   take "${i}"
