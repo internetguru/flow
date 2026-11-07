@@ -444,6 +444,104 @@ start "merge feature"
 end
 #######################################
 : $((i++))
+start "merge feature with own changelog entry"
+  take "${i}"
+  { flow --init --yes \
+    && flow --yes myfeature \
+    && echo a > a \
+    && sed -i 's/^## \[Unreleased\]$/&\n\n### Added\n\n- my entry/' CHANGELOG.md \
+    && git add . \
+    && git commit -am "add feature 1"
+  } >/dev/null
+  debug "flow --yes </dev/null"
+  assert_equal "${status}" 0
+  assert_equal "$(echo "${stdout}" | grep -c "description for")" 0
+  assert_equal "$(git log --oneline dev | grep -c "Update changelog$")" 0
+  assert_equal "$(git show dev:CHANGELOG.md | grep -c '^- my entry$')" 1
+  assert_equal "$(git show dev:CHANGELOG.md | grep -c "New feature")" 0
+  assert_equal "$(gsp)" ""
+end
+#######################################
+: $((i++))
+start "merge feature with own changelog entry and --changelog=always"
+  take "${i}"
+  { flow --init --yes \
+    && flow --yes myfeature \
+    && echo a > a \
+    && sed -i 's/^## \[Unreleased\]$/&\n\n### Added\n\n- my entry/' CHANGELOG.md \
+    && git add . \
+    && git commit -am "add feature 1"
+  } >/dev/null
+  debug "echo 'feature1' | flow --yes --changelog=always"
+  assert_equal "${status}" 0
+  assert_equal "$(git show dev:CHANGELOG.md | grep -c '^- my entry$')" 1
+  assert_equal "$(git show dev:CHANGELOG.md | grep -c '^- feature1$')" 1
+end
+#######################################
+: $((i++))
+start "merge feature with --changelog=never"
+  take "${i}"
+  { flow --init --yes \
+    && flow --yes myfeature \
+    && echo a > a \
+    && git add . \
+    && git commit -am "add feature 1"
+  } >/dev/null
+  debug "flow --yes --changelog=never </dev/null"
+  assert_equal "${status}" 0
+  assert_contains "$(git log --oneline -1 dev)" "Merge branch 'myfeature' into dev"
+  assert_equal "$(git log --oneline dev | grep -c "Update changelog$")" 0
+  assert_equal "$(git show dev:CHANGELOG.md | grep -c "New feature")" 0
+  assert_equal "$(gsp)" ""
+end
+#######################################
+: $((i++))
+start "merge feature with -lnever"
+  take "${i}"
+  { flow --init --yes \
+    && flow --yes myfeature \
+    && echo a > a \
+    && git add . \
+    && git commit -am "add feature 1"
+  } >/dev/null
+  debug "flow --yes -lnever </dev/null"
+  assert_equal "${status}" 0
+  assert_equal "$(git log --oneline dev | grep -c "Update changelog$")" 0
+  assert_equal "$(git show dev:CHANGELOG.md | grep -c "New feature")" 0
+end
+#######################################
+: $((i++))
+start "invalid changelog value"
+  take "${i}"
+  { flow --init --yes; } >/dev/null
+  debug "flow --changelog=foo"
+  assert_equal "${status}" 2
+  assert_contains "${errlines[0]}" "Unknown changelog value"
+  debug "flow --changelog=NEVER"
+  assert_equal "${status}" 2
+  assert_contains "${errlines[0]}" "Unknown changelog value"
+end
+#######################################
+: $((i++))
+start "merge hotfix with own changelog entry"
+  take "${i}"
+  { flow --init --yes \
+    && flow --yes hotfix \
+    && echo a > a \
+    && sed -i '0,/^## \[/s//## [Unreleased]\n\n### Fixed\n\n- my fix\n\n&/' CHANGELOG.md \
+    && git add . \
+    && git commit -am "fix a"
+  } >/dev/null
+  debug "flow --yes </dev/null"
+  assert_equal "${status}" 0
+  assert_equal "$(echo "${stdout}" | grep -c "description for")" 0
+  assert_contains "$(git show main-0:CHANGELOG.md | grep -m1 '^## ')" "## [0.0.1] - "
+  assert_equal "$(git show main-0:CHANGELOG.md | grep -A4 '^## \[0.0.1\]' | tail -1)" "- my fix"
+  assert_equal "$(git show main-0:CHANGELOG.md | grep -c "New feature")" 0
+  assert_equal "$(gsp)" ""
+end
+#######################################
+: $((i++))
 start "verbose merge feature without a terminal"
   take "${i}"
   { flow -iy \

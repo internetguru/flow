@@ -7,7 +7,7 @@ Flow - manage git branching model
 SYNOPSIS
 ========
 
-flow [-cefhinrvVwy] [--color[=WHEN]] [--push] [--pull] [BRANCH]
+flow [-cefhinrvVwy] [-l[WHEN]] [--changelog[=WHEN]] [--color[=WHEN]] [--push] [--pull] [BRANCH]
 
 
 DESCRIPTION
@@ -25,6 +25,9 @@ OPTIONS
 
 \-c, --conform
     Repair (initialize) project to be conform with git flow branching model and proceed.
+
+\-l[WHEN], --changelog[=WHEN]
+    Prompt for a changelog entry when merging a feature or a hotfix; WHEN is 'always', 'never', or 'auto'. With 'auto', Flow prompts only if the branch adds no entry to the changelog itself (on a hotfix branch, write it under an '[Unreleased]' heading). With 'never', Flow adds no entry. Empty WHEN sets the value to 'always'. Default value is 'auto'. Option --auto-entry inserts a general entry wherever Flow would prompt.
 
 \--color[=WHEN], --colour[=WHEN]
     Use markers to highlight command status; WHEN is 'always', 'never', or 'auto'. Empty WHEN sets color to 'always'. Default color value is 'auto'.
@@ -157,7 +160,7 @@ This creates a git repository with key branches and a tag. The default version n
     git commit -m "Add file a"
     flow --yes --auto-entry
 
-This creates a feature branch from dev and merges it back after changes are made. Without the --yes and the --auto-entry options, Flow prompts for a confirmation and a changelog entry respectively.
+This creates a feature branch from dev and merges it back after changes are made. Without the --yes and the --auto-entry options, Flow prompts for a confirmation and a changelog entry respectively, unless the branch already adds a changelog entry.
 
 3. Fix some bugs on dev and release it::
 
