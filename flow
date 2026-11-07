@@ -73,6 +73,17 @@ main() {
     err 'Unknown color value' 2
   }
 
+  setchangelog() {
+    local c=${1:-always}
+    case ${c} in
+      always|never|auto)
+        CHANGELOG_MODE=${c}
+        return 0
+      ;;
+    esac
+    err 'Unknown changelog value' 2
+  }
+
   stdoutpipe() {
     readlink /proc/$$/fd/1 | grep -q '^pipe:'
   }
@@ -1020,10 +1031,20 @@ main() {
     mv "${tmpfile}" "${CHANGELOG}"
   }
 
+  # 1: dest branch
+  has_changelog_entry() {
+    git diff "${1}" -- "${CHANGELOG}" | grep -q '^+- '
+  }
+
   # 1: default keyword
   # 2: dest branch
   update_changelog() {
     local gcb def kw=
+    [[ "${CHANGELOG_MODE}" == never ]] \
+      && return
+    [[ "${CHANGELOG_MODE}" == auto ]] \
+      && has_changelog_entry "${2}" \
+      && return
     gcb=$(current_branch)
     def="New feature '${gcb}'."
     [[ "${ENTRY}" == 1 ]] \
@@ -1070,7 +1091,8 @@ main() {
       || confirm "* Merge feature '${1}' into '${BCHD}'?"
     merge_fromto "${BCHD}" "${1}"
     update_changelog Added "${BCHD}"
-    git_commit -am 'Update changelog'
+    git diff --quiet -- "${CHANGELOG}" \
+      || git_commit -am 'Update changelog'
     [[ ${REQUEST} == 1 ]] \
       && flow_request "${BCHD}" \
       && return
@@ -1363,6 +1385,7 @@ main() {
   declare VERBOSE=0
   declare YES=0
   declare COLOR=auto
+  declare CHANGELOG_MODE=auto
   declare POSX=1
   declare POSY=1
   declare FORCE=0
@@ -1377,8 +1400,8 @@ main() {
 
   # process options
   line=$(IFS=' ' getopt -n "${0}" \
-    -o cefhinrvVwy\? \
-    -l conform,color::,colour::,auto-entry,force,help,init,dry-run,request,verbose,version,what-now,yes,pull,push \
+    -o cefhil::nrvVwy\? \
+    -l changelog::,conform,color::,colour::,auto-entry,force,help,init,dry-run,request,verbose,version,what-now,yes,pull,push \
     -- "${@}" 2>&1) \
     || err "${line}" 2
   eval set -- "${line}"
@@ -1391,6 +1414,7 @@ main() {
      -f|--force) FORCE=1; shift ;;
      -h|-\?|--help) flow_usage; exit ;;
      -i|--init) INIT=1; CONFORM=1; shift ;;
+     -l|--changelog) shift; setchangelog "${1}"; shift ;;
      -n|--dry-run) DRYRUN=1; shift ;;
      --pull) PULL=1; shift ;;
      --push) PUSH=1; shift ;;
