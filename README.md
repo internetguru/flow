@@ -116,6 +116,10 @@ Testing the script requires a built 'flow' command and [Bash Unit Testing Tool](
 butt ~/flow/test/test.butt
 ```
 
+## Considerations
+
+- **Hotfix from the branch Flow runs on.** `flow hotfix` run on an older major's production branch (`main-N`) should create the hotfix from that branch, and releasing it should tag a patch of that line and merge it into `main-N` only. Today it always branches from `main`: `flow_hotfix` and `branch_desc` test `[[ "$(is_prod_branch …)" ]]`, but `is_prod_branch` prints nothing, so the test is always false (use `is_prod_branch … && …`). Releasing looks affected too: `is_hotfix_branch` compares merge-bases with `main`, so a branch made from `main-N` would likely be released as a feature into `dev`. Found while patching `laravel-model-browser` 8.x (`main-8`, v8.4.1) for a production fix, which had to be branched and tagged by hand. Once fixed, add a test for a `main-N` hotfix and drop this item.
+
 ## Contributing
 
 Pull requests are welcome. Don't hesitate to contribute.
