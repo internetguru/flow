@@ -114,16 +114,6 @@ start "no tput errors without a terminal type"
   assert_equal "${#errlines[@]}" 2
 end
 #######################################
-# : $((i++))
-# start "man flow"
-#   take "${i}"
-#   debug "man 2>/dev/null flow"
-#   assert_equal "${status}" 0
-#   assert_startwith "${outlines[0]}" "GF(1)"
-#   debug "flow -n"
-#   assert_equal "${status}" 0
-# end
-#######################################
 ## Error codes
 #######################################
 : $((i++))
@@ -589,16 +579,6 @@ start "force merge feature with uncommitted changes"
   assert_equal "${status}" 5
 end
 #######################################
-# start "merge feature with --request"
-#   { flow --init --yes \
-#     && flow --yes myfeature \
-#     && echo a > a \
-#     && git add . \
-#     && git commit -am "add feature 1"
-#   } >/dev/null
-#   debug "echo 'feature1' | flow --yes --request"
-# fi
-#######################################
 : $((i++))
 start "pull request url of an https remote"
   take "${i}"
@@ -684,26 +664,19 @@ start "release rc2"
   assert_equal "${status}" 0
 end
 #######################################
-# : $((i++))
-# start "try create two stagings"
-#   take "${i}"
-#   { flow --init --yes \
-#     && echo a > a \
-#     && git add . \
-#     && git commit -m "add file a" \
-#     && flow --yes staging \
-#     && gch dev \
-#     && echo b > b \
-#     && git add . \
-#     && git commit -m "add file b"
-#   } >/dev/null 2>&1
-#   debug "flow -v --yes staging"
-#   assert_equal "${status}" 0
-#   assert_equal "$(git_current_branch)" "staging"
-#   assert_equal "$(gsp)" ""
-#   debug "flow -n"
-#   assert_equal "${status}" 0
-# end
+: $((i++))
+start "release an already released staging"
+  take "${i}"
+  { flow --init --yes \
+    && echo a > a \
+    && git add . \
+    && git commit -m "add file a"
+  } >/dev/null
+  debug "flow --yes staging"
+  assert_equal "${status}" 6
+  assert_contains "${errlines[0]}" "Staging branch is already released."
+  assert_equal "$(git show staging:VERSION)" "0.0.0"
+end
 #######################################
 : $((i++))
 start "force staging with uncommited changes"
@@ -803,14 +776,21 @@ start "unmerged changes on staging --conform"
   assert_equal "${status}" 0
 end
 #######################################
-# : $((i++))
-# start "merge staging with --request"
-#  take "${i}"
-#   { flow --init --yes \
-#     && flow --yes
-#   } >/dev/null
-#   debug "flow -v --yes --request"
-# fi
+: $((i++))
+start "merge staging with --request"
+  take "${i}"
+  { git init -q --bare ../"${i}"-origin.git \
+    && flow --init --yes \
+    && git remote add origin https://github.com/acme/repo.git \
+    && git config remote.origin.pushurl ../"${i}"-origin.git \
+    && flow --yes
+  } >/dev/null 2>&1
+  debug "echo | flow --yes --request"
+  assert_equal "${status}" 0
+  assert_contains "${stdout}" "Pull request URL: https://github.com/acme/repo/compare/main...staging?expand=1"
+  assert_equal "$(git show main:VERSION)" "0.0.0"
+  assert_equal "$(git -C ../"${i}"-origin.git branch --list staging)" "  staging"
+end
 #######################################
 ## HOTFIX
 #######################################
