@@ -6,6 +6,26 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Option `--branch` (`-b`) names the branch Flow acts on; without it, Flow acts on the current branch.
+- `flow NAME` on a feature branch starts another feature from dev, and on a hotfix branch another hotfix from the same production branch.
+- Option `--what-now` describes the branch given with `--branch` and names the commands for creating a new branch.
+
+### Changed
+
+- **Breaking:** The argument is always the name of a new branch, which must not exist yet. Advance an existing branch with `flow -b BRANCH` instead of `flow BRANCH`, e.g. `flow -b staging` or `flow -b myfeature`.
+- **Breaking:** `feature` and `hotfix` are no longer keywords and are rejected as too generic branch names. Create a feature with `flow NAME` on dev and a hotfix with `flow -b main`.
+- **Breaking:** A feature always needs a name; Flow no longer creates `feature-USER`.
+- **Breaking:** Plain `flow` on a production branch only creates `hotfix-USER`; release an existing one with `flow -b hotfix-USER`.
+- Releasing staging stops while a hotfix of the production branch is open, locally or on origin.
+- NAME cannot be combined with `--pull`, `--push`, `--init` or `--what-now`, and `--branch` not with `--pull`, `--push` or `--init`; Flow used to ignore the argument.
+
+### Fixed
+
+- A hotfix that stays open while another hotfix or staging is released is still released as a patch version, not merged into dev as a feature.
+- Releasing a hotfix merges the production branch into it first, so parallel hotfixes no longer conflict in VERSION and CHANGELOG.md.
+
 ## [3.3.0-rc.1] - 2026-11-23
 
 ### Added

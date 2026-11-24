@@ -727,9 +727,9 @@ main() {
     validate_version "${BCHD}" "$(increment_minor "${VERS}")"
     VERD=$(load_version "${BCHD}")
     validate_changelog "${BCHD}" "${BCHS}" "${UNRELEASED}" "${BCHS}" "${BCHD}"
-    validate_param "${1:-}"
+    [[ -n "${BRANCH}" ]] \
+      && validate_param "$(get_key_branch "${BRANCH}")"
     validate_param "${DEFAULT_HOTFIX}"
-    validate_param "${DEFAULT_FEATURE}"
     git_checkout "${gcb}"
   }
 
@@ -778,85 +778,105 @@ main() {
     echo "${1}"
   }
 
+  is_production_branch() {
+    [[ "${1}" == "${BCHP}" ]] || is_prod_branch "${1}"
+  }
+
+  # print the production branch a hotfix branch is based on
+  # a hotfix forks from a tagged production commit, a feature from an untagged dev commit
+  # 1: branch
+  hotfix_line() {
+    local base tag major
+    base=$(git merge-base "${1}" "${BCHD}" 2>/dev/null)
+    [[ -z "${base}" ]] \
+      && return 1
+    tag=$(git tag --points-at "${base}" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+    [[ -z "${tag}" ]] \
+      && return 1
+    major=${tag#v}
+    major=${major%%.*}
+    [[ "${major}" == "${VERP%%.*}" ]] \
+      && echo "${BCHP}" \
+      && return 0
+    echo "${BCHP}-${major}"
+  }
+
   is_hotfix_branch() {
-    local base prod
-    base=$(git merge-base "${1}" "${BCHD}")
-    for prod in "${BCHP}" $(git_branch_format --list "${BCHP}-*"); do
-      [[ "${prod}" == "${BCHP}" ]] || is_prod_branch "${prod}" || continue
-      [[ "${base}" == "$(git merge-base "${prod}" "${BCHD}")" ]] \
-        && return 0
-    done
-    return 1
+    hotfix_line "${1}" >/dev/null
   }
 
-  # 1: dest branch
-  # 2: source branch or empty
-  flow_hotfix() {
-    branch_exists "${1}" \
-      && release_hotfix "${1}" \
-      && return
-    local branch="${BCHP}"
-    is_prod_branch "$(current_branch)" \
-      && branch=$(current_branch)
-    [[ -n "${2:-}" ]] \
-      && branch="${2}"
-    create_hotfix "${1}" "${branch}"
+  is_local_branch() {
+    git show-ref --verify --quiet "${REFSHEADS}/${1}"
   }
 
-  # 1: dest branch
-  flow_feature() {
-    branch_exists "${1}" \
-      && release_feature "${1}" \
+  validate_attached_head() {
+    [[ -z "$(current_branch)" ]] \
+      && err 'Detached HEAD; check out a branch first.' 2
+    return 0
+  }
+
+  # set TARGET, the branch to act on: --branch or the current branch
+  set_target() {
+    TARGET=$(get_key_branch "${BRANCH:-$(current_branch)}")
+    is_local_branch "${TARGET}" \
+      || err "Branch '${TARGET}' not found." 2
+  }
+
+  # names that never become a new branch, checked before touching the repository
+  # 1: new branch name
+  validate_name_format() {
+    # shellcheck disable=SC2015
+    git check-ref-format "${REFSHEADS}/${1}" \
+      && [[ "${1}" != -* && "${1,,}" != "head" ]] \
+      || err "Invalid branch name '${1}'." 2
+    [[ "${1,,}" == "${FEATURE}" || "${1,,}" == "${HOTFIX}" ]] \
+      && err "Branch name '${1}' is too generic." 2
+    return 0
+  }
+
+  # 1: new branch name
+  validate_new_branch() {
+    { [[ "$(get_key_branch "${1}")" != "${1}" ]] || is_prod_branch "${1}"; } \
+      && ! branch_exists "${1}" \
+      && err "Branch name '${1}' is reserved for a key branch." 2
+    { branch_exists "${1}" || branch_exists "${ORIGIN}/${1}"; } \
+      && err "Branch '${1}' already exists; to advance it, run '${SCRIPT_NAME} --branch ${1}'." 2
+    return 0
+  }
+
+  # 1: acted-on branch
+  # 2: new branch name
+  flow_create() {
+    [[ "${1}" == "${BCHS}" ]] \
+      && err "No branch can be created from '${BCHS}'." 2
+    validate_new_branch "${2}"
+    is_production_branch "${1}" \
+      && create_hotfix "${2}" "${1}" \
       && return
-    create_feature "${1}"
+    [[ "${1}" != "${BCHD}" ]] \
+      && is_hotfix_branch "${1}" \
+      && create_hotfix "${2}" "$(hotfix_line "${1}")" \
+      && return
+    create_feature "${2}"
   }
 
   flow_action() {
-    local branch
-    branch=$(get_key_branch "${1:-"$(current_branch)"}")
-    # shellcheck disable=SC2015
-    git check-ref-format "${REFSHEADS}/${branch}" \
-      && [[ "${branch,,}" != "head" ]] \
-      || err "Invalid branch name." 2
-    # flow dev* -> release dev
-    [[ "${branch}" == "${BCHD}" ]] \
+    [[ -n "${NAME}" ]] \
+      && flow_create "${TARGET}" "${NAME}" \
+      && return
+    [[ "${TARGET}" == "${BCHD}" ]] \
       && release_dev \
       && return
-    # flow staging* -> release staging
-    [[ "${branch}" == "${BCHS}" ]] \
+    [[ "${TARGET}" == "${BCHS}" ]] \
       && release_staging \
       && return
-    # flow stable* -> create/release default hotfix
-    [[ "${branch}" == "${BCHP}" ]] \
-      && flow_hotfix "${DEFAULT_HOTFIX}" "${BCHP}" \
+    is_production_branch "${TARGET}" \
+      && flow_create "${TARGET}" "${DEFAULT_HOTFIX}" \
       && return
-    # flow prod* -> create/release default hotfix on a prod* branch
-    is_prod_branch "${branch}" \
-      && flow_hotfix "${DEFAULT_HOTFIX}" "${branch}" \
+    is_hotfix_branch "${TARGET}" \
+      && release_hotfix "${TARGET}" \
       && return
-    # flow hotfix -> create/release default hotfix on a stable or prod* branch
-    [[ "${branch}" == "${HOTFIX}" ]] \
-      && flow_hotfix "${DEFAULT_HOTFIX}" \
-      && return
-    # flow feature -> create/release default feature
-    [[ "${branch}" == "${FEATURE}" ]] \
-      && flow_feature "${DEFAULT_FEATURE}" \
-      && return
-    # flow other existing hotfix branch -> release hotfix
-    branch_exists "${branch}" \
-      && is_hotfix_branch "${branch}" \
-      && release_hotfix "${branch}" \
-      && return
-    # if other existing branch -> release feature
-    branch_exists "${branch}" \
-      && release_feature "${branch}" \
-      && return
-    # if on stable|prod -> create hotfix branch
-    is_hotfix_branch "$(current_branch)" \
-      && create_hotfix "${1}" "$(current_branch)" \
-      && return
-    # create feature branch
-    create_feature "${1}"
+    release_feature "${TARGET}"
   }
 
   release_dev() {
@@ -913,6 +933,38 @@ main() {
     checkout_branch "${1}" "${2}"
   }
 
+  # local and remote branches without the remote prefix, each once
+  all_branch_names() {
+    {
+      git for-each-ref --format='%(refname:short)' "${REFSHEADS}"
+      git for-each-ref --format='%(refname:short)' "refs/remotes/${ORIGIN}" | flow_sed "s/^${ORIGIN}\///"
+    } | grep -v -e '^HEAD$' -e "^${ORIGIN}\$" | sort -u
+  }
+
+  # 1: branch name, local or on origin
+  branch_ref() {
+    is_local_branch "${1}" \
+      && echo "${1}" \
+      && return
+    echo "${ORIGIN}/${1}"
+  }
+
+  # release open hotfixes of the production branch before releasing staging
+  validate_no_open_hotfix() {
+    local branch
+    for branch in $(all_branch_names); do
+      [[ "${branch}" == "${BCHD}" || "${branch}" == "${BCHS}" ]] \
+        && continue
+      is_production_branch "${branch}" \
+        && continue
+      git merge-base --is-ancestor "$(branch_ref "${branch}")" "${BCHP}" \
+        && continue
+      [[ "$(hotfix_line "$(branch_ref "${branch}")")" == "${BCHP}" ]] \
+        && err "Hotfix '${branch}' is open; release it with '${SCRIPT_NAME} --branch ${branch}' or delete it first." 4
+    done
+    return 0
+  }
+
   release_staging() {
     # shellcheck disable=SC2015
     [[ ${REQUEST} == 1 ]] \
@@ -920,6 +972,7 @@ main() {
       || confirm "* Release '${BCHS}' branch to '${BCHP}'?"
     is_attached_to "${BCHS}" "${BCHP}" \
       && err 'Staging branch is already released.' 6
+    validate_no_open_hotfix
     merge_fromto "${BCHP}" "${BCHS}"
     msg_start 'Updating changelog'
     local note
@@ -1157,8 +1210,11 @@ main() {
     [[ "${verh%%.*}" == "${VERP%%.*}" ]] \
       && confirm "* Merge hotfix '${1}' into '${dest}' and '${BCHP}'?" \
       || confirm "* Merge hotfix '${1}' only into '${dest}'?"
-    msg_start 'Updating control files'
     git_checkout "${1}"
+    # a parallel hotfix released meanwhile moved the production branch
+    is_merged_to "${dest}" "${1}" \
+      || git_merge_stream "${dest}" downwards
+    msg_start 'Updating control files'
     local verd
     verd=$(load_version "${dest}")
     verh=$(increment_patch "${verd}")
@@ -1304,23 +1360,20 @@ main() {
   }
 
   flow_whatnow() {
-    local branch
-    branch=$(current_branch)
-    [[ -z "${branch}" ]] \
-      && err 'Detached branch.' 6
     echo '***'
-    echo "* Flow on '${branch}'"
+    echo "* Flow on '${TARGET}'"
     echo '*'
-    branch_desc "${branch}"
+    branch_desc "${TARGET}"
     echo '***'
   }
 
   branch_desc() {
-    { [[ "${1}" == "${BCHP}" ]] || is_prod_branch "${1}"; } \
+    is_production_branch "${1}" \
       && echo '* This is considered a read-only stable branch.' \
       && echo '* Do not commit any changes directly to this branch ever!' \
       && echo '*' \
-      && echo "* 1. Run '${SCRIPT_NAME}' to create a hotfix or leave." \
+      && echo "* 1. Run '${SCRIPT_NAME}' to create hotfix '${DEFAULT_HOTFIX}', or '${SCRIPT_NAME} NAME' to name it." \
+      && echo '* 2. Or leave.' \
       && return
     [[ "${1}" == "${BCHS}" ]] \
       && is_attached_to "${BCHS}" "${BCHP}" \
@@ -1341,7 +1394,7 @@ main() {
       && echo '* It is designed for bug fixing and merging features.' \
       && echo '*' \
       && echo '* 1. Make some fixes and feel free to commit directly.' \
-      && echo "* 2. Run '${SCRIPT_NAME} feature_name' to create a new feature." \
+      && echo "* 2. Run '${SCRIPT_NAME} NAME' to create feature NAME." \
       && echo "* 3. Run '${SCRIPT_NAME}' to release this branch." \
       && return
     is_hotfix_branch "${1}" \
@@ -1352,13 +1405,14 @@ main() {
       && echo '* 1. Make sure you really HAVE to hotfix the problem.' \
       && echo '* 2. Fix the critical problem and commit changes.' \
       && echo "* 3. Run '${SCRIPT_NAME}' to merge the hotfix back into stable branch." \
-      && echo '* 4. Good luck.' \
+      && echo "* 4. Run '${SCRIPT_NAME} NAME' to start another hotfix NAME on the same stable branch." \
       && return
     echo '* This is a temporary feature branch.'
     echo '* Its purpose is to create a (one) new feature.'
     echo '*'
     echo '* 1. Create and develop the feature. One feature is a perfect amount.'
     echo "* 2. Run '${SCRIPT_NAME}' to merge it back into dev."
+    echo "* 3. Run '${SCRIPT_NAME} NAME' to start another feature NAME from dev."
   }
 
   # global constants
@@ -1374,7 +1428,6 @@ main() {
   declare -r DATE_FORMAT='+%Y-%m-%d'
   declare -r DEFAULT_HOTFIX="${HOTFIX}-$(whoami)"
   declare -r FEATURE='feature'
-  declare -r DEFAULT_FEATURE="${FEATURE}-$(whoami)"
   declare -r UNRELEASED='Unreleased'
   declare -r KEYWORDS=(Added Changed Deprecated Removed Fixed Security)
   declare -r REFSHEADS='refs/heads'
@@ -1405,17 +1458,21 @@ main() {
   declare PULL=0
   declare PUSH=0
   declare MSGOPEN=0
+  declare BRANCH=
+  declare NAME=
+  declare TARGET=
 
   # process options
   line=$(IFS=' ' getopt -n "${0}" \
-    -o cefhil::nrvVwy\? \
-    -l changelog::,conform,color::,colour::,auto-entry,force,help,init,dry-run,request,verbose,version,what-now,yes,pull,push \
+    -o b:cefhil::nrvVwy\? \
+    -l branch:,changelog::,conform,color::,colour::,auto-entry,force,help,init,dry-run,request,verbose,version,what-now,yes,pull,push \
     -- "${@}" 2>&1) \
     || err "${line}" 2
   eval set -- "${line}"
 
   while [[ ${#} -gt 0 ]]; do
     case ${1} in
+     -b|--branch) shift; BRANCH=${1}; shift ;;
      -c|--conform) CONFORM=1; shift ;;
      -e|--auto-entry) ENTRY=1; shift ;;
      --color|--colour) shift; setcolor "${1}"; shift ;;
@@ -1440,25 +1497,34 @@ main() {
   # flow process
   [[ ${#} -gt 1 ]] \
     && err 'Too many arguments.' 2
+  NAME=${1:-}
+  [[ -n "${NAME}" ]] \
+    && validate_name_format "${NAME}"
+  [[ -n "${NAME}" && ( ${PULL} == 1 || ${PUSH} == 1 || ${INIT} == 1 || ${WHATNOW} == 1 ) ]] \
+    && err 'NAME cannot be combined with --pull, --push, --init or --what-now.' 2
+  [[ -n "${BRANCH}" && ( ${PULL} == 1 || ${PUSH} == 1 || ${INIT} == 1 ) ]] \
+    && err 'Option --branch cannot be combined with --pull, --push or --init.' 2
   validate_requirements
   validate_repository
   validate_status_empty
   [[ ${PULL} == 1 ]] \
     && flow_pull
-  [[ ${PULL} == 1 && ${CONFORM} == 0 && ${PUSH} == 0 && ${INIT} == 0 && ${WHATNOW} == 0 && ${#} == 0 ]] \
+  [[ ${PULL} == 1 && ${CONFORM} == 0 && ${PUSH} == 0 && ${INIT} == 0 && ${WHATNOW} == 0 ]] \
     && flow_finalize
-  flow_validate "${@}"
+  validate_attached_head
+  flow_validate
   [[ ${INIT} == 1 ]] \
     && flow_finalize
   [[ ${PUSH} == 1 ]] \
     && flow_push \
     && flow_finalize
+  set_target
   [[ ${WHATNOW} == 1 ]] \
     && flow_whatnow \
     && flow_finalize
   [[ ${PULL} == 1 ]] \
     && flow_finalize
-  flow_action "${@}" \
+  flow_action \
     && flow_finalize
 
 }

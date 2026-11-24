@@ -5,10 +5,11 @@
 | master | ![tests](https://github.com/internetguru/flow/actions/workflows/test.yml/badge.svg?branch=master) |
 | dev | ![tests](https://github.com/internetguru/flow/actions/workflows/test.yml/badge.svg?branch=dev) |
 
-Advance in a branching model according to the current branch or a branch specified with an argument. For most existing branches, the default action is release. If a given branch does not exist, Flow creates it as a feature or a hotfix depending on the current branch or a keyword (feature/hotfix).
+Advance in a branching model. Flow acts on the current branch, or on the branch given with `--branch`. Without an argument, it advances that branch; with a NAME, it creates a new feature or hotfix branch NAME on that branch's line.
 
 Additionally, Flow handles version incrementing and maintains a changelog. Before proceeding, it verifies the current repository for branching model compliance and offers to correct any detected imperfections.
 
+- [Usage](#usage)
 - [Installation](#installation)
 - [Flow options](https://github.com/internetguru/flow/blob/dev/flow.1.rst#options)
 - [Usage example](https://github.com/internetguru/flow/blob/dev/flow.1.rst#flow-example)
@@ -16,10 +17,10 @@ Additionally, Flow handles version incrementing and maintains a changelog. Befor
 
 ### Branching model automation
 
-- Flow requires *no arguments* and derives a default action.
+- Flow requires *no arguments* and derives the action from the branch it acts on.
 - Flow switches between branches accordingly and advises what to do next.
 - Flow can create pull requests instead of releasing directly.
-- Flow maintains separate production branches for major versions, such as `prod-1`.
+- Flow maintains separate production branches for major versions, such as `main-1`.
 - Flow supports parallel hotfixing, even for separate production branches.
 
 ### Branching model validation
@@ -34,6 +35,51 @@ Additionally, Flow handles version incrementing and maintains a changelog. Befor
  - Flow can initiate a git branching repository in any folder with or without files.
  - Flow can convert any existing git repository to a git branching model.
  - Flow automatically adapts to existing branches, such as 'release' instead of the default 'staging'.
+
+## Usage
+
+```
+flow [OPTIONS] [-b BRANCH] [NAME]
+```
+
+Flow acts on BRANCH, the current branch by default.
+
+| Acted-on branch | `flow` | `flow NAME` |
+| :--- | :--- | :--- |
+| `dev` | release a candidate to `staging` | create feature NAME from `dev` |
+| `staging` | release to `main` and tag it | error |
+| `main` or `main-N` | create hotfix `hotfix-USER` from it | create hotfix NAME from it |
+| a feature | merge it into `dev` | create feature NAME from `dev` |
+| a hotfix | release it as a patch version | create hotfix NAME from its production branch |
+
+- NAME must not exist yet, locally or on origin. `feature` and `hotfix` are too generic to be a NAME, and key branch names are reserved.
+- A feature always needs a NAME; only a hotfix has a default name.
+- Several hotfixes can be open at once. Releasing one merges the production branch into it first.
+- Releasing `staging` stops while a hotfix of `main` is open, locally or on origin. Release or delete the hotfix first.
+
+Examples:
+
+```bash
+flow login-form            # on dev: create feature 'login-form'
+flow                       # on login-form: merge it into dev
+flow -b dev                # from any branch: release dev to staging
+flow -b main               # from any branch: create hotfix 'hotfix-USER' from main
+flow -b main broken-link   # from any branch: create hotfix 'broken-link' from main
+flow -b broken-link        # from any branch: release hotfix 'broken-link'
+```
+
+See the [options](flow.1.rst#options) and the [usage example](flow.1.rst#flow-example) in the man page.
+
+### Upgrading from Flow 3
+
+Flow 4 no longer takes a branch as the argument; the argument is always a new branch name.
+
+| Flow 3 | Flow 4 |
+| :--- | :--- |
+| `flow feature` | `flow NAME` on `dev` (a feature needs a name) |
+| `flow hotfix` | `flow -b main` to create `hotfix-USER`, `flow -b hotfix-USER` to release it |
+| `flow dev`, `flow staging`, `flow main-1` | `flow -b dev`, `flow -b staging`, `flow -b main-1` |
+| `flow mybranch` to finish an existing branch | `flow -b mybranch` |
 
 ## Installation
 

@@ -205,7 +205,7 @@ start "version change on dev"
   { flow -iy \
     && echo 1.0.0 > VERSION \
     && git commit -am "bump version" \
-    && flow --yes hotfix \
+    && flow --yes --branch main \
     && echo a > a \
     && git add . \
     && git commit -am "fix a"
@@ -387,10 +387,11 @@ end
 start "create feature"
   take "${i}"
   { flow --init --yes; } >/dev/null
-  debug "flow -v --yes feature"
+  debug "flow -v --yes myfeature"
   assert_equal "${status}" 0
-  assert_contains "$(git show-ref)" "refs/heads/feature-$(whoami)"
-  assert_equal "$(git_current_branch)" "feature-$(whoami)"
+  assert_contains "$(git show-ref)" "refs/heads/myfeature"
+  assert_equal "$(git rev-parse myfeature)" "$(git rev-parse dev)"
+  assert_equal "$(git_current_branch)" "myfeature"
   debug "flow -n"
   assert_equal "${status}" 6
 end
@@ -516,7 +517,7 @@ end
 start "merge hotfix with own changelog entry"
   take "${i}"
   { flow --init --yes \
-    && flow --yes hotfix \
+    && flow --yes --branch main \
     && echo a > a \
     && sed -i '0,/^## \[/s//## [Unreleased]\n\n### Fixed\n\n- my fix\n\n&/' CHANGELOG.md \
     && git add . \
@@ -623,9 +624,9 @@ end
 start "create rc2"
   take "${i}"
   { flow --init --yes \
-    && flow -y dev
+    && flow -y -b dev
   } >/dev/null
-  debug "flow -y dev"
+  debug "flow -y -b dev"
   assert_equal "${status}" 0
   assert_equal "$(git show dev:VERSION)" "0.2.0"
   assert_equal "$(git show staging:VERSION)" "0.1.0"
@@ -644,8 +645,8 @@ end
 start "release rc2"
   take "${i}"
   { flow --init --yes \
-    && flow -y dev \
-    && flow -y dev
+    && flow -y -b dev \
+    && flow -y -b dev
   } >/dev/null
   debug "flow -y"
   assert_equal "${status}" 0
@@ -672,7 +673,7 @@ start "release an already released staging"
     && git add . \
     && git commit -m "add file a"
   } >/dev/null
-  debug "flow --yes staging"
+  debug "flow --yes -b staging"
   assert_equal "${status}" 6
   assert_contains "${errlines[0]}" "Staging branch is already released."
   assert_equal "$(git show staging:VERSION)" "0.0.0"
@@ -705,7 +706,7 @@ start "merge staging"
     && git commit -m "add file a" \
     && flow --yes
   } >/dev/null
-  debug "flow -v --yes staging"
+  debug "flow -v --yes --branch staging"
   assert_equal "${status}" 0
   assert_equal "$(git show dev:VERSION)" "0.2.0"
   assert_equal "$(git show staging:VERSION)" "0.1.0"
@@ -756,7 +757,7 @@ start "unmerged changes on staging"
     && git add . \
     && git commit -am "a"
   } >/dev/null
-  debug "flow --yes staging"
+  debug "flow --yes -b staging"
   assert_equal "${status}" 3
   assert_contains "${errlines[0]}" "Missing or invalid version file on staging."
 end
@@ -770,7 +771,7 @@ start "unmerged changes on staging --conform"
     && git add . \
     && git commit -am "a"
   } >/dev/null
-  debug "flow -cy staging"
+  debug "flow -cy -b staging"
   assert_equal "${status}" 0
   debug "flow -n"
   assert_equal "${status}" 0
@@ -798,7 +799,7 @@ end
 start "hotfix main"
   take "${i}"
   { flow -iy; } >/dev/null
-  debug "flow -v --yes hotfix"
+  debug "flow -v --yes -b main"
   assert_equal "${status}" 0
   assert_equal "$(git_current_branch)" "hotfix-$(whoami)"
   assert_equal "$(gsp)" ""
@@ -807,16 +808,16 @@ start "hotfix main"
 end
 #######################################
 : $((i++))
-start "hotfix by production branch name"
+start "hotfix with --branch on a production branch"
   take "${i}"
   { flow -iy \
    && echo 1.0.0 > VERSION \
    && git commit -am "bump version" \
-   && flow -y dev \
+   && flow -y -b dev \
    && flow -y \
    && gch dev;
   } >/dev/null
-  debug "flow --yes main-0"
+  debug "flow --yes -b main-0"
   assert_equal "${status}" 0
   assert_equal "$(git_current_branch)" "hotfix-$(whoami)"
   assert_equal "$(git rev-parse HEAD)" "$(git rev-parse main-0)"
@@ -855,7 +856,7 @@ start "merge hotfix on older major"
   { flow -iy \
    && echo 1.0.0 > VERSION \
    && git commit -am "bump version" \
-   && flow -y dev \
+   && flow -y -b dev \
    && flow -y \
    && gch main-0 \
    && flow --yes fix1 \
@@ -864,7 +865,7 @@ start "merge hotfix on older major"
    && git commit -m "add file a" \
    && echo '' | flow --yes \
    && gch main-0 \
-   && flow --yes hotfix \
+   && flow --yes \
    && echo b > b \
    && git add . \
    && git commit -m "add file b";
@@ -917,7 +918,7 @@ start "merge hotfix with unmerged staging"
   take "${i}"
   { flow -iy \
    && flow --yes \
-   && flow --yes hotfix \
+   && flow --yes --branch main \
    && echo b > b \
    && git add . \
    && git commit -m "add file b"
@@ -959,4 +960,370 @@ start "merge staging into dev with conflicts"
   debug "flow --yes --conform"
   assert_equal "${status}" 7
   assert_equal "${errlines[0]}" "flow: error: Committing is not possible because you have unmerged files."
+end
+#######################################
+## Branch option and new branch names
+#######################################
+: $((i++))
+start "feature and hotfix are too generic names"
+  take "${i}"
+  { flow -iy; } >/dev/null
+  debug "flow --yes feature"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: Branch name 'feature' is too generic."
+  debug "flow --yes -b main hotfix"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: Branch name 'hotfix' is too generic."
+  debug "flow --yes Feature"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: Branch name 'Feature' is too generic."
+  assert_equal "$(git_current_branch)" "dev"
+  assert_equal "$(git show-ref | wc -l)" 5
+end
+#######################################
+: $((i++))
+start "existing name is not created again"
+  take "${i}"
+  { flow -iy \
+    && flow --yes myfeature \
+    && gch dev
+  } >/dev/null
+  debug "flow --yes myfeature"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: Branch 'myfeature' already exists; to advance it, run 'flow --branch myfeature'."
+  debug "flow --yes main"
+  assert_equal "${status}" 2
+  assert_contains "${errlines[0]}" "Branch 'main' already exists"
+  assert_equal "$(git_current_branch)" "dev"
+end
+#######################################
+: $((i++))
+start "key branch names are reserved"
+  take "${i}"
+  { flow -iy; } >/dev/null
+  debug "flow --yes master"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: Branch name 'master' is reserved for a key branch."
+  debug "flow --yes main-5"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: Branch name 'main-5' is reserved for a key branch."
+  assert_equal "$(git show-ref | wc -l)" 5
+end
+#######################################
+: $((i++))
+start "no branch is created from staging"
+  take "${i}"
+  { flow -iy; } >/dev/null
+  debug "flow --yes -b staging myfeature"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: No branch can be created from 'staging'."
+  assert_equal "$(git show-ref | wc -l)" 5
+end
+#######################################
+: $((i++))
+start "branch option needs an existing branch"
+  take "${i}"
+  { flow -iy; } >/dev/null
+  debug "flow --yes -b nosuch"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: Branch 'nosuch' not found."
+  assert_equal "$(git show-ref | wc -l)" 5
+end
+#######################################
+: $((i++))
+start "branch option resolves key branch aliases"
+  take "${i}"
+  { flow -iy; } >/dev/null
+  debug "flow --yes --branch develop"
+  assert_equal "${status}" 0
+  assert_equal "$(git show staging:VERSION)" "0.1.0"
+  assert_equal "$(git show dev:VERSION)" "0.2.0"
+end
+#######################################
+: $((i++))
+start "new feature from a feature branch"
+  take "${i}"
+  { flow -iy \
+    && flow --yes feature1 \
+    && echo a > a \
+    && git add . \
+    && git commit -m "add file a"
+  } >/dev/null
+  debug "flow --yes feature2"
+  assert_equal "${status}" 0
+  assert_equal "$(git_current_branch)" "feature2"
+  assert_equal "$(git rev-parse feature2)" "$(git rev-parse dev)"
+end
+#######################################
+: $((i++))
+start "new hotfix from a hotfix branch"
+  take "${i}"
+  { flow -iy \
+    && gch main \
+    && flow --yes fix1 \
+    && echo a > a \
+    && git add . \
+    && git commit -m "add file a"
+  } >/dev/null
+  debug "flow --yes fix2"
+  assert_equal "${status}" 0
+  assert_equal "$(git_current_branch)" "fix2"
+  assert_equal "$(git rev-parse fix2)" "$(git rev-parse main)"
+end
+#######################################
+: $((i++))
+start "merge feature with --branch from another branch"
+  take "${i}"
+  { flow -iy \
+    && flow --yes myfeature \
+    && echo a > a \
+    && git add . \
+    && git commit -m "add feature 1" \
+    && gch main
+  } >/dev/null
+  debug "echo 'feature1' | flow --yes -b myfeature"
+  assert_equal "${status}" 0
+  assert_contains "$(git log --oneline -1 dev)" "Merge branch 'myfeature' into dev"
+  assert_equal "$(git show-ref | grep /refs/heads/myfeature)" ""
+end
+#######################################
+: $((i++))
+start "default hotfix is not created twice"
+  take "${i}"
+  { flow -iy \
+    && gch main \
+    && flow --yes \
+    && gch main
+  } >/dev/null
+  debug "flow --yes"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: Branch 'hotfix-$(whoami)' already exists; to advance it, run 'flow --branch hotfix-$(whoami)'."
+  assert_equal "$(git_current_branch)" "main"
+end
+#######################################
+: $((i++))
+start "what now with --branch"
+  take "${i}"
+  { flow -iy; } >/dev/null
+  debug "flow -w -b main"
+  assert_equal "${status}" 0
+  assert_contains "${stdout}" "* Flow on 'main'"
+  assert_contains "${stdout}" "to create hotfix 'hotfix-$(whoami)'"
+  assert_equal "$(git_current_branch)" "dev"
+end
+#######################################
+: $((i++))
+start "open hotfix blocks releasing staging"
+  take "${i}"
+  { flow -iy \
+    && echo a > a \
+    && git add . \
+    && git commit -m "add file a" \
+    && flow --yes \
+    && flow --yes -b dev myfeature \
+    && flow --yes --branch main \
+    && echo b > b \
+    && git add . \
+    && git commit -m "add file b"
+  } >/dev/null
+  debug "flow --yes -b staging"
+  assert_equal "${status}" 4
+  assert_equal "${errlines[0]}" "flow: Hotfix 'hotfix-$(whoami)' is open; release it with 'flow --branch hotfix-$(whoami)' or delete it first."
+  assert_equal "$(git show main:VERSION)" "0.0.0"
+  { echo '' | flow --yes; } >/dev/null
+  debug "flow --yes -b staging"
+  assert_equal "${status}" 0
+  assert_equal "$(git show main:VERSION)" "0.1.0"
+  assert_contains "$(git show-ref)" "refs/heads/myfeature"
+end
+#######################################
+: $((i++))
+start "invalid new branch names"
+  take "${i}"
+  { flow -iy; } >/dev/null
+  debug "flow --yes a..b"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: Invalid branch name 'a..b'."
+  debug "flow --yes HEAD"
+  assert_equal "${status}" 2
+  debug "flow --yes -- -x"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: Invalid branch name '-x'."
+  assert_equal "$(git show-ref | wc -l)" 5
+end
+#######################################
+: $((i++))
+start "dry run with a new branch name creates nothing"
+  take "${i}"
+  { flow -iy; } >/dev/null
+  debug "flow -n newfeature"
+  assert_equal "${status}" 0
+  assert_equal "$(git show-ref | grep -c /refs/heads/newfeature)" 0
+  assert_equal "$(git_current_branch)" "dev"
+end
+#######################################
+: $((i++))
+start "name and branch cannot be combined with pull, push, init or what now"
+  take "${i}"
+  { flow -iy; } >/dev/null
+  debug "flow --pull newfeature"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: NAME cannot be combined with --pull, --push, --init or --what-now."
+  debug "flow -w newfeature"
+  assert_equal "${status}" 2
+  debug "flow --push -b dev"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: Option --branch cannot be combined with --pull, --push or --init."
+end
+#######################################
+: $((i++))
+start "what now with a missing branch"
+  take "${i}"
+  { flow -iy; } >/dev/null
+  debug "flow -w -b nosuch"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: Branch 'nosuch' not found."
+  assert_equal "${stdout}" ""
+end
+#######################################
+: $((i++))
+start "new feature with --branch on a feature from another branch"
+  take "${i}"
+  { flow -iy \
+    && flow --yes feature1 \
+    && echo a > a \
+    && git add . \
+    && git commit -m "add file a" \
+    && gch main
+  } >/dev/null
+  debug "flow --yes -b feature1 feature2"
+  assert_equal "${status}" 0
+  assert_equal "$(git_current_branch)" "feature2"
+  assert_equal "$(git rev-parse feature2)" "$(git rev-parse dev)"
+end
+#######################################
+: $((i++))
+start "parallel hotfixes are both released as hotfixes"
+  take "${i}"
+  { flow -iy \
+    && flow --yes -b main fix1 \
+    && echo a > a \
+    && git add . \
+    && git commit -m "add file a" \
+    && flow --yes fix2 \
+    && echo b > b \
+    && git add . \
+    && git commit -m "add file b" \
+    && echo '' | flow --yes -b fix1
+  } >/dev/null
+  debug "echo '' | flow --yes -b fix2"
+  assert_equal "${status}" 0
+  assert_equal "$(git show main:VERSION)" "0.0.2"
+  assert_equal "$(git show main:b)" "b"
+  assert_equal "$(git show dev:VERSION)" "0.1.0"
+  assert_contains "$(git tag)" "v0.0.2"
+  assert_equal "$(git show-ref | grep "/refs/heads/fix")" ""
+  assert_equal "$(gsp)" ""
+  debug "flow -n"
+  assert_equal "${status}" 0
+end
+#######################################
+: $((i++))
+start "new hotfix from a hotfix on an older major"
+  take "${i}"
+  { flow -iy \
+   && echo 1.0.0 > VERSION \
+   && git commit -am "bump version" \
+   && flow -y -b dev \
+   && flow -y \
+   && gch main-0 \
+   && flow --yes fix1 \
+   && echo a > a \
+   && git add . \
+   && git commit -m "add file a"
+  } >/dev/null
+  debug "flow --yes fix2"
+  assert_equal "${status}" 0
+  assert_equal "$(git_current_branch)" "fix2"
+  assert_equal "$(git rev-parse fix2)" "$(git rev-parse main-0)"
+end
+#######################################
+: $((i++))
+start "hotfix on an older major does not block releasing staging"
+  take "${i}"
+  { flow -iy \
+   && echo 1.0.0 > VERSION \
+   && git commit -am "bump version" \
+   && flow -y -b dev \
+   && flow -y \
+   && gch main-0 \
+   && flow --yes oldfix \
+   && echo a > a \
+   && git add . \
+   && git commit -m "add file a" \
+   && flow -y -b dev
+  } >/dev/null
+  debug "flow --yes -b staging"
+  assert_equal "${status}" 0
+  assert_equal "$(git show main:VERSION)" "1.1.0"
+  assert_contains "$(git show-ref)" "refs/heads/oldfix"
+end
+#######################################
+: $((i++))
+start "branches that exist only on origin"
+  take "${i}"
+  { git init -q --bare ../"${i}"-origin.git \
+    && flow -iy \
+    && git remote add origin ../"${i}"-origin.git \
+    && git push -q origin --all \
+    && flow --yes -b main rfix \
+    && echo a > a \
+    && git add . \
+    && git commit -qm "add file a" \
+    && git push -q origin rfix \
+    && gch dev \
+    && git branch -qD rfix \
+    && echo b > b \
+    && git add . \
+    && git commit -qm "add file b" \
+    && flow --yes
+  } >/dev/null 2>&1
+  debug "flow --yes -b staging"
+  assert_equal "${status}" 4
+  assert_equal "${errlines[0]}" "flow: Hotfix 'rfix' is open; release it with 'flow --branch rfix' or delete it first."
+  debug "flow --yes -b dev rfix"
+  assert_equal "${status}" 2
+  assert_contains "${errlines[0]}" "Branch 'rfix' already exists"
+  debug "flow -n -b origin/rfix"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: Branch 'origin/rfix' not found."
+  debug "flow -w -b rfix"
+  assert_equal "${status}" 0
+  assert_contains "${stdout}" "temporary hotfix branch"
+end
+#######################################
+: $((i++))
+start "merged branches do not block releasing staging"
+  take "${i}"
+  { flow -iy \
+    && git branch old-release main \
+    && echo a > a \
+    && git add . \
+    && git commit -m "add file a" \
+    && flow --yes
+  } >/dev/null
+  debug "flow --yes -b staging"
+  assert_equal "${status}" 0
+  assert_equal "$(git show main:VERSION)" "0.1.0"
+end
+#######################################
+: $((i++))
+start "detached HEAD"
+  take "${i}"
+  { flow -iy \
+    && git checkout -q --detach dev
+  } >/dev/null
+  debug "flow -b dev"
+  assert_equal "${status}" 2
+  assert_equal "${errlines[0]}" "flow: Detached HEAD; check out a branch first."
 end

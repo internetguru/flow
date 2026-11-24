@@ -7,13 +7,27 @@ Flow - manage git branching model
 SYNOPSIS
 ========
 
-flow [-cefhinrvVwy] [-l[WHEN]] [--changelog[=WHEN]] [--color[=WHEN]] [--push] [--pull] [BRANCH]
+flow [-cefhinrvVwy] [-b BRANCH] [--branch=BRANCH] [-l[WHEN]] [--changelog[=WHEN]] [--color[=WHEN]] [--push] [--pull] [NAME]
 
 
 DESCRIPTION
 ===========
 
-Advance in a branching model according to the current branch or a branch specified with an argument. For most existing branches, the default action is release. If a given branch does not exist, Flow creates it as a feature or a hotfix depending on the current branch or a keyword (feature/hotfix).
+Advance in a branching model. Flow acts on the current branch, or on the branch given with the --branch option.
+
+Without NAME, Flow advances that branch:
+
+- dev: create or increment the release candidate on staging,
+- staging: release to the production branch (main) and tag the version,
+- production branch (main or main-N): create hotfix 'hotfix-USER' from it,
+- hotfix: release it as a patch version,
+- any other branch: merge it as a feature into dev.
+
+With NAME, Flow creates a new branch NAME on the line of that branch: a feature from dev when it acts on dev or on a feature, a hotfix from the production branch when it acts on a production branch or on a hotfix. NAME must not exist yet, locally or on origin. Names 'feature' and 'hotfix' are rejected as too generic, names of key branches are reserved, and no branch can be created from staging. NAME cannot be combined with --pull, --push, --init or --what-now, and --branch cannot be combined with --pull, --push or --init.
+
+Flow tells a hotfix from a feature by where it forks: a hotfix forks from a tagged production commit, a feature from dev. Update a feature by merging dev into it, never the production branch. Several hotfixes can be open at once; releasing one first merges the production branch into it.
+
+Releasing staging stops while a hotfix of the production branch is open, locally or on origin. Release or delete the hotfix first.
 
 Additionally, Flow handles version incrementing and maintains a changelog. Before proceeding, it verifies the current repository for branching model compliance and offers to correct any detected imperfections.
 
@@ -22,6 +36,9 @@ Additionally, Flow handles version incrementing and maintains a changelog. Befor
 
 OPTIONS
 =======
+
+\-b BRANCH, --branch=BRANCH
+    Act on BRANCH instead of the current branch. BRANCH must exist; key branch aliases such as 'master' or 'develop' resolve to the key branches.
 
 \-c, --conform
     Repair (initialize) project to be conform with git flow branching model and proceed.
@@ -54,7 +71,7 @@ OPTIONS
     Push all branches.
 
 \-r, --request
-    Instead of merging prepare current branch for pull request and push it to the origin.
+    Instead of merging prepare the acted-on branch for pull request and push it to the origin.
 
 \-v, --verbose
     Verbose mode.
@@ -63,7 +80,7 @@ OPTIONS
     Print version number.
 
 \-w, --what-now
-    Display what to do on current branch.
+    Display what to do on the acted-on branch.
 
 \-y, --yes
     Assume yes for all questions.
@@ -77,11 +94,11 @@ EXIT CODES
 1
     Generic error code.
 2
-    Parse or invalid option error.
+    Parse or invalid option or argument error, e.g. NAME already exists.
 3
     Nonconforming, fixable with --conform / --init.
 4
-    Nonconforming, cannot be fixed automatically.
+    Nonconforming, cannot be fixed automatically, e.g. an open hotfix blocks releasing staging.
 5
     Uncommitted changes.
 6
@@ -154,13 +171,13 @@ This creates a git repository with key branches and a tag. The default version n
 
 2. Create and release a feature::
 
-    flow --yes feature
+    flow --yes myfeature
     touch a
     git add a
     git commit -m "Add file a"
     flow --yes --auto-entry
 
-This creates a feature branch from dev and merges it back after changes are made. Without the --yes and the --auto-entry options, Flow prompts for a confirmation and a changelog entry respectively, unless the branch already adds a changelog entry.
+This creates feature branch 'myfeature' from dev and merges it back after changes are made. A feature always needs a name. Without the --yes and the --auto-entry options, Flow prompts for a confirmation and a changelog entry respectively, unless the branch already adds a changelog entry.
 
 3. Fix some bugs on dev and release it::
 
@@ -190,13 +207,13 @@ Note: The staging branch and both production branches ('main' and 'main-0') are 
 
 5. Hotfix the production::
 
-    flow --yes hotfix
+    flow --yes --branch main
     touch d
     git add d
     git commit -m "Add file d"
     flow --yes --auto-entry
 
-This increments the patch version and merges the hotfix to the main branch, creates a tag and advances all attached branches with it. To keep the model compliant, it also merges the main branch into dev.
+The first command creates hotfix branch 'hotfix-USER' from main and switches to it, the same as plain ``flow`` run on main. Running ``flow --yes login-fix`` on main would name it 'login-fix' instead. Releasing the hotfix increments the patch version and merges the hotfix to the main branch, creates a tag and advances all attached branches with it. To keep the model compliant, it also merges the main branch into dev.
 
 Note: The git log graph may now look somewhat confusing. It will make much more sense during real development. If you want to see it, use the following command::
 
