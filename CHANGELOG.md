@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Option `--changelog` (`-l`) sets when Flow asks for a changelog entry on a feature or hotfix merge; by default it asks only if the branch adds no entry itself.
+
+### Fixed
+
+- A hotfix started on an older major's production branch (`main-N`) branches from it and is released into that line only, instead of into `dev` as a feature.
+
 ## [3.2.9] - 2026-10-09
 
 ### Fixed
@@ -268,6 +278,7 @@ _Stable release based on [3.0.0-rc.2]._
 
 ## [1.0.0] - 2016-12-22
 
+[Unreleased]: https://github.com/internetguru/flow/compare/staging...dev
 [3.2.9]: https://github.com/internetguru/flow/compare/v3.2.8...v3.2.9
 [3.2.8]: https://github.com/internetguru/flow/compare/v3.2.7...v3.2.8
 [3.2.7]: https://github.com/internetguru/flow/compare/v3.2.6...v3.2.7
