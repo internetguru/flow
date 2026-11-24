@@ -1384,8 +1384,9 @@ main() {
   declare -r ARRD=(dev devel develop next)
 
   # global variables
-  [[ -t 0 ]]
-  declare ISSTDIN=${?}
+  declare ISSTDIN=1
+  [[ -t 0 ]] \
+    && ISSTDIN=0
   declare WHATNOW=0
   declare DRYRUN=0
   declare ENTRY=0
