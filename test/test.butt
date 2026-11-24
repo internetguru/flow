@@ -114,16 +114,6 @@ start "no tput errors without a terminal type"
   assert_equal "${#errlines[@]}" 2
 end
 #######################################
-# : $((i++))
-# start "man flow"
-#   take "${i}"
-#   debug "man 2>/dev/null flow"
-#   assert_equal "${status}" 0
-#   assert_startwith "${outlines[0]}" "GF(1)"
-#   debug "flow -n"
-#   assert_equal "${status}" 0
-# end
-#######################################
 ## Error codes
 #######################################
 : $((i++))
@@ -444,6 +434,104 @@ start "merge feature"
 end
 #######################################
 : $((i++))
+start "merge feature with own changelog entry"
+  take "${i}"
+  { flow --init --yes \
+    && flow --yes myfeature \
+    && echo a > a \
+    && sed -i 's/^## \[Unreleased\]$/&\n\n### Added\n\n- my entry/' CHANGELOG.md \
+    && git add . \
+    && git commit -am "add feature 1"
+  } >/dev/null
+  debug "flow --yes </dev/null"
+  assert_equal "${status}" 0
+  assert_equal "$(echo "${stdout}" | grep -c "description for")" 0
+  assert_equal "$(git log --oneline dev | grep -c "Update changelog$")" 0
+  assert_equal "$(git show dev:CHANGELOG.md | grep -c '^- my entry$')" 1
+  assert_equal "$(git show dev:CHANGELOG.md | grep -c "New feature")" 0
+  assert_equal "$(gsp)" ""
+end
+#######################################
+: $((i++))
+start "merge feature with own changelog entry and --changelog=always"
+  take "${i}"
+  { flow --init --yes \
+    && flow --yes myfeature \
+    && echo a > a \
+    && sed -i 's/^## \[Unreleased\]$/&\n\n### Added\n\n- my entry/' CHANGELOG.md \
+    && git add . \
+    && git commit -am "add feature 1"
+  } >/dev/null
+  debug "echo 'feature1' | flow --yes --changelog=always"
+  assert_equal "${status}" 0
+  assert_equal "$(git show dev:CHANGELOG.md | grep -c '^- my entry$')" 1
+  assert_equal "$(git show dev:CHANGELOG.md | grep -c '^- feature1$')" 1
+end
+#######################################
+: $((i++))
+start "merge feature with --changelog=never"
+  take "${i}"
+  { flow --init --yes \
+    && flow --yes myfeature \
+    && echo a > a \
+    && git add . \
+    && git commit -am "add feature 1"
+  } >/dev/null
+  debug "flow --yes --changelog=never </dev/null"
+  assert_equal "${status}" 0
+  assert_contains "$(git log --oneline -1 dev)" "Merge branch 'myfeature' into dev"
+  assert_equal "$(git log --oneline dev | grep -c "Update changelog$")" 0
+  assert_equal "$(git show dev:CHANGELOG.md | grep -c "New feature")" 0
+  assert_equal "$(gsp)" ""
+end
+#######################################
+: $((i++))
+start "merge feature with -lnever"
+  take "${i}"
+  { flow --init --yes \
+    && flow --yes myfeature \
+    && echo a > a \
+    && git add . \
+    && git commit -am "add feature 1"
+  } >/dev/null
+  debug "flow --yes -lnever </dev/null"
+  assert_equal "${status}" 0
+  assert_equal "$(git log --oneline dev | grep -c "Update changelog$")" 0
+  assert_equal "$(git show dev:CHANGELOG.md | grep -c "New feature")" 0
+end
+#######################################
+: $((i++))
+start "invalid changelog value"
+  take "${i}"
+  { flow --init --yes; } >/dev/null
+  debug "flow --changelog=foo"
+  assert_equal "${status}" 2
+  assert_contains "${errlines[0]}" "Unknown changelog value"
+  debug "flow --changelog=NEVER"
+  assert_equal "${status}" 2
+  assert_contains "${errlines[0]}" "Unknown changelog value"
+end
+#######################################
+: $((i++))
+start "merge hotfix with own changelog entry"
+  take "${i}"
+  { flow --init --yes \
+    && flow --yes hotfix \
+    && echo a > a \
+    && sed -i '0,/^## \[/s//## [Unreleased]\n\n### Fixed\n\n- my fix\n\n&/' CHANGELOG.md \
+    && git add . \
+    && git commit -am "fix a"
+  } >/dev/null
+  debug "flow --yes </dev/null"
+  assert_equal "${status}" 0
+  assert_equal "$(echo "${stdout}" | grep -c "description for")" 0
+  assert_contains "$(git show main-0:CHANGELOG.md | grep -m1 '^## ')" "## [0.0.1] - "
+  assert_equal "$(git show main-0:CHANGELOG.md | grep -A4 '^## \[0.0.1\]' | tail -1)" "- my fix"
+  assert_equal "$(git show main-0:CHANGELOG.md | grep -c "New feature")" 0
+  assert_equal "$(gsp)" ""
+end
+#######################################
+: $((i++))
 start "verbose merge feature without a terminal"
   take "${i}"
   { flow -iy \
@@ -490,16 +578,6 @@ start "force merge feature with uncommitted changes"
   debug "flow -n"
   assert_equal "${status}" 5
 end
-#######################################
-# start "merge feature with --request"
-#   { flow --init --yes \
-#     && flow --yes myfeature \
-#     && echo a > a \
-#     && git add . \
-#     && git commit -am "add feature 1"
-#   } >/dev/null
-#   debug "echo 'feature1' | flow --yes --request"
-# fi
 #######################################
 : $((i++))
 start "pull request url of an https remote"
@@ -586,26 +664,19 @@ start "release rc2"
   assert_equal "${status}" 0
 end
 #######################################
-# : $((i++))
-# start "try create two stagings"
-#   take "${i}"
-#   { flow --init --yes \
-#     && echo a > a \
-#     && git add . \
-#     && git commit -m "add file a" \
-#     && flow --yes staging \
-#     && gch dev \
-#     && echo b > b \
-#     && git add . \
-#     && git commit -m "add file b"
-#   } >/dev/null 2>&1
-#   debug "flow -v --yes staging"
-#   assert_equal "${status}" 0
-#   assert_equal "$(git_current_branch)" "staging"
-#   assert_equal "$(gsp)" ""
-#   debug "flow -n"
-#   assert_equal "${status}" 0
-# end
+: $((i++))
+start "release an already released staging"
+  take "${i}"
+  { flow --init --yes \
+    && echo a > a \
+    && git add . \
+    && git commit -m "add file a"
+  } >/dev/null
+  debug "flow --yes staging"
+  assert_equal "${status}" 6
+  assert_contains "${errlines[0]}" "Staging branch is already released."
+  assert_equal "$(git show staging:VERSION)" "0.0.0"
+end
 #######################################
 : $((i++))
 start "force staging with uncommited changes"
@@ -705,14 +776,21 @@ start "unmerged changes on staging --conform"
   assert_equal "${status}" 0
 end
 #######################################
-# : $((i++))
-# start "merge staging with --request"
-#  take "${i}"
-#   { flow --init --yes \
-#     && flow --yes
-#   } >/dev/null
-#   debug "flow -v --yes --request"
-# fi
+: $((i++))
+start "merge staging with --request"
+  take "${i}"
+  { git init -q --bare ../"${i}"-origin.git \
+    && flow --init --yes \
+    && git remote add origin https://github.com/acme/repo.git \
+    && git config remote.origin.pushurl ../"${i}"-origin.git \
+    && flow --yes
+  } >/dev/null 2>&1
+  debug "echo | flow --yes --request"
+  assert_equal "${status}" 0
+  assert_contains "${stdout}" "Pull request URL: https://github.com/acme/repo/compare/main...staging?expand=1"
+  assert_equal "$(git show main:VERSION)" "0.0.0"
+  assert_equal "$(git -C ../"${i}"-origin.git branch --list staging)" "  staging"
+end
 #######################################
 ## HOTFIX
 #######################################
@@ -728,36 +806,24 @@ start "hotfix main"
   assert_equal "${status}" 6
 end
 #######################################
-# : $((i++))
-# start "hotfix prod"
-#   take "${i}"
-#   { flow -iy; } >/dev/null 2>&1
-#   debug "flow --yes hotfix myhotfix"
-#   assert_equal "${status}" 0
-#   assert_equal "$(git_current_branch)" "hotfix-myhotfix"
-#   assert_equal "$(gsp)" ""
-#   debug "flow -n"
-#   assert_equal "${status}" 0
-# end
-#######################################
-# : $((i++))
-# start "hotfix stable by branch name"
-#   take "${i}"
-#   { flow -iy \
-#    && echo a > a \
-#    && git add . \
-#    && git commit -m "add file a" \
-#    && flow --yes staging \
-#    && flow --yes staging
-#   } >/dev/null 2>&1
-#   debug "flow -v --yes hotfix v0.0"
-#   assert_equal "${status}" 0
-#   load_log
-#   assert_equal "$(git_current_branch)" "hotfix-${user}"
-#   assert_equal "$(gsp)" ""
-#   debug "flow -n"
-#   assert_equal "${status}" 0
-# end
+: $((i++))
+start "hotfix by production branch name"
+  take "${i}"
+  { flow -iy \
+   && echo 1.0.0 > VERSION \
+   && git commit -am "bump version" \
+   && flow -y dev \
+   && flow -y \
+   && gch dev;
+  } >/dev/null
+  debug "flow --yes main-0"
+  assert_equal "${status}" 0
+  assert_equal "$(git_current_branch)" "hotfix-$(whoami)"
+  assert_equal "$(git rev-parse HEAD)" "$(git rev-parse main-0)"
+  assert_equal "$(gsp)" ""
+  debug "flow -n"
+  assert_equal "${status}" 6
+end
 #######################################
 : $((i++))
 start "merge main hotfix"
@@ -778,6 +844,43 @@ start "merge main hotfix"
   assert_equal "$(git show staging:VERSION)" "0.0.1"
   assert_equal "$(git show main:VERSION)" "0.0.1"
   assert_equal "$(git show-ref | grep /refs/heads/hotfix-myhotfix)" ""
+  assert_equal "$(gsp)" ""
+  debug "flow -n"
+  assert_equal "${status}" 0
+end
+#######################################
+: $((i++))
+start "merge hotfix on older major"
+  take "${i}"
+  { flow -iy \
+   && echo 1.0.0 > VERSION \
+   && git commit -am "bump version" \
+   && flow -y dev \
+   && flow -y \
+   && gch main-0 \
+   && flow --yes fix1 \
+   && echo a > a \
+   && git add . \
+   && git commit -m "add file a" \
+   && echo '' | flow --yes \
+   && gch main-0 \
+   && flow --yes hotfix \
+   && echo b > b \
+   && git add . \
+   && git commit -m "add file b";
+  } >/dev/null
+  debug "echo '' | flow --yes"
+  assert_equal "${status}" 0
+  load_log
+  assert_contains "${log}" "(tag: v0.0.1) Merge branch 'fix1' into main-0"
+  assert_contains "${log}" "(HEAD -> main-0, tag: v0.0.2) Merge branch 'hotfix-$(whoami)' into main-0"
+  assert_equal "$(git show main-0:VERSION)" "0.0.2"
+  assert_equal "$(git show main:VERSION)" "1.0.0"
+  assert_equal "$(git show main-1:VERSION)" "1.0.0"
+  assert_equal "$(git show dev:VERSION)" "1.1.0"
+  assert_equal "$(git log --oneline main..main-0 | grep -c "Merge branch")" 2
+  assert_equal "$(git tag --merged dev | grep -c "^v0\.0\.[12]$")" 0
+  assert_equal "$(git show-ref | grep "/refs/heads/\(fix1\|hotfix-\)")" ""
   assert_equal "$(gsp)" ""
   debug "flow -n"
   assert_equal "${status}" 0
