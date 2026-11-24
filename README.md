@@ -54,8 +54,7 @@ Flow acts on BRANCH, the current branch by default.
 
 - NAME must not exist yet, locally or on origin. `feature` and `hotfix` are too generic to be a NAME, and key branch names are reserved.
 - A feature always needs a NAME; only a hotfix has a default name.
-- Several hotfixes can be open at once. Releasing one merges the production branch into it first.
-- Releasing `staging` stops while a hotfix of `main` is open, locally or on origin. Release or delete the hotfix first.
+- Several hotfixes can be open at once, also while `staging` is released. Releasing one merges the production branch into it first.
 
 Examples:
 

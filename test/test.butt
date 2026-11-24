@@ -1113,7 +1113,7 @@ start "what now with --branch"
 end
 #######################################
 : $((i++))
-start "open hotfix blocks releasing staging"
+start "open hotfix survives releasing staging"
   take "${i}"
   { flow -iy \
     && echo a > a \
@@ -1127,14 +1127,15 @@ start "open hotfix blocks releasing staging"
     && git commit -m "add file b"
   } >/dev/null
   debug "flow --yes -b staging"
-  assert_equal "${status}" 4
-  assert_equal "${errlines[0]}" "flow: Hotfix 'hotfix-$(whoami)' is open; release it with 'flow --branch hotfix-$(whoami)' or delete it first."
-  assert_equal "$(git show main:VERSION)" "0.0.0"
-  { echo '' | flow --yes; } >/dev/null
-  debug "flow --yes -b staging"
   assert_equal "${status}" 0
   assert_equal "$(git show main:VERSION)" "0.1.0"
+  debug "echo '' | flow --yes -b hotfix-$(whoami)"
+  assert_equal "${status}" 0
+  assert_equal "$(git show main:VERSION)" "0.1.1"
+  assert_equal "$(git show main:b)" "b"
+  assert_equal "$(git show dev:VERSION)" "0.2.0"
   assert_contains "$(git show-ref)" "refs/heads/myfeature"
+  assert_equal "$(gsp)" ""
 end
 #######################################
 : $((i++))
@@ -1249,7 +1250,7 @@ start "new hotfix from a hotfix on an older major"
 end
 #######################################
 : $((i++))
-start "hotfix on an older major does not block releasing staging"
+start "hotfix on an older major survives releasing staging"
   take "${i}"
   { flow -iy \
    && echo 1.0.0 > VERSION \
@@ -1266,7 +1267,8 @@ start "hotfix on an older major does not block releasing staging"
   debug "flow --yes -b staging"
   assert_equal "${status}" 0
   assert_equal "$(git show main:VERSION)" "1.1.0"
-  assert_contains "$(git show-ref)" "refs/heads/oldfix"
+  debug "flow -w -b oldfix"
+  assert_contains "${stdout}" "temporary hotfix branch"
 end
 #######################################
 : $((i++))
@@ -1288,9 +1290,6 @@ start "branches that exist only on origin"
     && git commit -qm "add file b" \
     && flow --yes
   } >/dev/null 2>&1
-  debug "flow --yes -b staging"
-  assert_equal "${status}" 4
-  assert_equal "${errlines[0]}" "flow: Hotfix 'rfix' is open; release it with 'flow --branch rfix' or delete it first."
   debug "flow --yes -b dev rfix"
   assert_equal "${status}" 2
   assert_contains "${errlines[0]}" "Branch 'rfix' already exists"
@@ -1300,21 +1299,6 @@ start "branches that exist only on origin"
   debug "flow -w -b rfix"
   assert_equal "${status}" 0
   assert_contains "${stdout}" "temporary hotfix branch"
-end
-#######################################
-: $((i++))
-start "merged branches do not block releasing staging"
-  take "${i}"
-  { flow -iy \
-    && git branch old-release main \
-    && echo a > a \
-    && git add . \
-    && git commit -m "add file a" \
-    && flow --yes
-  } >/dev/null
-  debug "flow --yes -b staging"
-  assert_equal "${status}" 0
-  assert_equal "$(git show main:VERSION)" "0.1.0"
 end
 #######################################
 : $((i++))

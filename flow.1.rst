@@ -25,9 +25,7 @@ Without NAME, Flow advances that branch:
 
 With NAME, Flow creates a new branch NAME on the line of that branch: a feature from dev when it acts on dev or on a feature, a hotfix from the production branch when it acts on a production branch or on a hotfix. NAME must not exist yet, locally or on origin. Names 'feature' and 'hotfix' are rejected as too generic, names of key branches are reserved, and no branch can be created from staging. NAME cannot be combined with --pull, --push, --init or --what-now, and --branch cannot be combined with --pull, --push or --init.
 
-Flow tells a hotfix from a feature by where it forks: a hotfix forks from a tagged production commit, a feature from dev. Update a feature by merging dev into it, never the production branch. Several hotfixes can be open at once; releasing one first merges the production branch into it.
-
-Releasing staging stops while a hotfix of the production branch is open, locally or on origin. Release or delete the hotfix first.
+Flow tells a hotfix from a feature by where it forks: a hotfix forks from a tagged production commit, a feature from dev. Update a feature by merging dev into it, never the production branch. Several hotfixes can be open at once, also while staging is released; releasing one first merges the production branch into it.
 
 Additionally, Flow handles version incrementing and maintains a changelog. Before proceeding, it verifies the current repository for branching model compliance and offers to correct any detected imperfections.
 
@@ -98,7 +96,7 @@ EXIT CODES
 3
     Nonconforming, fixable with --conform / --init.
 4
-    Nonconforming, cannot be fixed automatically, e.g. an open hotfix blocks releasing staging.
+    Nonconforming, cannot be fixed automatically.
 5
     Uncommitted changes.
 6

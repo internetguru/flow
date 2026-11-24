@@ -933,38 +933,6 @@ main() {
     checkout_branch "${1}" "${2}"
   }
 
-  # local and remote branches without the remote prefix, each once
-  all_branch_names() {
-    {
-      git for-each-ref --format='%(refname:short)' "${REFSHEADS}"
-      git for-each-ref --format='%(refname:short)' "refs/remotes/${ORIGIN}" | flow_sed "s/^${ORIGIN}\///"
-    } | grep -v -e '^HEAD$' -e "^${ORIGIN}\$" | sort -u
-  }
-
-  # 1: branch name, local or on origin
-  branch_ref() {
-    is_local_branch "${1}" \
-      && echo "${1}" \
-      && return
-    echo "${ORIGIN}/${1}"
-  }
-
-  # release open hotfixes of the production branch before releasing staging
-  validate_no_open_hotfix() {
-    local branch
-    for branch in $(all_branch_names); do
-      [[ "${branch}" == "${BCHD}" || "${branch}" == "${BCHS}" ]] \
-        && continue
-      is_production_branch "${branch}" \
-        && continue
-      git merge-base --is-ancestor "$(branch_ref "${branch}")" "${BCHP}" \
-        && continue
-      [[ "$(hotfix_line "$(branch_ref "${branch}")")" == "${BCHP}" ]] \
-        && err "Hotfix '${branch}' is open; release it with '${SCRIPT_NAME} --branch ${branch}' or delete it first." 4
-    done
-    return 0
-  }
-
   release_staging() {
     # shellcheck disable=SC2015
     [[ ${REQUEST} == 1 ]] \
@@ -972,7 +940,6 @@ main() {
       || confirm "* Release '${BCHS}' branch to '${BCHP}'?"
     is_attached_to "${BCHS}" "${BCHP}" \
       && err 'Staging branch is already released.' 6
-    validate_no_open_hotfix
     merge_fromto "${BCHP}" "${BCHS}"
     msg_start 'Updating changelog'
     local note

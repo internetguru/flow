@@ -18,7 +18,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - **Breaking:** `feature` and `hotfix` are no longer keywords and are rejected as too generic branch names. Create a feature with `flow NAME` on dev and a hotfix with `flow -b main`.
 - **Breaking:** A feature always needs a name; Flow no longer creates `feature-USER`.
 - **Breaking:** Plain `flow` on a production branch only creates `hotfix-USER`; release an existing one with `flow -b hotfix-USER`.
-- Releasing staging stops while a hotfix of the production branch is open, locally or on origin.
 - NAME cannot be combined with `--pull`, `--push`, `--init` or `--what-now`, and `--branch` not with `--pull`, `--push` or `--init`; Flow used to ignore the argument.
 
 ### Fixed
