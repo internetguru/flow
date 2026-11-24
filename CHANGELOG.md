@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - A hotfix that stays open while another hotfix or staging is released is still released as a patch version, not merged into dev as a feature.
 - Releasing a hotfix merges the production branch into it first, so parallel hotfixes no longer conflict in VERSION and CHANGELOG.md.
 
+## [3.3.0] - 2026-11-23
+
+_Stable release based on [3.3.0-rc.1]._
+
 ## [3.3.0-rc.1] - 2026-11-23
 
 ### Added
@@ -301,6 +305,7 @@ _Stable release based on [3.0.0-rc.2]._
 ## [1.0.0] - 2016-12-22
 
 [Unreleased]: https://github.com/internetguru/flow/compare/staging...dev
+[3.3.0]: https://github.com/internetguru/flow/compare/v3.2.9...v3.3.0
 [3.3.0-rc.1]: https://github.com/internetguru/flow/releases/tag/v3.2.9
 [3.2.9]: https://github.com/internetguru/flow/compare/v3.2.8...v3.2.9
 [3.2.8]: https://github.com/internetguru/flow/compare/v3.2.7...v3.2.8
