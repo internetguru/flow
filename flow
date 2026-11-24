@@ -779,7 +779,14 @@ main() {
   }
 
   is_hotfix_branch() {
-    [[ "$(git merge-base "${1}" "${BCHD}")" == "$(git merge-base "${BCHP}" "${BCHD}")" ]]
+    local base prod
+    base=$(git merge-base "${1}" "${BCHD}")
+    for prod in "${BCHP}" $(git_branch_format --list "${BCHP}-*"); do
+      [[ "${prod}" == "${BCHP}" ]] || is_prod_branch "${prod}" || continue
+      [[ "${base}" == "$(git merge-base "${prod}" "${BCHD}")" ]] \
+        && return 0
+    done
+    return 1
   }
 
   # 1: dest branch
@@ -789,7 +796,7 @@ main() {
       && release_hotfix "${1}" \
       && return
     local branch="${BCHP}"
-    [[ "$(is_prod_branch "$(current_branch)")" ]] \
+    is_prod_branch "$(current_branch)" \
       && branch=$(current_branch)
     [[ -n "${2:-}" ]] \
       && branch="${2}"
@@ -1309,7 +1316,7 @@ main() {
   }
 
   branch_desc() {
-    [[ "${1}" == "${BCHP}" || "$(is_prod_branch "${1}")" ]] \
+    { [[ "${1}" == "${BCHP}" ]] || is_prod_branch "${1}"; } \
       && echo '* This is considered a read-only stable branch.' \
       && echo '* Do not commit any changes directly to this branch ever!' \
       && echo '*' \

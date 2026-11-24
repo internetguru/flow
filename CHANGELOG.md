@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Option `--changelog` (`-l`) sets when Flow asks for a changelog entry on a feature or hotfix merge; by default it asks only if the branch adds no entry itself.
 
+### Fixed
+
+- A hotfix started on an older major's production branch (`main-N`) branches from it and is released into that line only, instead of into `dev` as a feature.
+
 ## [3.2.9] - 2026-10-09
 
 ### Fixed
