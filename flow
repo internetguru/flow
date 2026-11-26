@@ -323,7 +323,15 @@ main() {
   git_push() {
     local out
     out="$(git push "${@}" 2>&1)" \
-      || err "${out}"
+      || err_rejected_tags "${out}" 'Nothing was pushed.'
+  }
+
+  err_rejected_tags() {
+    local tags
+    tags="$(flow_sed -n 's/^ ! \[rejected\] *\([^ ]*\) *-> .*(\(already exists\|would clobber existing tag\))$/\1/p' <<< "${1}" | xargs)"
+    [[ -n "${tags}" ]] \
+      && err "${1}"$'\n'"Tags differ from ${ORIGIN}: ${tags}. ${2}"
+    err "${1}"
   }
 
   checkout_branch() {
@@ -1217,9 +1225,12 @@ main() {
     validate_git_remote
     msg_start 'Pulling branches'
     local gcb
+    local diverged=()
     gcb=$(current_branch)
-    git fetch --update-head-ok --all --prune
-    git fetch --tags
+    git_fetch --all --prune
+    local out
+    out="$(git fetch --tags 2>&1)" \
+      || err_rejected_tags "${out}" 'Other tags were fetched.'
     # update branches without checkout to keep the working tree (incl. ignored files) intact
     for branch in $(git_branch_format -r | grep "^${ORIGIN}" | flow_sed "s/^${ORIGIN}\///"); do
       [[ "${branch}" == HEAD ]] \
@@ -1229,21 +1240,25 @@ main() {
       ! branch_exists "${branch}" \
         && git_branch "${branch}" "${ORIGIN}/${branch}"
       git_branch --set-upstream-to "${ORIGIN}/${branch}" "${branch}"
-      ! is_behind_origin "${branch}" \
+      git merge-base --is-ancestor "${ORIGIN}/${branch}" "${branch}" \
+        && continue
+      ! git merge-base --is-ancestor "${branch}" "${ORIGIN}/${branch}" \
+        && diverged+=("${branch}") \
         && continue
       [[ "${branch}" == "${gcb}" ]] \
         && git_merge --ff-only "${ORIGIN}/${branch}" \
         && continue
       git_fetch . "refs/remotes/${ORIGIN}/${branch}:${REFSHEADS}/${branch}"
     done
+    [[ ${#diverged[@]} -gt 0 ]] \
+      && err "Branches diverged from ${ORIGIN}, merge or rebase them first: ${diverged[*]}"
     msg_done
   }
 
   flow_push() {
     validate_git_remote
     msg_start 'Pushing all branches and tags'
-    git push "${ORIGIN}" --all
-    git push "${ORIGIN}" --tags
+    git_push --atomic "${ORIGIN}" "${REFSHEADS}/*:${REFSHEADS}/*" 'refs/tags/*:refs/tags/*'
     msg_done
   }
 
@@ -1251,8 +1266,7 @@ main() {
     validate_git_remote
     local gcb
     gcb=$(current_branch)
-    git push "${ORIGIN}" "${1}"
-    git push "${ORIGIN}" "${gcb}"
+    git_push --atomic "${ORIGIN}" "${1}" "${gcb}"
     request_url_fromto "${gcb}" "${1}"
   }
 
