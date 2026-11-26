@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- `--pull` stops with an error when a local branch has diverged from its remote branch, instead of skipping it.
+- `--push` pushes all branches and tags at once and fails if the remote rejects any of them, instead of pushing part of them and reporting success.
+
 ## [3.3.0] - 2026-11-23
 
 _Stable release based on [3.3.0-rc.1]._

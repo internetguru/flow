@@ -960,3 +960,43 @@ start "merge staging into dev with conflicts"
   assert_equal "${status}" 7
   assert_equal "${errlines[0]}" "flow: error: Committing is not possible because you have unmerged files."
 end
+#######################################
+## PULL AND PUSH
+#######################################
+: $((i++))
+start "pull stops on a diverged branch"
+  take "${i}"
+  { git init -q --bare ../"${i}"-origin.git \
+    && flow --init --yes \
+    && git remote add origin ../"${i}"-origin.git \
+    && flow --push \
+    && git clone -q -b dev ../"${i}"-origin.git ../"${i}"-other \
+    && git -C ../"${i}"-other commit -q --allow-empty -m "other dev" \
+    && git -C ../"${i}"-other push -q origin dev \
+    && git commit -q --allow-empty -m "local dev"
+  } >/dev/null 2>&1
+  debug "flow --pull"
+  assert_equal "${status}" 1
+  assert_contains "${stderr}" "diverged from origin"
+  assert_contains "${stderr}" "dev"
+  assert_equal "$(git log -1 --format=%s dev)" "local dev"
+end
+#######################################
+: $((i++))
+start "push is rejected as a whole"
+  take "${i}"
+  { git init -q --bare ../"${i}"-origin.git \
+    && flow --init --yes \
+    && git remote add origin ../"${i}"-origin.git \
+    && flow --push \
+    && git clone -q -b dev ../"${i}"-origin.git ../"${i}"-other \
+    && git -C ../"${i}"-other commit -q --allow-empty -m "other dev" \
+    && git -C ../"${i}"-other push -q origin dev \
+    && git commit -q --allow-empty -m "local dev" \
+    && git branch myfeature
+  } >/dev/null 2>&1
+  debug "flow --push"
+  assert_equal "${status}" 1
+  assert_equal "$(git -C ../"${i}"-origin.git log -1 --format=%s dev)" "other dev"
+  assert_equal "$(git -C ../"${i}"-origin.git branch --list myfeature)" ""
+end
