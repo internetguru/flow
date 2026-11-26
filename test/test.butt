@@ -73,7 +73,7 @@ start "flow help"
   debug "flow --help"
   assert_equal "${status}" 0
   assert_startwith "${outlines[0]}" "Usage: flow [-"
-  assert_startwith "${outlines[1]}" "  -c, --conform"
+  assert_startwith "${outlines[1]}" "  -b BRANCH, --branch=BRANCH"
   debug "flow -n"
   assert_equal "${status}" 3
 end
