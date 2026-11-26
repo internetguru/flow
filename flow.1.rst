@@ -63,10 +63,10 @@ OPTIONS
     Do not run commands; only parse user options and arguments.
 
 \--pull
-    Pull all remote branches.
+    Pull all remote branches. Stop if a local branch has diverged from its remote branch.
 
 \--push
-    Push all branches.
+    Push all branches and tags at once, or none if the remote rejects any of them.
 
 \-r, --request
     Instead of merging prepare the acted-on branch for pull request and push it to the origin.
