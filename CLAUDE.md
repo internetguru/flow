@@ -2,6 +2,8 @@
 
 `flow` is a single Bash script; `flow.1.rst` is its man page and `test/test.butt` its tests
 (run with [butt](https://github.com/internetguru/butt): `butt test/test.butt`).
+The tests run the installed `flow`, so install the branch first
+(`./configure && make && sudo compiled/install`).
 
 ## Branches, versions and changelog
 
