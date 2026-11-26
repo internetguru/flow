@@ -323,7 +323,15 @@ main() {
   git_push() {
     local out
     out="$(git push "${@}" 2>&1)" \
-      || err "${out}"
+      || err_rejected_tags "${out}" 'Nothing was pushed.'
+  }
+
+  err_rejected_tags() {
+    local tags
+    tags="$(flow_sed -n 's/^ ! \[rejected\] *\([^ ]*\) *-> .*(\(already exists\|would clobber existing tag\))$/\1/p' <<< "${1}" | xargs)"
+    [[ -n "${tags}" ]] \
+      && err "${1}"$'\n'"Tags differ from ${ORIGIN}: ${tags}. ${2}"
+    err "${1}"
   }
 
   checkout_branch() {
@@ -1196,8 +1204,10 @@ main() {
     local gcb
     local diverged=()
     gcb=$(current_branch)
-    git fetch --update-head-ok --all --prune
-    git fetch --tags
+    git_fetch --all --prune
+    local out
+    out="$(git fetch --tags 2>&1)" \
+      || err_rejected_tags "${out}" 'Other tags were fetched.'
     # update branches without checkout to keep the working tree (incl. ignored files) intact
     for branch in $(git_branch_format -r | grep "^${ORIGIN}" | flow_sed "s/^${ORIGIN}\///"); do
       [[ "${branch}" == HEAD ]] \
@@ -1233,8 +1243,7 @@ main() {
     validate_git_remote
     local gcb
     gcb=$(current_branch)
-    git push "${ORIGIN}" "${1}"
-    git push "${ORIGIN}" "${gcb}"
+    git_push --atomic "${ORIGIN}" "${1}" "${gcb}"
     request_url_fromto "${gcb}" "${1}"
   }
 

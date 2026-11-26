@@ -1000,3 +1000,57 @@ start "push is rejected as a whole"
   assert_equal "$(git -C ../"${i}"-origin.git log -1 --format=%s dev)" "other dev"
   assert_equal "$(git -C ../"${i}"-origin.git branch --list myfeature)" ""
 end
+#######################################
+: $((i++))
+start "push names the tags that differ"
+  take "${i}"
+  { git init -q --bare ../"${i}"-origin.git \
+    && flow --init --yes \
+    && git remote add origin ../"${i}"-origin.git \
+    && git tag mytag main \
+    && flow --push \
+    && git tag -f mytag dev
+  } >/dev/null 2>&1
+  debug "flow --push"
+  assert_equal "${status}" 1
+  assert_contains "${stderr}" "Tags differ from origin: mytag. Nothing was pushed."
+end
+#######################################
+: $((i++))
+start "pull names the tags that differ"
+  take "${i}"
+  { git init -q --bare ../"${i}"-origin.git \
+    && flow --init --yes \
+    && git remote add origin ../"${i}"-origin.git \
+    && git tag mytag main \
+    && flow --push \
+    && git clone -q -b dev ../"${i}"-origin.git ../"${i}"-other \
+    && git -C ../"${i}"-other tag -f mytag dev \
+    && git -C ../"${i}"-other push -qf origin mytag
+  } >/dev/null 2>&1
+  debug "flow --pull"
+  assert_equal "${status}" 1
+  assert_contains "${stderr}" "Tags differ from origin: mytag. Other tags were fetched."
+end
+#######################################
+: $((i++))
+start "request stops when the push is rejected"
+  take "${i}"
+  { git init -q --bare ../"${i}"-origin.git \
+    && flow --init --yes \
+    && git remote add origin https://github.com/acme/repo.git \
+    && git config remote.origin.pushurl ../"${i}"-origin.git \
+    && git push -q ../"${i}"-origin.git --all \
+    && git clone -q -b dev ../"${i}"-origin.git ../"${i}"-other \
+    && git -C ../"${i}"-other commit -q --allow-empty -m "other dev" \
+    && git -C ../"${i}"-other push -q origin dev \
+    && flow --yes myfeature \
+    && echo a > a \
+    && git add . \
+    && git commit -qm "add feature 1"
+  } >/dev/null 2>&1
+  debug "echo | flow --yes --request"
+  assert_equal "${status}" 1
+  assert_contains "${stderr}" "[rejected]"
+  assert_equal "$(git -C ../"${i}"-origin.git branch --list myfeature)" ""
+end

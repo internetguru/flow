@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - `--pull` stops with an error when a local branch has diverged from its remote branch, instead of skipping it.
 - `--push` pushes all branches and tags at once and fails if the remote rejects any of them, instead of pushing part of them and reporting success.
+- `--request` stops with an error when the remote rejects its push, instead of printing the pull request URL.
+- When `--pull` or `--push` fails on tags, the error names the tags that differ from the remote.
 
 ## [3.3.0] - 2026-11-23
 
