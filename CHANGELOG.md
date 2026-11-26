@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Instructions for AI agents point to the Flow skills in laravel-scripts instead of downloading copies into the user's skills folder.
 
+
 ## [4.0.0-rc.1] - 2026-11-23
 
 ### Added
